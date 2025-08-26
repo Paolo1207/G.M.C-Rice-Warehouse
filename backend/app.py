@@ -114,10 +114,32 @@ def create_app() -> Flask:
         return send_from_directory(img_dir, filename)
 
     # Allow direct access like /Inventory.html, /Analytics.html, etc.
+    # Also handle /inventory (no extension) and case-insensitive names.
+    KNOWN_PAGES = {
+        'dashboard': 'Dashboard.html',
+        'analytics': 'Analytics.html',
+        'forecast': 'Forecast.html',
+        'regional': 'Regional.html',
+        'inventory': 'Inventory.html',
+        'sales': 'Sales.html',
+        'deliver': 'Deliver.html',
+        'purchase': 'Purchase.html',
+        'reports': 'Reports.html',
+        'user': 'User.html',
+        'notifications': 'Notifications.html',
+        'settings': 'Settings.html',
+        'sidebar': 'Sidebar.html',
+    }
+
     @app.get('/<path:filename>')
     def serve_page_at_root(filename: str):
+        # Exact html file path
         if filename.lower().endswith('.html'):
             return send_from_directory(page_dir, filename)
+        # Try known pages without extension and case-insensitive
+        key = filename.strip('/').lower()
+        if key in KNOWN_PAGES:
+            return send_from_directory(page_dir, KNOWN_PAGES[key])
         return jsonify({"error": "Not found"}), 404
 
     @app.get('/api/ping')
