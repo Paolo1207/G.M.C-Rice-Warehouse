@@ -1,0 +1,119 @@
+/* Purchase Module Styles */
+
+.purchase-module {
+  /* Main content area for Purchase Module */
+}
+
+.purchase-header {
+  /* Header and filter section */
+}
+
+.purchase-filters label {
+  margin-right: 1.5rem;
+}
+
+.purchase-history-section {
+  margin-top: 2rem;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1.5rem;
+}
+
+.purchase-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.export-buttons button {
+  margin-left: 0.5rem;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-buttons button:hover {
+  background: #27642a;
+}
+
+.purchase-history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.purchase-history-table th, .purchase-history-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.status-tag {
+  display: inline-block;
+  padding: 0.3em 0.9em;
+  border-radius: 12px;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.status-tag.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-tag.pending {
+  background: #fffde7;
+  color: #fbc02d;
+}
+
+.record-purchase-section {
+  margin-top: 2.5rem;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1.5rem;
+}
+
+.record-purchase-form .form-row {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.2rem;
+}
+
+.record-purchase-form label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+}
+
+.record-purchase-form input,
+.record-purchase-form select,
+.record-purchase-form textarea {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.record-purchase-form button[type="submit"] {
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.7rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.record-purchase-form button[type="submit"]:hover {
+  background: #27642a;
+}

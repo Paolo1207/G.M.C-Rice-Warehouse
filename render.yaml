@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: gmc-system
+    env: python
+    plan: free
+    buildCommand: |
+      cd backend && pip install -r requirements.txt
+    startCommand: |
+      cd backend && gunicorn -w 3 -b 0.0.0.0:${PORT} app:create_app
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+

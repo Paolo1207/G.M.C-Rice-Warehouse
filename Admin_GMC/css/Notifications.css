@@ -1,0 +1,291 @@
+/* Notifications Module Styles */
+
+.notifications-module {
+  /* Main content area for Notifications Module */
+}
+
+.notifications-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.send-notification-btn {
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.7rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.send-notification-btn:hover {
+  background: #27642a;
+}
+
+.notification-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.2s;
+}
+
+.notification-modal {
+  background: linear-gradient(135deg, #f8fafc 0%, #e8f5e9 100%);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(46, 125, 50, 0.18), 0 1.5px 8px rgba(0,0,0,0.08);
+  padding: 2.5rem 2.8rem 2rem 2.8rem;
+  min-width: 750px;
+  max-width: 98vw;
+  width: 440px;
+  position: relative;
+  animation: modalIn 0.22s cubic-bezier(.4,1.4,.6,1);
+}
+
+@keyframes modalIn {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-header h3 {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #256029;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 2.2rem;
+  color: #bdbdbd;
+  cursor: pointer;
+  transition: color 0.2s;
+  margin-left: 0.5rem;
+}
+
+.close-modal-btn:hover {
+  color: #d32f2f;
+}
+
+#notificationForm label {
+  display: block;
+  margin-bottom: 1.2rem;
+  font-weight: 600;
+  color: #256029;
+  letter-spacing: 0.1px;
+}
+
+#notificationForm input,
+#notificationForm select,
+#notificationForm textarea {
+  margin-top: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border: 1.5px solid #c8e6c9;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  background: #f9fbe7;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#notificationForm input:focus,
+#notificationForm select:focus,
+#notificationForm textarea:focus {
+  border-color: #43a047;
+  box-shadow: 0 0 0 2px #c8e6c9;
+  background: #fff;
+}
+
+#notificationForm textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.advanced-fields {
+  margin-bottom: 1.2rem;
+  background: #f1f8e9;
+  border-radius: 8px;
+  padding: 0.7rem 1rem 0.5rem 1rem;
+  box-shadow: 0 1px 4px rgba(46,125,50,0.06);
+  transition: background 0.2s;
+}
+
+.advanced-fields summary {
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #388e3c;
+  margin-bottom: 0.5rem;
+  outline: none;
+  padding: 0.2rem 0;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.advanced-fields[open] summary {
+  background: #e8f5e9;
+}
+
+.advanced-fields label {
+  color: #256029;
+  font-weight: 500;
+  margin-bottom: 0.7rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.form-actions button[type="submit"] {
+  background: linear-gradient(90deg, #43a047 0%, #388e3c 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.8rem 2.2rem;
+  font-size: 1.13rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(67,160,71,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.form-actions button[type="submit"]:hover {
+  background: linear-gradient(90deg, #388e3c 0%, #256029 100%);
+  box-shadow: 0 4px 16px rgba(67,160,71,0.13);
+}
+
+.form-actions .reset-btn {
+  background: #e0e0e0;
+  color: #256029;
+  border: none;
+  border-radius: 6px;
+  padding: 0.8rem 2.2rem;
+  font-size: 1.13rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.form-actions .reset-btn:hover {
+  background: #bdbdbd;
+}
+
+.form-actions .cancel-btn {
+  background: #e57373;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.8rem 2.2rem;
+  font-size: 1.13rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.form-actions .cancel-btn:hover {
+  background: #d32f2f;
+}
+
+.success-message {
+  margin-top: 1.5rem;
+  background: linear-gradient(90deg, #e8f5e9 0%, #c8e6c9 100%);
+  color: #256029;
+  border-radius: 8px;
+  padding: 1.1rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.13rem;
+  box-shadow: 0 1px 8px rgba(46,125,50,0.08);
+  display: none;
+}
+
+.notifications-log-section {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1.5rem;
+  margin-top: 2rem;
+}
+
+.notifications-log-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.notifications-log-table th, .notifications-log-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.3em 0.9em;
+  border-radius: 12px;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.status-badge.unread {
+  background: #fffde7;
+  color: #fbc02d;
+}
+
+.status-badge.read {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.mark-read-btn {
+  background: #81c784;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  transition: background 0.2s;
+}
+
+.mark-read-btn:disabled {
+  background: #e0e0e0;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  background: #e57373;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.4rem 1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
+}

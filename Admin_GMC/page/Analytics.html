@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - GMC Admin</title>
+    <link rel="stylesheet" href="../css/Sidebar.css">
+    <link rel="stylesheet" href="../css/Analytics.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+          <img src="../image/logo_of_gmc.png" alt="GMC Logo" class="sidebar-logo-img">
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+            <li title="Dashboard"><a href="Dashboard.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="13" width="7" height="8" rx="2"/><rect x="14" y="3" width="7" height="18" rx="2"/></svg> </span><span class="sidebar-label">Dashboard</span></a></li>
+            <li class="active" title="Analytics"><a href="Analytics.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> </span><span class="sidebar-label">Analytics</span></a></li>
+            <li title="Forecast"><a href="Forecast.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg> </span><span class="sidebar-label">Forecast</span></a></li>
+            <li title="Regional Insights"><a href="Regional.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg> </span><span class="sidebar-label">Regional Insights</span></a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+            <li title="Inventory"><a href="Inventory.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/></svg> </span><span class="sidebar-label">Inventory</span></a></li>
+            <li title="Sales"><a href="Sales.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8"/></svg> </span><span class="sidebar-label">Sales</span></a></li>
+            <li title="Deliver"><a href="Deliver.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16,8 20,8 23,11 23,16 16,16 16,8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg> </span><span class="sidebar-label">Deliver</span></a></li>
+            <li title="Purchase"><a href="Purchase.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/></svg> </span><span class="sidebar-label">Purchase</span></a></li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+            <li title="Reports"><a href="Reports.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg> </span><span class="sidebar-label">Reports</span></a></li>
+            <li title="User Management"><a href="User.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg> </span><span class="sidebar-label">User Management</span></a></li>
+            <li title="Notifications"><a href="Notifications.html"><span class="sidebar-icon"> <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> </span><span class="sidebar-label">Notifications</span></a></li>
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+          <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+            <a href="Settings.html" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+              <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="analytics-header">
+            <div class="analytics-title-section">
+                <h2 class="analytics-title-gradient">📊 Analytics</h2>
+                <div class="analytics-subtitle">Visual insights into warehouse and sales performance across all branches</div>
+            </div>
+            <div class="analytics-controls">
+                <div class="date-range-picker">
+                    <label>Date Range:</label>
+                    <select class="date-range-select">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <button class="export-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Key Metrics Row -->
+        <div class="analytics-cards-row">
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 17l6-6 4 4 8-8"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Total Sales</div>
+                    <div class="analytics-card-value">$847,392</div>
+                    <div class="analytics-card-change positive">+12.5% vs last period</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="7" width="18" height="13" rx="2"/>
+                        <path d="M16 3v4"/>
+                        <path d="M8 3v4"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Units Sold</div>
+                    <div class="analytics-card-value">24,567</div>
+                    <div class="analytics-card-change positive">+8.3% vs last period</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Avg Order Value</div>
+                    <div class="analytics-card-value">$34.50</div>
+                    <div class="analytics-card-change positive">+4.2% vs last period</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 17l6-6 4 4 8-8"/>
+                        <path d="M14 7h7v7"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Forecast Accuracy</div>
+                    <div class="analytics-card-value">87.2%</div>
+                    <div class="analytics-card-change positive">+2.1% improvement</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Stock per Branch Chart -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>🏢 Total Stock per Branch</h3>
+                    <div class="chart-controls">
+                        <select class="chart-type-select">
+                            <option value="bar" selected>Bar Chart</option>
+                            <option value="cards">Cards View</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="stockPerBranchChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Trends Chart -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>📈 Sales Trends by Branch</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period">
+                            <option value="daily">Daily</option>
+                            <option value="weekly" selected>Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                        <select class="region-select">
+                            <option value="all" selected>All Branches</option>
+                            <option value="marawoy">Marawoy</option>
+                            <option value="lima">Lima</option>
+                            <option value="malvar">Malvar</option>
+                            <option value="bulacnin">Bulacnin</option>
+                            <option value="bulacnin-main">Bulacnin Main</option>
+                            <option value="boac">Boac</option>
+                            <option value="sta-cruz">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="salesTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast Accuracy & Demand/Supply Gaps -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget chart-widget">
+                <div class="widget-header">
+                    <h3>🎯 Forecast Accuracy by Branch</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="forecastAccuracyChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            <div class="analytics-widget demand-supply-widget">
+                <div class="widget-header">
+                    <h3>⚖️ Demand/Supply Gaps</h3>
+                    <span class="alert-count">3</span>
+                </div>
+                <div class="demand-supply-list">
+                    <div class="gap-item critical">
+                        <div class="gap-icon">⚠️</div>
+                        <div class="gap-content">
+                            <div class="gap-title">Marawoy - Jasmine Rice</div>
+                            <div class="gap-desc">Supply: 500kg | Demand: 800kg | Gap: -300kg</div>
+                        </div>
+                        <div class="gap-status">Critical</div>
+                    </div>
+                    <div class="gap-item warning">
+                        <div class="gap-icon">📉</div>
+                        <div class="gap-content">
+                            <div class="gap-title">Lima - Basmati Rice</div>
+                            <div class="gap-desc">Supply: 1200kg | Demand: 1000kg | Gap: +200kg</div>
+                        </div>
+                        <div class="gap-status">Overstock</div>
+                    </div>
+                    <div class="gap-item info">
+                        <div class="gap-icon">📊</div>
+                        <div class="gap-content">
+                            <div class="gap-title">Malvar - Brown Rice</div>
+                            <div class="gap-desc">Supply: 750kg | Demand: 750kg | Gap: 0kg</div>
+                        </div>
+                        <div class="gap-status">Balanced</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top-Selling Rice per Branch -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget top-products-widget">
+                <div class="widget-header">
+                    <h3>🏆 Top-Selling Rice per Branch</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Branch Tabs -->
+                <div class="branch-tabs">
+                    <button class="branch-tab active" data-branch="marawoy">
+                        <span>Marawoy</span>
+                    </button>
+                    <button class="branch-tab" data-branch="lima">
+                        <span>Lima</span>
+                    </button>
+                    <button class="branch-tab" data-branch="malvar">
+                        <span>Malvar</span>
+                    </button>
+                    <button class="branch-tab" data-branch="bulacnin">
+                        <span>Bulacnin</span>
+                    </button>
+                    <button class="branch-tab" data-branch="bulacnin-main">
+                        <span>Bulacnin Main</span>
+                    </button>
+                    <button class="branch-tab" data-branch="boac">
+                        <span>Boac</span>
+                    </button>
+                    <button class="branch-tab" data-branch="sta-cruz">
+                        <span>Sta. Cruz</span>
+                    </button>
+                </div>
+                
+                <!-- Enhanced Product List -->
+                <div class="top-products-list">
+                    <div class="product-item">
+                        <div class="product-rank">1</div>
+                        <div class="product-info">
+                            <div class="product-name">Jasmine Rice Premium</div>
+                            <div class="product-sales">2,134 units sold</div>
+                        </div>
+                        <div class="product-revenue">$42,680</div>
+                        <div class="product-trend positive">+18.2%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">2</div>
+                        <div class="product-info">
+                            <div class="product-name">Basmati Rice Long Grain</div>
+                            <div class="product-sales">1,891 units sold</div>
+                        </div>
+                        <div class="product-revenue">$37,820</div>
+                        <div class="product-trend positive">+12.7%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">3</div>
+                        <div class="product-info">
+                            <div class="product-name">Brown Rice Organic</div>
+                            <div class="product-sales">1,432 units sold</div>
+                        </div>
+                        <div class="product-revenue">$28,640</div>
+                        <div class="product-trend positive">+9.4%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">4</div>
+                        <div class="product-info">
+                            <div class="product-name">White Rice Regular</div>
+                            <div class="product-sales">1,156 units sold</div>
+                        </div>
+                        <div class="product-revenue">$23,120</div>
+                        <div class="product-trend positive">+7.8%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">5</div>
+                        <div class="product-info">
+                            <div class="product-name">Red Rice Premium</div>
+                            <div class="product-sales">987 units sold</div>
+                        </div>
+                        <div class="product-revenue">$19,740</div>
+                        <div class="product-trend positive">+5.2%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="analytics-widget turnover-widget">
+                <div class="widget-header">
+                    <h3>🔄 Inventory Turnover Rate</h3>
+                </div>
+                <div class="turnover-list">
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Marawoy</div>
+                            <div class="turnover-ratio">4.2x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 84%"></div>
+                            </div>
+                            <div class="turnover-status">Excellent</div>
+                        </div>
+                    </div>
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Lima</div>
+                            <div class="turnover-ratio">3.8x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 76%"></div>
+                            </div>
+                            <div class="turnover-status">Good</div>
+                        </div>
+                    </div>
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Malvar</div>
+                            <div class="turnover-ratio">3.2x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 64%"></div>
+                            </div>
+                            <div class="turnover-status">Average</div>
+                        </div>
+                    </div>
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Bulacnin</div>
+                            <div class="turnover-ratio">4.5x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 90%"></div>
+                            </div>
+                            <div class="turnover-status">Outstanding</div>
+                        </div>
+                    </div>
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Bulacnin Main</div>
+                            <div class="turnover-ratio">3.9x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 78%"></div>
+                            </div>
+                            <div class="turnover-status">Good</div>
+                        </div>
+                    </div>
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Boac</div>
+                            <div class="turnover-ratio">3.6x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 72%"></div>
+                            </div>
+                            <div class="turnover-status">Good</div>
+                        </div>
+                    </div>
+                    <div class="turnover-item">
+                        <div class="turnover-info">
+                            <div class="turnover-branch">Sta. Cruz</div>
+                            <div class="turnover-ratio">4.1x</div>
+                        </div>
+                        <div class="turnover-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 82%"></div>
+                            </div>
+                            <div class="turnover-status">Excellent</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Purchase/Delivery Logs -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget-wide logs-widget">
+                <div class="widget-header">
+                    <h3>📋 Purchase/Delivery Logs</h3>
+                    <div class="log-filters">
+                        <select class="log-type-select">
+                            <option value="all" selected>All Activities</option>
+                            <option value="purchase">Purchases Only</option>
+                            <option value="delivery">Deliveries Only</option>
+                        </select>
+                        <select class="branch-select">
+                            <option value="all" selected>All Branches</option>
+                            <option value="marawoy">Marawoy</option>
+                            <option value="lima">Lima</option>
+                            <option value="malvar">Malvar</option>
+                            <option value="bulacnin">Bulacnin</option>
+                            <option value="bulacnin-main">Bulacnin Main</option>
+                            <option value="boac">Boac</option>
+                            <option value="sta-cruz">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="logs-timeline">
+                    <div class="log-item purchase">
+                        <div class="log-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 17l6-6 4 4 8-8"/>
+                            </svg>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-title">Purchase Order #PO-2024-001</div>
+                            <div class="log-desc">Jasmine Rice Premium - 2000kg received at Marawoy</div>
+                            <div class="log-meta">
+                                <span class="log-branch">Marawoy</span>
+                                <span class="log-time">2 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="log-status">Completed</div>
+                    </div>
+                    <div class="log-item delivery">
+                        <div class="log-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="1" y="3" width="15" height="13"></rect>
+                                <polygon points="16,8 20,8 23,11 23,16 16,16 16,8"></polygon>
+                                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                            </svg>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-title">Delivery #DL-2024-045</div>
+                            <div class="log-desc">Basmati Rice Long Grain - 1500kg delivered to Lima</div>
+                            <div class="log-meta">
+                                <span class="log-branch">Lima</span>
+                                <span class="log-time">4 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="log-status">In Transit</div>
+                    </div>
+                    <div class="log-item purchase">
+                        <div class="log-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 17l6-6 4 4 8-8"/>
+                            </svg>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-title">Purchase Order #PO-2024-002</div>
+                            <div class="log-desc">Brown Rice Organic - 1800kg received at Malvar</div>
+                            <div class="log-meta">
+                                <span class="log-branch">Malvar</span>
+                                <span class="log-time">6 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="log-status">Completed</div>
+                    </div>
+                    <div class="log-item delivery">
+                        <div class="log-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="1" y="3" width="15" height="13"></rect>
+                                <polygon points="16,8 20,8 23,11 23,16 16,16 16,8"></polygon>
+                                <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                            </svg>
+                        </div>
+                        <div class="log-content">
+                            <div class="log-title">Delivery #DL-2024-046</div>
+                            <div class="log-desc">White Rice Short Grain - 1200kg delivered to Bulacnin</div>
+                            <div class="log-meta">
+                                <span class="log-branch">Bulacnin</span>
+                                <span class="log-time">8 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="log-status">Delivered</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Stock per Branch Chart
+        const stockCtx = document.getElementById('stockPerBranchChart').getContext('2d');
+        const stockPerBranchChart = new Chart(stockCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Marawoy', 'Lima', 'Malvar', 'Bulacnin', 'Bulacnin Main', 'Boac', 'Sta. Cruz'],
+                datasets: [{
+                    label: 'Total Stock (kg)',
+                    data: [8500, 7200, 6800, 9100, 7800, 6500, 8200],
+                    backgroundColor: [
+                        'rgba(46, 125, 50, 0.8)',
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(236, 72, 153, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderColor: [
+                        '#2e7d32',
+                        '#3b82f6',
+                        '#f59e0b',
+                        '#8b5cf6',
+                        '#ec4899',
+                        '#059669',
+                        '#dc2626'
+                    ],
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.parsed.y.toLocaleString() + ' kg';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString() + ' kg';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Sales Trends Chart
+        const salesCtx = document.getElementById('salesTrendsChart').getContext('2d');
+        const salesTrendsChart = new Chart(salesCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7', 'Week 8'],
+                datasets: [{
+                    label: 'Marawoy',
+                    data: [32000, 35000, 34000, 38000, 39000, 42000, 41000, 43000],
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }, {
+                    label: 'Lima',
+                    data: [28000, 30000, 32000, 35000, 36000, 38000, 37000, 39000],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }, {
+                    label: 'Malvar',
+                    data: [25000, 27000, 26000, 29000, 30000, 32000, 31000, 33000],
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }, {
+                    label: 'Bulacnin',
+                    data: [30000, 33000, 32000, 36000, 37000, 40000, 39000, 41000],
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }, {
+                    label: 'Bulacnin Main',
+                    data: [27000, 29000, 31000, 34000, 35000, 37000, 36000, 38000],
+                    borderColor: '#ec4899',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }, {
+                    label: 'Boac',
+                    data: [22000, 24000, 23000, 26000, 27000, 29000, 28000, 30000],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }, {
+                    label: 'Sta. Cruz',
+                    data: [29000, 32000, 31000, 35000, 36000, 38000, 37000, 39000],
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + (value / 1000) + 'k';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Forecast Accuracy Chart
+        const forecastCtx = document.getElementById('forecastAccuracyChart').getContext('2d');
+        const forecastAccuracyChart = new Chart(forecastCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Marawoy', 'Lima', 'Malvar', 'Bulacnin', 'Bulacnin Main', 'Boac', 'Sta. Cruz'],
+                datasets: [{
+                    data: [92, 87, 85, 89, 88, 83, 90],
+                    backgroundColor: [
+                        '#10b981',
+                        '#3b82f6',
+                        '#f59e0b',
+                        '#8b5cf6',
+                        '#ec4899',
+                        '#059669',
+                        '#dc2626'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Branch tabs functionality
+        document.querySelectorAll('.branch-tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.branch-tab').forEach(t => t.classList.remove('active'));
+                // Add active class to clicked tab
+                this.classList.add('active');
+                
+                const branch = this.dataset.branch;
+                console.log('Switched to branch:', branch);
+                // Add logic to update product list based on branch
+                updateProductList(branch);
+            });
+        });
+
+        // Chart controls functionality
+        document.querySelector('.chart-period').addEventListener('change', function() {
+            console.log('Chart period changed to:', this.value);
+        });
+
+        document.querySelector('.region-select').addEventListener('change', function() {
+            console.log('Region changed to:', this.value);
+        });
+
+        document.querySelector('.date-range-select').addEventListener('change', function() {
+            console.log('Date range changed to:', this.value);
+        });
+
+        document.querySelector('.chart-type-select').addEventListener('change', function() {
+            console.log('Chart type changed to:', this.value);
+        });
+
+        // Export functionality
+        document.querySelector('.export-btn').addEventListener('click', function() {
+            console.log('Export data clicked');
+        });
+
+        // Branch-specific product data
+        const branchProducts = {
+            marawoy: [
+                { name: 'Jasmine Rice Premium', sales: 2134, revenue: 42680, trend: '+18.2%' },
+                { name: 'Basmati Rice Long Grain', sales: 1891, revenue: 37820, trend: '+12.7%' },
+                { name: 'Brown Rice Organic', sales: 1432, revenue: 28640, trend: '+9.4%' },
+                { name: 'White Rice Regular', sales: 1156, revenue: 23120, trend: '+7.8%' },
+                { name: 'Red Rice Premium', sales: 987, revenue: 19740, trend: '+5.2%' }
+            ],
+            lima: [
+                { name: 'White Rice Regular', sales: 2456, revenue: 49120, trend: '+22.1%' },
+                { name: 'Jasmine Rice Premium', sales: 1987, revenue: 39740, trend: '+15.8%' },
+                { name: 'Brown Rice Organic', sales: 1654, revenue: 33080, trend: '+11.3%' },
+                { name: 'Basmati Rice Long Grain', sales: 1342, revenue: 26840, trend: '+8.9%' },
+                { name: 'Red Rice Premium', sales: 1123, revenue: 22460, trend: '+6.7%' }
+            ],
+            malvar: [
+                { name: 'Basmati Rice Long Grain', sales: 2876, revenue: 57520, trend: '+25.4%' },
+                { name: 'Jasmine Rice Premium', sales: 2234, revenue: 44680, trend: '+19.7%' },
+                { name: 'White Rice Regular', sales: 1876, revenue: 37520, trend: '+14.2%' },
+                { name: 'Brown Rice Organic', sales: 1456, revenue: 29120, trend: '+10.8%' },
+                { name: 'Red Rice Premium', sales: 1234, revenue: 24680, trend: '+7.5%' }
+            ],
+            bulacnin: [
+                { name: 'Brown Rice Organic', sales: 3123, revenue: 62460, trend: '+28.9%' },
+                { name: 'Jasmine Rice Premium', sales: 2654, revenue: 53080, trend: '+23.1%' },
+                { name: 'White Rice Regular', sales: 2187, revenue: 43740, trend: '+17.6%' },
+                { name: 'Basmati Rice Long Grain', sales: 1765, revenue: 35300, trend: '+13.4%' },
+                { name: 'Red Rice Premium', sales: 1432, revenue: 28640, trend: '+9.8%' }
+            ],
+            'bulacnin-main': [
+                { name: 'Red Rice Premium', sales: 3456, revenue: 69120, trend: '+31.2%' },
+                { name: 'Jasmine Rice Premium', sales: 2987, revenue: 59740, trend: '+26.5%' },
+                { name: 'Brown Rice Organic', sales: 2456, revenue: 49120, trend: '+21.3%' },
+                { name: 'White Rice Regular', sales: 1987, revenue: 39740, trend: '+16.7%' },
+                { name: 'Basmati Rice Long Grain', sales: 1654, revenue: 33080, trend: '+12.9%' }
+            ],
+            boac: [
+                { name: 'White Rice Regular', sales: 3876, revenue: 77520, trend: '+34.7%' },
+                { name: 'Jasmine Rice Premium', sales: 3234, revenue: 64680, trend: '+29.8%' },
+                { name: 'Brown Rice Organic', sales: 2678, revenue: 53560, trend: '+24.1%' },
+                { name: 'Basmati Rice Long Grain', sales: 2187, revenue: 43740, trend: '+19.3%' },
+                { name: 'Red Rice Premium', sales: 1876, revenue: 37520, trend: '+15.6%' }
+            ],
+            'sta-cruz': [
+                { name: 'Jasmine Rice Premium', sales: 4234, revenue: 84680, trend: '+37.9%' },
+                { name: 'White Rice Regular', sales: 3654, revenue: 73080, trend: '+32.4%' },
+                { name: 'Brown Rice Organic', sales: 2987, revenue: 59740, trend: '+27.2%' },
+                { name: 'Basmati Rice Long Grain', sales: 2456, revenue: 49120, trend: '+22.8%' },
+                { name: 'Red Rice Premium', sales: 2123, revenue: 42460, trend: '+18.7%' }
+            ]
+        };
+
+        function updateProductList(branch) {
+            const productsList = document.querySelector('.top-products-list');
+            const products = branchProducts[branch];
+            
+            if (!products) return;
+            
+            productsList.innerHTML = '';
+            
+            products.forEach((product, index) => {
+                const productItem = document.createElement('div');
+                productItem.className = 'product-item';
+                productItem.innerHTML = `
+                    <div class="product-rank">${index + 1}</div>
+                    <div class="product-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-sales">${product.sales.toLocaleString()} units sold</div>
+                    </div>
+                    <div class="product-revenue">$${product.revenue.toLocaleString()}</div>
+                    <div class="product-trend positive">${product.trend}</div>
+                `;
+                productsList.appendChild(productItem);
+            });
+        }
+    </script>
+</body>
+</html>

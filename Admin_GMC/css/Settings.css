@@ -1,0 +1,147 @@
+/* Settings Module Styles */
+
+.settings-module {
+  /* Main content area for Settings Module */
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem 1.5rem;
+}
+
+.settings-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #256029;
+  margin-bottom: 2.2rem;
+  letter-spacing: 0.5px;
+}
+
+.settings-section {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(46,125,50,0.07);
+  padding: 2rem 2.5rem 1.5rem 2.5rem;
+  margin-bottom: 2.2rem;
+}
+
+.settings-section h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #388e3c;
+  margin-bottom: 1.3rem;
+}
+
+.settings-section form label {
+  display: block;
+  margin-bottom: 1.1rem;
+  font-weight: 600;
+  color: #256029;
+}
+
+.settings-section input,
+.settings-section select {
+  margin-top: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border: 1.5px solid #c8e6c9;
+  border-radius: 8px;
+  font-size: 1.08rem;
+  background: #f9fbe7;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-section input:focus,
+.settings-section select:focus {
+  border-color: #43a047;
+  box-shadow: 0 0 0 2px #c8e6c9;
+  background: #fff;
+}
+
+.settings-section button {
+  background: linear-gradient(90deg, #43a047 0%, #388e3c 100%);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.8rem 2.2rem;
+  font-size: 1.13rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(67,160,71,0.08);
+  transition: background 0.2s, box-shadow 0.2s;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.settings-section button:hover {
+  background: linear-gradient(90deg, #388e3c 0%, #256029 100%);
+  box-shadow: 0 4px 16px rgba(67,160,71,0.13);
+}
+
+.profile-form,
+.password-form,
+.reset-form,
+.thresholds-form,
+.regional-form,
+.maintenance-form {
+  margin-bottom: 0.5rem;
+}
+
+.password-strength {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 0.5rem;
+}
+.strength-bar {
+  display: inline-block;
+  width: 60px;
+  height: 8px;
+  border-radius: 4px;
+  background: #ffcdd2;
+  transition: background 0.2s;
+}
+.strength-label {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #d32f2f;
+}
+
+.preferences-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.preference-card {
+  flex: 1 1 260px;
+  background: #f8fafc;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(46,125,50,0.04);
+  padding: 1.2rem 1.5rem 1.2rem 1.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.preference-card h4 {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #2e7d32;
+  margin-bottom: 1rem;
+}
+
+.reset-info {
+  font-size: 0.98rem;
+  color: #388e3c;
+  margin-top: 0.7rem;
+  margin-bottom: 0.2rem;
+}
+
+.save-profile-btn,
+.update-password-btn,
+.send-reset-btn,
+.save-thresholds-btn,
+.save-regional-btn,
+.retrain-btn {
+  margin-top: 1.1rem;
+}
+
