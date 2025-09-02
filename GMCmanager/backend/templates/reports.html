@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+    <div class="nav-section">
+        <h2>Main Menu</h2>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Reports</h2>
+        <ul>
+            <li><a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Settings</h2>
+        <ul>
+            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+        </ul>
+    </div>
+</div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="reports-container">
+                <div class="reports-header">
+                    <h2>Reports</h2>
+                    <div class="reports-actions">
+                        <button class="btn primary" onclick="scheduleExport()">
+                            <i class="fas fa-clock"></i> Schedule Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Report Categories -->
+                <div class="report-categories">
+                    <div class="category-section">
+                        <h3>Forecast Reports</h3>
+                        <div class="report-cards">
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h4>Demand Forecast Report</h4>
+                                    <p>Shows forecasted demand per product and date</p>
+                                    <div class="report-filters">
+                                        <select id="demandDateRange">
+                                            <option value="7">Last 7 Days</option>
+                                            <option value="30">Last 30 Days</option>
+                                            <option value="90">Last 3 Months</option>
+                                        </select>
+                                        <select id="demandProduct">
+                                            <option value="">All Products</option>
+                                        </select>
+                                    </div>
+                                    <div class="report-actions">
+                                        <button class="btn secondary" onclick="exportReport('demand', 'pdf')">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('demand', 'excel')">
+                                            <i class="fas fa-file-excel"></i> Excel
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('demand', 'csv')">
+                                            <i class="fas fa-file-csv"></i> CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="fas fa-tags"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h4>Price Forecast Report</h4>
+                                    <p>Shows forecasted price trends and recommendations</p>
+                                    <div class="report-filters">
+                                        <select id="priceDateRange">
+                                            <option value="7">Last 7 Days</option>
+                                            <option value="30">Last 30 Days</option>
+                                            <option value="90">Last 3 Months</option>
+                                        </select>
+                                        <select id="priceCategory">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="report-actions">
+                                        <button class="btn secondary" onclick="exportReport('price', 'pdf')">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('price', 'excel')">
+                                            <i class="fas fa-file-excel"></i> Excel
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('price', 'csv')">
+                                            <i class="fas fa-file-csv"></i> CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h4>Stock Risk Forecast</h4>
+                                    <p>Identifies potential stock risks and shortages</p>
+                                    <div class="report-filters">
+                                        <select id="riskDateRange">
+                                            <option value="7">Next 7 Days</option>
+                                            <option value="30">Next 30 Days</option>
+                                            <option value="90">Next 3 Months</option>
+                                        </select>
+                                        <select id="riskLevel">
+                                            <option value="">All Risk Levels</option>
+                                            <option value="high">High Risk</option>
+                                            <option value="medium">Medium Risk</option>
+                                            <option value="low">Low Risk</option>
+                                        </select>
+                                    </div>
+                                    <div class="report-actions">
+                                        <button class="btn secondary" onclick="exportReport('risk', 'pdf')">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('risk', 'excel')">
+                                            <i class="fas fa-file-excel"></i> Excel
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('risk', 'csv')">
+                                            <i class="fas fa-file-csv"></i> CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="category-section">
+                        <h3>Inventory Reports</h3>
+                        <div class="report-cards">
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="fas fa-box"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h4>Inventory Report</h4>
+                                    <p>Current stock levels and movement history</p>
+                                    <div class="report-filters">
+                                        <select id="inventoryDateRange">
+                                            <option value="7">Last 7 Days</option>
+                                            <option value="30">Last 30 Days</option>
+                                            <option value="90">Last 3 Months</option>
+                                        </select>
+                                        <select id="inventoryCategory">
+                                            <option value="">All Categories</option>
+                                        </select>
+                                    </div>
+                                    <div class="report-actions">
+                                        <button class="btn secondary" onclick="exportReport('inventory', 'pdf')">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('inventory', 'excel')">
+                                            <i class="fas fa-file-excel"></i> Excel
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('inventory', 'csv')">
+                                            <i class="fas fa-file-csv"></i> CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="category-section">
+                        <h3>Sales Reports</h3>
+                        <div class="report-cards">
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h4>Sales Report</h4>
+                                    <p>Sales performance and trends analysis</p>
+                                    <div class="report-filters">
+                                        <select id="salesDateRange">
+                                            <option value="7">Last 7 Days</option>
+                                            <option value="30">Last 30 Days</option>
+                                            <option value="90">Last 3 Months</option>
+                                        </select>
+                                        <select id="salesBranch">
+                                            <option value="">All Branches</option>
+                                        </select>
+                                    </div>
+                                    <div class="report-actions">
+                                        <button class="btn secondary" onclick="exportReport('sales', 'pdf')">
+                                            <i class="fas fa-file-pdf"></i> PDF
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('sales', 'excel')">
+                                            <i class="fas fa-file-excel"></i> Excel
+                                        </button>
+                                        <button class="btn secondary" onclick="exportReport('sales', 'csv')">
+                                            <i class="fas fa-file-csv"></i> CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export History -->
+                <div class="export-history">
+                    <h3>Export History</h3>
+                    <div class="table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Report Name</th>
+                                    <th>Generated By</th>
+                                    <th>Date Generated</th>
+                                    <th>File Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exportHistoryBody">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        // Initialize reports page
+        document.addEventListener('DOMContentLoaded', function() {
+            initReports();
+        });
+
+        function initReports() {
+            loadExportHistory();
+            setupReportFilters();
+        }
+
+        // Load export history
+        function loadExportHistory() {
+            // Sample data - replace with actual API call
+            const history = [
+                {
+                    reportName: "Demand Forecast Report",
+                    generatedBy: "John Doe",
+                    dateGenerated: "2024-03-15",
+                    fileType: "PDF",
+                    status: "Completed"
+                },
+                {
+                    reportName: "Sales Report",
+                    generatedBy: "Jane Smith",
+                    dateGenerated: "2024-03-14",
+                    fileType: "Excel",
+                    status: "Completed"
+                }
+            ];
+
+            const tbody = document.getElementById('exportHistoryBody');
+            tbody.innerHTML = '';
+
+            history.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.reportName}</td>
+                    <td>${item.generatedBy}</td>
+                    <td>${formatDate(item.dateGenerated)}</td>
+                    <td>${item.fileType}</td>
+                    <td><span class="status ${item.status.toLowerCase()}">${item.status}</span></td>
+                    <td>
+                        <button class="btn-icon" onclick="downloadReport('${item.reportName}')">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Setup report filters
+        function setupReportFilters() {
+            const dateRanges = document.querySelectorAll('select[id$="DateRange"]');
+            dateRanges.forEach(select => {
+                select.addEventListener('change', function() {
+                    // Update report data based on selected date range
+                    console.log(`Date range changed for ${this.id}`);
+                });
+            });
+        }
+
+        // Export report
+        function exportReport(reportType, format) {
+            try {
+                // Get selected filters
+                const dateRange = document.getElementById(`${reportType}DateRange`).value;
+                const filters = {
+                    dateRange: dateRange,
+                    // Add other filters based on report type
+                };
+
+                // Show loading state
+                showNotification(`Generating ${reportType} report...`, 'info');
+
+                // Simulate API call
+                setTimeout(() => {
+                    showNotification(`${reportType} report exported successfully`, 'success');
+                    loadExportHistory(); // Refresh history
+                }, 1500);
+            } catch (error) {
+                console.error('Error exporting report:', error);
+                showNotification('Error exporting report', 'error');
+            }
+        }
+
+        // Download report
+        function downloadReport(reportName) {
+            try {
+                showNotification(`Downloading ${reportName}...`, 'info');
+                // Implement download logic
+            } catch (error) {
+                console.error('Error downloading report:', error);
+                showNotification('Error downloading report', 'error');
+            }
+        }
+
+        // Schedule export
+        function scheduleExport() {
+            try {
+                // Implement schedule export logic
+                showNotification('Export scheduling feature coming soon', 'info');
+            } catch (error) {
+                console.error('Error scheduling export:', error);
+                showNotification('Error scheduling export', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

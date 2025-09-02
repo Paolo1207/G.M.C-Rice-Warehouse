@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notifications - G.M.C. Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+                <div class="nav-section">
+                    <h2>Main Menu</h2>
+                    <ul>
+                        <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+                        <li><a href="{{ url_for('inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+                        <li><a href="{{ url_for('forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+                        <li><a href="{{ url_for('sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                        <li><a href="{{ url_for('purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Reports</h2>
+                    <ul>
+                        <li><a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+                        <li><a href="{{ url_for('analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Settings</h2>
+                    <ul>
+                        <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                        <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="notifications-container">
+                <div class="notifications-header">
+                    <h2>Notifications Center</h2>
+                    <div class="notifications-actions">
+                        <button class="btn secondary" onclick="markAllAsRead()">
+                            <i class="fas fa-check-double"></i> Mark All as Read
+                        </button>
+                        <button class="btn secondary" onclick="clearAllNotifications()">
+                            <i class="fas fa-trash"></i> Clear All
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notification Filters -->
+                <div class="notification-filters">
+                    <div class="filter-group">
+                        <label for="typeFilter">Type:</label>
+                        <select id="typeFilter" onchange="filterNotifications()">
+                            <option value="all">All Types</option>
+                            <option value="alert">Alerts</option>
+                            <option value="update">Updates</option>
+                            <option value="info">Information</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="statusFilter">Status:</label>
+                        <select id="statusFilter" onchange="filterNotifications()">
+                            <option value="all">All Status</option>
+                            <option value="unread">Unread</option>
+                            <option value="read">Read</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- System Alerts -->
+                <div class="notification-section">
+                    <h3>System Alerts</h3>
+                    <div class="notification-list" id="systemAlerts">
+                        <!-- Sample System Alerts -->
+                        <div class="notification-item unread alert" onclick="toggleNotification(this)">
+                            <div class="notification-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4>Low Stock Alert</h4>
+                                <p>Premium Rice (25kg) is running low on stock. Current quantity: 5 units. Please reorder soon.</p>
+                                <span class="notification-time">2 hours ago</span>
+                            </div>
+                            <div class="notification-actions">
+                                <button class="btn-icon" onclick="markAsRead(event, this)" title="Mark as Read">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-icon" onclick="archiveNotification(event, this)" title="Archive">
+                                    <i class="fas fa-archive"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="notification-item update" onclick="toggleNotification(this)">
+                            <div class="notification-icon">
+                                <i class="fas fa-sync"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4>Inventory Update</h4>
+                                <p>New stock of Jasmine Rice (50kg) has been added. Quantity: 100 units.</p>
+                                <span class="notification-time">5 hours ago</span>
+                            </div>
+                            <div class="notification-actions">
+                                <button class="btn-icon" onclick="markAsRead(event, this)" title="Mark as Read">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-icon" onclick="archiveNotification(event, this)" title="Archive">
+                                    <i class="fas fa-archive"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Branch Announcements -->
+                <div class="notification-section">
+                    <h3>Branch Announcements</h3>
+                    <div class="notification-list" id="branchAnnouncements">
+                        <!-- Sample Branch Announcements -->
+                        <div class="notification-item unread info" onclick="toggleNotification(this)">
+                            <div class="notification-icon">
+                                <i class="fas fa-bullhorn"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4>New Branch Opening</h4>
+                                <p>We are excited to announce the opening of our new branch in Makati City next month. Join us for the grand opening ceremony!</p>
+                                <span class="notification-time">1 day ago</span>
+                            </div>
+                            <div class="notification-actions">
+                                <button class="btn-icon" onclick="markAsRead(event, this)" title="Mark as Read">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-icon" onclick="archiveNotification(event, this)" title="Archive">
+                                    <i class="fas fa-archive"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="notification-item alert" onclick="toggleNotification(this)">
+                            <div class="notification-icon">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div class="notification-content">
+                                <h4>Monthly Inventory Count</h4>
+                                <p>Monthly inventory count is scheduled for next week. Please prepare your stock records and ensure all items are properly labeled.</p>
+                                <span class="notification-time">2 days ago</span>
+                            </div>
+                            <div class="notification-actions">
+                                <button class="btn-icon" onclick="markAsRead(event, this)" title="Mark as Read">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-icon" onclick="archiveNotification(event, this)" title="Archive">
+                                    <i class="fas fa-archive"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        // Initialize notifications page
+        document.addEventListener('DOMContentLoaded', function() {
+            initNotifications();
+        });
+
+        function initNotifications() {
+            // Load notifications from storage or API
+            loadNotifications();
+        }
+
+        function loadNotifications() {
+            try {
+                // Implement loading notifications from storage or API
+                // For now, we're using the sample notifications in the HTML
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                showToast('Error loading notifications', 'error');
+            }
+        }
+
+        function filterNotifications() {
+            const typeFilter = document.getElementById('typeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const notifications = document.querySelectorAll('.notification-item');
+
+            notifications.forEach(notification => {
+                const type = notification.classList.contains('alert') ? 'alert' :
+                           notification.classList.contains('update') ? 'update' : 'info';
+                const status = notification.classList.contains('unread') ? 'unread' : 'read';
+
+                const typeMatch = typeFilter === 'all' || type === typeFilter;
+                const statusMatch = statusFilter === 'all' || status === statusFilter;
+
+                notification.style.display = typeMatch && statusMatch ? 'flex' : 'none';
+            });
+        }
+
+        function toggleNotification(element) {
+            element.classList.toggle('expanded');
+        }
+
+        function markAsRead(event, button) {
+            event.stopPropagation();
+            const notification = button.closest('.notification-item');
+            notification.classList.remove('unread');
+            showToast('Notification marked as read', 'success');
+            // Implement marking as read in storage or API
+        }
+
+        function archiveNotification(event, button) {
+            event.stopPropagation();
+            const notification = button.closest('.notification-item');
+            notification.style.display = 'none';
+            showToast('Notification archived', 'success');
+            // Implement archiving in storage or API
+        }
+
+        function markAllAsRead() {
+            const unreadNotifications = document.querySelectorAll('.notification-item.unread');
+            unreadNotifications.forEach(notification => {
+                notification.classList.remove('unread');
+            });
+            showToast('All notifications marked as read', 'success');
+            // Implement marking all as read in storage or API
+        }
+
+        function clearAllNotifications() {
+            if (confirm('Are you sure you want to clear all notifications?')) {
+                const notifications = document.querySelectorAll('.notification-item');
+                notifications.forEach(notification => {
+                    notification.style.display = 'none';
+                });
+                showToast('All notifications cleared', 'success');
+                // Implement clearing all notifications in storage or API
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 
+                              type === 'error' ? 'fa-exclamation-circle' : 
+                              'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

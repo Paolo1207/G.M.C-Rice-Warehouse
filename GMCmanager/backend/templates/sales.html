@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Analysis</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/sales.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+    <div class="nav-section">
+        <h2>Main Menu</h2>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Reports</h2>
+        <ul>
+            <li><a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Settings</h2>
+        <ul>
+            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+        </ul>
+    </div>
+</div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="sales-container">
+                <div class="sales-header">
+                    <h2>Sales Analysis</h2>
+                    <div class="sales-actions">
+                        <button class="btn secondary" onclick="exportSalesReport()">
+                            <i class="fas fa-download"></i> Export Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sales Filters -->
+                <div class="sales-filters">
+                    <div class="filter-group">
+                        <select id="dateRange">
+                            <option value="7">Last 7 Days</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="90">Last 3 Months</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        <select id="productFilter">
+                            <option value="">All Products</option>
+                        </select>
+                        
+                    </div>
+                    <div class="date-range" id="customDateRange" style="display: none;">
+                        <input type="date" id="startDate">
+                        <input type="date" id="endDate">
+                    </div>
+                </div>
+
+                <!-- Sales Overview Cards -->
+                <div class="sales-overview">
+                    <div class="overview-card">
+                        <div class="card-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Units Sold</h3>
+                            <p class="number">5,678</p>
+                            <p class="trend positive">+12.5% from last period</p>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon success">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Average Daily Sales</h3>
+                            <p class="number">234</p>
+                            <p class="trend positive">+8.3% from last week</p>
+                        </div>
+                    </div>
+                    <div class="overview-card">
+                        <div class="card-icon warning">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Top Selling Product</h3>
+                            <p class="product">Product A</p>
+                            <p class="quantity">1,234 units</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Charts -->
+                <div class="sales-charts">
+                    <div class="chart-container">
+                        <h3>Daily Sales Trend</h3>
+                        <canvas id="dailySalesChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Product Performance</h3>
+                        <canvas id="productPerformanceChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Top Products Share</h3>
+                        <canvas id="productShareChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sales Table -->
+                <div class="sales-table-container">
+                    <h3>Sales Log</h3>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="searchSales" placeholder="Search sales...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <div class="export-options">
+                            <button class="btn secondary" onclick="exportToCSV()">
+                                <i class="fas fa-file-csv"></i> CSV
+                            </button>
+                            <button class="btn secondary" onclick="exportToExcel()">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button class="btn secondary" onclick="printSales()">
+                                <i class="fas fa-print"></i> Print
+                            </button>
+                        </div>
+                    </div>
+                    <table class="sales-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity Sold</th>
+                                <th>Sale Date</th>
+                                <th>Branch</th>
+                                <th>Encoder</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/main.js"></script>
+    <script>
+        // Initialize sales page
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                initSales();
+            } catch (error) {
+                console.error('Error initializing sales page:', error);
+                showNotification('Error loading sales data. Please try refreshing the page.', 'error');
+            }
+        });
+
+        function initSales() {
+            setupFilters();
+            initCharts();
+            loadSalesData();
+        }
+
+        // Setup filters
+        function setupFilters() {
+            try {
+                const dateRange = document.getElementById('dateRange');
+                const customDateRange = document.getElementById('customDateRange');
+
+                if (!dateRange || !customDateRange) {
+                    throw new Error('Required filter elements not found');
+                }
+
+                dateRange.addEventListener('change', function() {
+                    if (this.value === 'custom') {
+                        customDateRange.style.display = 'flex';
+                    } else {
+                        customDateRange.style.display = 'none';
+                        loadSalesData();
+                    }
+                });
+
+                // Setup other filter event listeners
+                const filters = ['productFilter', 'categoryFilter', 'searchSales'];
+                filters.forEach(filterId => {
+                    const element = document.getElementById(filterId);
+                    if (element) {
+                        element.addEventListener('change', loadSalesData);
+                    }
+                });
+            } catch (error) {
+                console.error('Error setting up filters:', error);
+                showNotification('Error setting up filters', 'error');
+            }
+        }
+
+        // Initialize charts
+        function initCharts() {
+            try {
+                // Sample data for charts
+                const dailySalesData = {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    data: [65, 59, 80, 81, 56, 55, 40]
+                };
+
+                const productPerformanceData = {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [
+                        {
+                            label: 'Product A',
+                            data: [65, 59, 80, 81, 56, 55]
+                        },
+                        {
+                            label: 'Product B',
+                            data: [28, 48, 40, 19, 86, 27]
+                        }
+                    ]
+                };
+
+                const productShareData = {
+                    labels: ['Product A', 'Product B', 'Product C', 'Product D'],
+                    data: [30, 25, 25, 20]
+                };
+
+                // Initialize Daily Sales Chart
+                const dailySalesCtx = document.getElementById('dailySalesChart');
+                if (dailySalesCtx) {
+                    new Chart(dailySalesCtx.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: dailySalesData.labels,
+                            datasets: [{
+                                label: 'Units Sold',
+                                data: dailySalesData.data,
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderColor: 'rgb(75, 192, 192)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Daily Sales Trend'
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Initialize Product Performance Chart
+                const productPerformanceCtx = document.getElementById('productPerformanceChart');
+                if (productPerformanceCtx) {
+                    new Chart(productPerformanceCtx.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels: productPerformanceData.labels,
+                            datasets: productPerformanceData.datasets.map(dataset => ({
+                                ...dataset,
+                                borderColor: dataset.label === 'Product A' ? 'rgb(75, 192, 192)' : 'rgb(255, 99, 132)',
+                                tension: 0.1
+                            }))
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Product Performance'
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // Initialize Product Share Chart
+                const productShareCtx = document.getElementById('productShareChart');
+                if (productShareCtx) {
+                    new Chart(productShareCtx.getContext('2d'), {
+                        type: 'pie',
+                        data: {
+                            labels: productShareData.labels,
+                            datasets: [{
+                                data: productShareData.data,
+                                backgroundColor: [
+                                    'rgb(75, 192, 192)',
+                                    'rgb(255, 99, 132)',
+                                    'rgb(255, 205, 86)',
+                                    'rgb(54, 162, 235)'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Top Products Share'
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error initializing charts:', error);
+                showNotification('Error loading charts', 'error');
+            }
+        }
+
+        // Load sales data
+        async function loadSalesData() {
+            try {
+                // Sample data - replace with actual API call
+                const data = [
+                    {
+                        id: 1,
+                        product: "Product A",
+                        quantity: 100,
+                        saleDate: "2024-03-15",
+                        branch: "Main Branch",
+                        encoder: "John Doe"
+                    },
+                    {
+                        id: 2,
+                        product: "Product B",
+                        quantity: 75,
+                        saleDate: "2024-03-15",
+                        branch: "Main Branch",
+                        encoder: "Jane Smith"
+                    },
+                    {
+                        id: 3,
+                        product: "Product C",
+                        quantity: 50,
+                        saleDate: "2024-03-14",
+                        branch: "Branch 2",
+                        encoder: "Mike Johnson"
+                    },
+                    {
+                        id: 4,
+                        product: "Product A",
+                        quantity: 25,
+                        saleDate: "2024-03-14",
+                        branch: "Branch 3",
+                        encoder: "Sarah Wilson"
+                    }
+                ];
+
+                renderSalesTable(data);
+                updateOverviewCards(data);
+            } catch (error) {
+                console.error('Error loading sales data:', error);
+                showNotification('Error loading sales data', 'error');
+            }
+        }
+
+        // Update overview cards with data
+        function updateOverviewCards(data) {
+            try {
+                // Calculate total units sold
+                const totalUnits = data.reduce((sum, item) => sum + item.quantity, 0);
+                document.querySelector('.overview-card:nth-child(1) .number').textContent = totalUnits.toLocaleString();
+
+                // Calculate average daily sales
+                const uniqueDates = new Set(data.map(item => item.saleDate));
+                const avgDailySales = Math.round(totalUnits / uniqueDates.size);
+                document.querySelector('.overview-card:nth-child(2) .number').textContent = avgDailySales.toLocaleString();
+
+                // Find top selling product
+                const productSales = data.reduce((acc, item) => {
+                    acc[item.product] = (acc[item.product] || 0) + item.quantity;
+                    return acc;
+                }, {});
+
+                const topProduct = Object.entries(productSales)
+                    .sort(([, a], [, b]) => b - a)[0];
+
+                if (topProduct) {
+                    document.querySelector('.overview-card:nth-child(3) .product').textContent = topProduct[0];
+                    document.querySelector('.overview-card:nth-child(3) .quantity').textContent = 
+                        `${topProduct[1].toLocaleString()} units`;
+                }
+            } catch (error) {
+                console.error('Error updating overview cards:', error);
+            }
+        }
+
+        // Render sales table
+        function renderSalesTable(data) {
+            try {
+                const tbody = document.getElementById('salesTableBody');
+                if (!tbody) {
+                    throw new Error('Sales table body not found');
+                }
+
+                tbody.innerHTML = '';
+
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.product}</td>
+                        <td>${item.quantity.toLocaleString()}</td>
+                        <td>${formatDate(item.saleDate)}</td>
+                        <td>${item.branch}</td>
+                        <td>${item.encoder}</td>
+                        <td>
+                            <button class="btn-icon" onclick="viewSaleDetails(${item.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-icon" onclick="printSaleReceipt(${item.id})">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error rendering sales table:', error);
+                showNotification('Error displaying sales data', 'error');
+            }
+        }
+
+        // Filter sales
+        function filterSales() {
+            try {
+                const searchTerm = document.getElementById('searchSales').value.toLowerCase();
+                const rows = document.querySelectorAll('#salesTableBody tr');
+
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(searchTerm) ? '' : 'none';
+                });
+            } catch (error) {
+                console.error('Error filtering sales:', error);
+            }
+        }
+
+        // Export functions
+        function exportSalesReport() {
+            try {
+                // Implement export logic
+                showNotification('Sales report exported successfully', 'success');
+            } catch (error) {
+                console.error('Error exporting sales report:', error);
+                showNotification('Error exporting sales report', 'error');
+            }
+        }
+
+        function exportToCSV() {
+            try {
+                // Implement CSV export
+                showNotification('Sales data exported to CSV', 'success');
+            } catch (error) {
+                console.error('Error exporting to CSV:', error);
+                showNotification('Error exporting to CSV', 'error');
+            }
+        }
+
+        function exportToExcel() {
+            try {
+                // Implement Excel export
+                showNotification('Sales data exported to Excel', 'success');
+            } catch (error) {
+                console.error('Error exporting to Excel:', error);
+                showNotification('Error exporting to Excel', 'error');
+            }
+        }
+
+        function printSales() {
+            try {
+                window.print();
+            } catch (error) {
+                console.error('Error printing sales:', error);
+                showNotification('Error printing sales data', 'error');
+            }
+        }
+
+        // View sale details
+        function viewSaleDetails(id) {
+            try {
+                // Implement view details logic
+                showNotification('Viewing sale details...', 'info');
+            } catch (error) {
+                console.error('Error viewing sale details:', error);
+                showNotification('Error viewing sale details', 'error');
+            }
+        }
+
+        // Print sale receipt
+        function printSaleReceipt(id) {
+            try {
+                // Implement print receipt logic
+                showNotification('Printing sale receipt...', 'info');
+            } catch (error) {
+                console.error('Error printing sale receipt:', error);
+                showNotification('Error printing sale receipt', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

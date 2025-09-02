@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+    <div class="nav-section">
+        <h2>Main Menu</h2>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Reports</h2>
+        <ul>
+            <li><a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Settings</h2>
+        <ul>
+            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+        </ul>
+    </div>
+</div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="settings-container">
+                <div class="settings-header">
+                    <h2>Account Settings</h2>
+                </div>
+
+                <!-- Profile Information -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-user-circle"></i> Profile Information</h3>
+                    <form id="profileForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="fullName">Full Name</label>
+                            <input type="text" id="fullName" name="fullName" value="John Doe" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" value="john.doe@example.com" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="branch">Assigned Branch</label>
+                            <input type="text" id="branch" name="branch" value="Main Branch" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="role">Role</label>
+                            <input type="text" id="role" name="role" value="Branch Manager" readonly>
+                        </div>
+                        <button type="submit" class="btn primary">Save Changes</button>
+                    </form>
+                </div>
+
+                <!-- Change Password -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-key"></i> Change Password</h3>
+                    <form id="passwordForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="currentPassword">Current Password</label>
+                            <div class="password-input">
+                                <input type="password" id="currentPassword" name="currentPassword" required>
+                                <button type="button" class="btn-icon" onclick="togglePassword('currentPassword')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <div class="password-input">
+                                <input type="password" id="newPassword" name="newPassword" required>
+                                <button type="button" class="btn-icon" onclick="togglePassword('newPassword')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="password-strength">
+                                <div class="strength-meter">
+                                    <div class="strength-bar"></div>
+                                </div>
+                                <span class="strength-text">Password strength: <span id="strengthValue">None</span></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirm New Password</label>
+                            <div class="password-input">
+                                <input type="password" id="confirmPassword" name="confirmPassword" required>
+                                <button type="button" class="btn-icon" onclick="togglePassword('confirmPassword')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn primary">Change Password</button>
+                    </form>
+                </div>
+
+                <!-- Forgot Password -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-question-circle"></i> Forgot Password</h3>
+                    <p>If you've forgotten your password, we can send a reset link to your email address.</p>
+                    <form id="forgotPasswordForm" class="settings-form">
+                        <div class="form-group">
+                            <label for="resetEmail">Email Address</label>
+                            <input type="email" id="resetEmail" name="resetEmail" required>
+                        </div>
+                        <button type="submit" class="btn secondary">Send Reset Link</button>
+                    </form>
+                </div>
+
+                <!-- Logout -->
+                <div class="settings-section">
+                    <h3><i class="fas fa-sign-out-alt"></i> Logout</h3>
+                    <p>Click the button below to securely log out of your account.</p>
+                    <button onclick="confirmLogout()" class="btn danger">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        // Initialize settings page
+        document.addEventListener('DOMContentLoaded', function() {
+            initSettings();
+        });
+
+        function initSettings() {
+            // Add event listeners for forms
+            document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+            document.getElementById('passwordForm').addEventListener('submit', handlePasswordChange);
+            document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
+            
+            // Add password strength checker
+            document.getElementById('newPassword').addEventListener('input', checkPasswordStrength);
+        }
+
+        // Handle profile update
+        function handleProfileUpdate(e) {
+            e.preventDefault();
+            try {
+                // Implement profile update logic
+                showNotification('Profile updated successfully', 'success');
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                showNotification('Error updating profile', 'error');
+            }
+        }
+
+        // Handle password change
+        function handlePasswordChange(e) {
+            e.preventDefault();
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                showNotification('New passwords do not match', 'error');
+                return;
+            }
+
+            try {
+                // Implement password change logic
+                showNotification('Password changed successfully', 'success');
+                e.target.reset();
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showNotification('Error changing password', 'error');
+            }
+        }
+
+        // Handle forgot password
+        function handleForgotPassword(e) {
+            e.preventDefault();
+            const email = document.getElementById('resetEmail').value;
+
+            try {
+                // Implement forgot password logic
+                showNotification('Password reset link sent to your email', 'success');
+                e.target.reset();
+            } catch (error) {
+                console.error('Error sending reset link:', error);
+                showNotification('Error sending reset link', 'error');
+            }
+        }
+
+        // Toggle password visibility
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const icon = input.nextElementSibling.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Check password strength
+        function checkPasswordStrength(e) {
+            const password = e.target.value;
+            const strengthBar = document.querySelector('.strength-bar');
+            const strengthValue = document.getElementById('strengthValue');
+            
+            // Calculate password strength
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.match(/[a-z]/)) strength++;
+            if (password.match(/[A-Z]/)) strength++;
+            if (password.match(/[0-9]/)) strength++;
+            if (password.match(/[^a-zA-Z0-9]/)) strength++;
+
+            // Update strength meter
+            const strengthPercent = (strength / 5) * 100;
+            strengthBar.style.width = `${strengthPercent}%`;
+
+            // Update strength text and color
+            const strengthTexts = ['None', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+            const strengthColors = ['var(--text-light)', 'var(--accent-red)', '#ffbb33', 'var(--accent-yellow)', 'var(--accent-green)', 'var(--primary-blue)'];
+            
+            strengthValue.textContent = strengthTexts[strength];
+            strengthBar.style.backgroundColor = strengthColors[strength];
+            strengthValue.style.color = strengthColors[strength];
+        }
+
+        // Confirm logout
+        function confirmLogout() {
+            if (confirm('Are you sure you want to log out?')) {
+                try {
+                    // Implement logout logic
+                    window.location.href = 'login.html';
+                } catch (error) {
+                    console.error('Error logging out:', error);
+                    showNotification('Error logging out', 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

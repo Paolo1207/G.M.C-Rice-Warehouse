@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase - G.M.C. Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+    <div class="nav-section">
+        <h2>Main Menu</h2>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Reports</h2>
+        <ul>
+            <li><a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+        </ul>
+    </div>
+    <div class="nav-section">
+        <h2>Settings</h2>
+        <ul>
+            <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+        </ul>
+    </div>
+</div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="purchase-container">
+                <div class="purchase-header">
+                    <h2><i class="fas fa-clipboard-list"></i> Rice Sales Logbook</h2>
+                    <div class="purchase-actions">
+                        <button class="btn primary" onclick="showPurchaseHistory()">
+                            <i class="fas fa-history"></i> Purchase History
+                        </button>
+                        <button class="btn secondary" onclick="exportPurchaseData()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Purchase Form -->
+                <div class="purchase-form-container">
+                    <div class="form-card">
+                        <div class="form-header">
+                            <h3><i class="fas fa-plus-circle"></i> Record Transaction</h3>
+                            <p>Track sales, inventory, and discrepancies</p>
+                        </div>
+                        
+                        <form id="purchaseForm" onsubmit="handlePurchaseSubmit(event)">
+                            <div class="form-section">
+                                <div class="section-title"><i class="fas fa-receipt"></i> Transaction Details</div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                        <label for="purchaseDate">Date *</label>
+                                        <input type="date" id="purchaseDate" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="riceVariant">Rice Variety *</label>
+                                    <select id="riceVariant" required>
+                                        <option value="">Select Rice Type</option>
+                                            <option value="dog-rice">Dog Rice</option>
+                                            <option value="happy-fiesta">Happy Fiesta</option>
+                                            <option value="magnolia">Magnolia</option>
+                                        <option value="dinorado">Dinorado</option>
+                                        <option value="sinandomeng">Sinandomeng</option>
+                                        <option value="jasmine">Jasmine Rice</option>
+                                        <option value="basmati">Basmati Rice</option>
+                                        <option value="brown-rice">Brown Rice</option>
+                                        <option value="sticky-rice">Sticky Rice</option>
+                                    </select>
+                                </div>
+                                </div>
+                                <div class="form-row">
+                                <div class="form-group">
+                                        <label for="price">Price per kg *</label>
+                                        <input type="number" id="price" class="highlight-value" required min="0" step="0.01" placeholder="Auto-filled by variety">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="section-title"><i class="fas fa-warehouse"></i> Stock Information</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="initialInventory">Initial Inventory (kg)</label>
+                                        <input type="number" id="initialInventory" readonly class="computed" placeholder="Auto from previous day">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="addedStocks">Added Stocks (kg)</label>
+                                        <input type="number" id="addedStocks" min="0" step="0.01" placeholder="Deliveries received today">
+                                    </div>
+                                </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                        <label for="sackWeightKg">Sacks weight (kg per sako)
+                                            <i class="fas fa-circle-info help-icon" title="Used when selling by sacks. Default 50 kg per sako."></i>
+                                        </label>
+                                        <input type="number" id="sackWeightKg" min="1" step="1" value="50">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="section-title"><i class="fas fa-weight-hanging"></i> Sales Information</div>
+                                <div class="form-row three-cols">
+                                    <div class="form-group">
+                                        <label for="kilosSold">Sold: Kilos</label>
+                                        <input type="number" id="kilosSold" min="0" step="0.01" placeholder="e.g. 12.5">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="sacksSold">Sold: Sacks
+                                            <i class="fas fa-circle-info help-icon" title="Sold sacks are converted to kg using the sack weight above."></i>
+                                        </label>
+                                        <input type="number" id="sacksSold" min="0" step="1" placeholder="e.g. 3">
+                                </div>
+                                <div class="form-group">
+                                        <label for="halfKiloSold">Sold: ½ Kilo (count)</label>
+                                        <input type="number" id="halfKiloSold" min="0" step="1" placeholder="e.g. 4">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="section-title"><i class="fas fa-list-check"></i> Summary & Verification</div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="totalAmount">Total Amount (₱)</label>
+                                        <input type="number" id="totalAmount" readonly class="computed highlight-value" placeholder="Auto computed">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="estimatedRemaining">Estimated Remaining (kg)</label>
+                                        <input type="number" id="estimatedRemaining" readonly class="computed" placeholder="Auto computed">
+                                    </div>
+                                </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                        <label for="actualRemaining">Actual Remaining (kg)</label>
+                                        <input type="number" id="actualRemaining" min="0" step="0.01" placeholder="Physical count">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="discrepancy">Excess / Deficit (kg)</label>
+                                        <input type="number" id="discrepancy" readonly class="computed highlight-value" placeholder="Auto computed">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-section">
+                                <div class="section-title"><i class="fas fa-comment-dots"></i> Remarks & Actions</div>
+                                <div class="form-row">
+                            <div class="form-group">
+                                <label for="remarks">Remarks</label>
+                                        <textarea id="remarks" rows="3" placeholder="Optional notes"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions sticky">
+                                <button type="submit" class="btn primary">
+                                    <i class="fas fa-save"></i> Record Entry
+                                </button>
+                                <button type="button" class="btn secondary" onclick="resetForm()">
+                                    <i class="fas fa-undo"></i> Reset Form
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Recent Purchases -->
+                <div class="recent-purchases">
+                    <h3><i class="fas fa-clock"></i> Recent Logbook Entries</h3>
+                    <div class="purchases-table-container">
+                        <table class="purchases-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Variety</th>
+                                    <th>Price/kg</th>
+                                    <th>Initial</th>
+                                    <th>Added</th>
+                                    <th>Sold (kg)</th>
+                                    <th>Total (₱)</th>
+                                    <th>Est Rem</th>
+                                    <th>Actual</th>
+                                    <th>Excess/Deficit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentPurchasesTable">
+                                <!-- Table rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        const STORAGE_KEY = 'gmc_logbook_entries';
+        const PRICE_MAP = {
+            'dog-rice': 40,
+            'happy-fiesta': 41,
+            'magnolia': 42,
+            'dinorado': 45.5,
+            'sinandomeng': 38.75,
+            'jasmine': 52,
+            'basmati': 60,
+            'brown-rice': 55,
+            'sticky-rice': 50
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            initPurchase();
+        });
+
+        function initPurchase() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('purchaseDate').value = today;
+
+            const varietyEl = document.getElementById('riceVariant');
+            const priceEl = document.getElementById('price');
+            const inputsToWatch = ['purchaseDate','riceVariant','price','initialInventory','addedStocks','kilosSold','sacksSold','halfKiloSold','sackWeightKg','actualRemaining'];
+            inputsToWatch.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', handleInputChange);
+                el.addEventListener('change', handleInputChange);
+            });
+
+            varietyEl.addEventListener('change', function() {
+                if (PRICE_MAP[varietyEl.value] != null) {
+                    priceEl.value = PRICE_MAP[varietyEl.value];
+                }
+                hydrateInitialInventory();
+                computeAndRender();
+            });
+
+            document.getElementById('purchaseDate').addEventListener('change', function() {
+                hydrateInitialInventory();
+                computeAndRender();
+            });
+
+            hydrateInitialInventory();
+            loadRecentPurchases();
+            computeAndRender();
+        }
+
+        function handleInputChange() {
+            computeAndRender();
+        }
+
+        function hydrateInitialInventory() {
+            const variety = document.getElementById('riceVariant').value;
+            const dateStr = document.getElementById('purchaseDate').value;
+            if (!variety || !dateStr) return;
+            const initial = getInitialInventoryFor(variety, dateStr);
+            document.getElementById('initialInventory').value = toFixedOrEmpty(initial);
+        }
+
+        function getInitialInventoryFor(variety, dateStr) {
+            const entries = readEntries();
+            const targetDate = new Date(dateStr);
+            let latest = null;
+            for (const e of entries) {
+                if (e.riceVariant !== variety) continue;
+                const d = new Date(e.date);
+                if (d < targetDate) {
+                    if (!latest || d > new Date(latest.date)) latest = e;
+                }
+            }
+            if (!latest) return 0;
+            if (typeof latest.actualRemaining === 'number' && !isNaN(latest.actualRemaining)) return latest.actualRemaining;
+            if (typeof latest.estimatedRemaining === 'number' && !isNaN(latest.estimatedRemaining)) return latest.estimatedRemaining;
+            return 0;
+        }
+
+        function computeAndRender() {
+            const price = parseFloatOrZero(document.getElementById('price').value);
+            const initial = parseFloatOrZero(document.getElementById('initialInventory').value);
+            const added = parseFloatOrZero(document.getElementById('addedStocks').value);
+            const kilosSold = parseFloatOrZero(document.getElementById('kilosSold').value);
+            const sacksSold = parseFloatOrZero(document.getElementById('sacksSold').value);
+            const halfKiloSold = parseFloatOrZero(document.getElementById('halfKiloSold').value);
+            const sackWeight = parseFloatOrZero(document.getElementById('sackWeightKg').value) || 50;
+            const actualRemaining = parseFloatOrZero(document.getElementById('actualRemaining').value);
+
+            const totalSoldKg = kilosSold + (sacksSold * sackWeight) + (halfKiloSold * 0.5);
+            const totalAmount = totalSoldKg * price;
+            const estimatedRemaining = initial + added - totalSoldKg;
+            const discrepancy = (typeof actualRemaining === 'number' && !isNaN(actualRemaining) && actualRemaining !== 0)
+                ? (actualRemaining - estimatedRemaining)
+                : 0;
+
+            document.getElementById('totalAmount').value = toFixedOrEmpty(totalAmount);
+            document.getElementById('estimatedRemaining').value = toFixedOrEmpty(estimatedRemaining);
+            document.getElementById('discrepancy').value = toFixedOrEmpty(discrepancy);
+        }
+
+        // Handle submit
+        function handlePurchaseSubmit(event) {
+            event.preventDefault();
+            
+            const data = collectFormData();
+            const error = validatePurchaseForm(data);
+            if (error) {
+                showNotification(error, 'error');
+                return;
+            }
+
+            const entries = readEntries();
+            entries.push(data);
+            writeEntries(entries);
+
+            addToRecentPurchases(data);
+            resetForm();
+            hydrateInitialInventory();
+            computeAndRender();
+            showNotification('Logbook entry recorded successfully.', 'success');
+        }
+
+        function collectFormData() {
+            const price = parseFloatOrZero(document.getElementById('price').value);
+            const initial = parseFloatOrZero(document.getElementById('initialInventory').value);
+            const added = parseFloatOrZero(document.getElementById('addedStocks').value);
+            const kilosSold = parseFloatOrZero(document.getElementById('kilosSold').value);
+            const sacksSold = parseFloatOrZero(document.getElementById('sacksSold').value);
+            const halfKiloSold = parseFloatOrZero(document.getElementById('halfKiloSold').value);
+            const sackWeight = parseFloatOrZero(document.getElementById('sackWeightKg').value) || 50;
+            const totalSoldKg = kilosSold + (sacksSold * sackWeight) + (halfKiloSold * 0.5);
+            const totalAmount = totalSoldKg * price;
+            const estimatedRemaining = initial + added - totalSoldKg;
+            const actualRemainingStr = document.getElementById('actualRemaining').value;
+            const actualRemaining = actualRemainingStr === '' ? null : parseFloatOrZero(actualRemainingStr);
+            const discrepancy = actualRemaining == null ? null : (actualRemaining - estimatedRemaining);
+
+            return {
+                id: cryptoRandomId(),
+                date: document.getElementById('purchaseDate').value,
+                riceVariant: document.getElementById('riceVariant').value,
+                price: round2(price),
+                initialInventory: round2(initial),
+                addedStocks: round2(added),
+                kilosSold: round2(kilosSold),
+                sacksSold: round2(sacksSold),
+                halfKiloSold: round2(halfKiloSold),
+                sackWeightKg: round2(sackWeight),
+                totalSoldKg: round2(totalSoldKg),
+                totalAmount: round2(totalAmount),
+                estimatedRemaining: round2(estimatedRemaining),
+                actualRemaining: actualRemaining == null ? null : round2(actualRemaining),
+                discrepancy: discrepancy == null ? null : round2(discrepancy),
+                remarks: document.getElementById('remarks').value || ''
+            };
+        }
+
+        function validatePurchaseForm(data) {
+            if (!data.date) return 'Please select a date';
+            if (!data.riceVariant) return 'Please select a rice variety';
+            if (data.price <= 0) return 'Price must be greater than 0';
+            if (data.totalSoldKg < 0) return 'Sold quantity cannot be negative';
+            return '';
+        }
+
+        // Storage helpers
+        function readEntries() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) { return []; }
+        }
+        function writeEntries(entries) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        }
+
+        // Table rendering
+        function addToRecentPurchases(entry) {
+            const tbody = document.getElementById('recentPurchasesTable');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${formatDate(entry.date)}</td>
+                <td>${formatVariant(entry.riceVariant)}</td>
+                <td>₱${entry.price.toFixed(2)}</td>
+                <td>${entry.initialInventory.toFixed(2)}</td>
+                <td>${entry.addedStocks.toFixed(2)}</td>
+                <td>${entry.totalSoldKg.toFixed(2)}</td>
+                <td>₱${entry.totalAmount.toFixed(2)}</td>
+                <td>${entry.estimatedRemaining.toFixed(2)}</td>
+                <td>${entry.actualRemaining == null ? '-' : entry.actualRemaining.toFixed(2)}</td>
+                <td>${formatDiscrepancy(entry.discrepancy)}</td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+            // limit rows
+            if (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
+        }
+
+        function loadRecentPurchases() {
+            const entries = readEntries().sort((a,b) => new Date(b.date) - new Date(a.date));
+            renderRecentPurchases(entries);
+        }
+
+        function renderRecentPurchases(entries) {
+            const tbody = document.getElementById('recentPurchasesTable');
+            tbody.innerHTML = '';
+            entries.forEach(addToRecentPurchases);
+        }
+
+        function resetForm() {
+            document.getElementById('purchaseForm').reset();
+            document.getElementById('purchaseDate').value = new Date().toISOString().split('T')[0];
+            // Keep price auto-fill on reset when variety is selected
+            const variety = document.getElementById('riceVariant').value;
+            if (PRICE_MAP[variety] != null) document.getElementById('price').value = PRICE_MAP[variety];
+        }
+
+        function showPurchaseHistory() {
+            document.querySelector('.recent-purchases').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function exportPurchaseData() {
+            const entries = readEntries();
+            if (!entries.length) { showNotification('No data to export.', 'warning'); return; }
+            const header = [
+                'Date','Variety','PricePerKg','InitialInventory','AddedStocks','KilosSold','SacksSold','HalfKiloSold','SackWeightKg','TotalSoldKg','TotalAmount','EstimatedRemaining','ActualRemaining','Discrepancy','Remarks'
+            ];
+            const rows = entries.map(e => [
+                e.date,
+                formatVariant(e.riceVariant),
+                e.price,
+                e.initialInventory,
+                e.addedStocks,
+                e.kilosSold,
+                e.sacksSold,
+                e.halfKiloSold,
+                e.sackWeightKg,
+                e.totalSoldKg,
+                e.totalAmount,
+                e.estimatedRemaining,
+                e.actualRemaining == null ? '' : e.actualRemaining,
+                e.discrepancy == null ? '' : e.discrepancy,
+                (e.remarks || '').replace(/\n/g,' ')
+            ]);
+            const csv = [header, ...rows].map(r => r.map(safeCsv).join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `gmc_logbook_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Utilities
+        function safeCsv(val) {
+            if (val == null) return '';
+            const s = String(val);
+            if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+            return s;
+        }
+        function parseFloatOrZero(v) {
+            const n = parseFloat(v);
+            return isNaN(n) ? 0 : n;
+        }
+        function toFixedOrEmpty(n) {
+            if (n == null || isNaN(n)) return '';
+            return round2(n).toFixed(2);
+        }
+        function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+        function cryptoRandomId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+        function formatVariant(key) {
+            const map = {
+                'dog-rice': 'Dog Rice',
+                'happy-fiesta': 'Happy Fiesta',
+                'magnolia': 'Magnolia',
+                'dinorado': 'Dinorado',
+                'sinandomeng': 'Sinandomeng',
+                'jasmine': 'Jasmine Rice',
+                'basmati': 'Basmati Rice',
+                'brown-rice': 'Brown Rice',
+                'sticky-rice': 'Sticky Rice'
+            };
+            return map[key] || key;
+        }
+        function formatDiscrepancy(val) {
+            if (val == null) return '-';
+            const cls = val > 0 ? 'completed' : (val < 0 ? 'cancelled' : 'pending');
+            const sign = val > 0 ? '+' : '';
+            return `<span class="status-badge ${cls}">${sign}${val.toFixed(2)} kg</span>`;
+        }
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => { notification.remove(); }, 3000);
+        }
+    </script>
+</body>
+</html>

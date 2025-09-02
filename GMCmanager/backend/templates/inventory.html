@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory - G.M.C. Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/inventory.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+                <div class="nav-section">
+                    <h2>Main Menu</h2>
+                    <ul>
+                        <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+                        <li><a href="{{ url_for('inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+                        <li><a href="{{ url_for('forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+                        <li><a href="{{ url_for('sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                        <li><a href="{{ url_for('purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Reports</h2>
+                    <ul>
+                        <li><a href="{{ url_for('reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+                        <li><a href="{{ url_for('analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Settings</h2>
+                    <ul>
+                        <li><a href="{{ url_for('notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                        <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="inventory-container">
+                <div class="inventory-header">
+                    <h2><i class="fas fa-box"></i> Inventory Management</h2>
+                    <div class="inventory-actions">
+                        <button class="btn primary" onclick="showAddStockModal()">
+                            <i class="fas fa-plus"></i> Add Stock
+                        </button>
+                        <button class="btn secondary" onclick="exportInventory()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <div class="inventory-filters">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchStock" placeholder="Search products...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
+                            <option value="premium">Premium Rice</option>
+                            <option value="regular">Regular Rice</option>
+                            <option value="special">Special Varieties</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="low">Low Stock</option>
+                            <option value="out">Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="inventory-table-container">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add/Edit Stock Modal -->
+                <div id="stockModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-box"></i> Add new product</h3>
+                            <button class="close-btn" onclick="closeStockModal()">&times;</button>
+                        </div>
+                        <div class="modal-actions" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                            <button class="btn secondary" type="button" onclick="addCustomField()"><i class="fas fa-plus"></i> Add Custom Field</button>
+                            <button class="btn secondary" type="button" onclick="bulkUpload()"><i class="fas fa-upload"></i> Bulk Upload</button>
+                        </div>
+                        <form id="productForm" onsubmit="handleProductSubmit(event)">
+                            <div class="form-group">
+                                <label for="productName">Product Name</label>
+                                <input type="text" id="productName" placeholder="Sinandomeng" required>
+                                <div class="hint">Ex: Sinandomeng</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="warningThreshold">Warning Threshold Stock Level</label>
+                                <input type="number" id="warningThreshold" placeholder="Ex: 100" min="0">
+                                <div class="hint">Ex: 100</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="autoOrderLevel">Auto Order Stock Level</label>
+                                <input type="number" id="autoOrderLevel" placeholder="Ex: 50" min="0">
+                                <div class="hint">Ex: 50</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Category</label>
+                                <select id="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="white">White Rice</option>
+                                    <option value="premium">Premium Rice</option>
+                                    <option value="regular">Regular Rice</option>
+                                    <option value="special">Special Varieties</option>
+                                </select>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="barcode">Barcode Number</label>
+                                <input type="text" id="barcode" placeholder="QWERTY0987">
+                                <div class="hint">Ex: QWERTY0987</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="grn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="grn" placeholder="QWERTY56787">
+                                <div class="hint">Ex: QWERTY56787</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="recordedStock">Recorded Stock Level</label>
+                                <input type="number" id="recordedStock" placeholder="Ex: 2000" min="0">
+                                <div class="hint">Ex: 2000</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="purchasingPrice">Purchasing Price</label>
+                                <input type="text" id="purchasingPrice" placeholder="Ex: $100">
+                                <div class="hint">Ex: $100</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sellingMargin">Selling Price Margin</label>
+                                <input type="text" id="sellingMargin" placeholder="Ex: 20%">
+                                <div class="hint">Ex: 20%</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sku">SKU Code</label>
+                                <input type="text" id="sku" class="sku-input" placeholder="RTY1234455">
+                                <div class="hint">Ex: RTY1234455</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Product Description</label>
+                                <textarea id="description" rows="3" placeholder="Ex: Type something about product here"></textarea>
+                                <div class="hint">Ex: Type something about product here</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Add Product</button>
+                                <button type="button" class="btn secondary" onclick="closeStockModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="../js/main.js"></script>
+    <script>
+        // Initialize inventory page
+        document.addEventListener('DOMContentLoaded', function() {
+            initInventory();
+        });
+
+        function initInventory() {
+            loadInventoryData();
+            setupEventListeners();
+        }
+
+        // Load inventory data
+        async function loadInventoryData() {
+            // Simulated data - replace with actual API call
+            const data = [
+                {
+                    id: 1,
+                    name: "Premium Jasmine Rice",
+                    category: "Premium",
+                    quantity: 1000,
+                    unit: "kg",
+                    status: "available",
+                    lastUpdated: "2024-03-15"
+                },
+                {
+                    id: 2,
+                    name: "Regular White Rice",
+                    category: "Regular",
+                    quantity: 50,
+                    unit: "kg",
+                    status: "low",
+                    lastUpdated: "2024-03-14"
+                },
+                {
+                    id: 3,
+                    name: "Special Basmati Rice",
+                    category: "Special",
+                    quantity: 0,
+                    unit: "kg",
+                    status: "out",
+                    lastUpdated: "2024-03-13"
+                }
+            ];
+
+            renderInventoryTable(data);
+        }
+
+        // Render inventory table
+        function renderInventoryTable(data) {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.category}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.unit}</td>
+                    <td><span class="status-badge ${item.status}">${item.status}</span></td>
+                    <td>${formatDate(item.lastUpdated)}</td>
+                    <td>
+                        <button class="btn-icon" onclick="editStock(${item.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon" onclick="viewHistory(${item.id})" title="View History">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchStock');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            searchInput.addEventListener('input', filterInventory);
+            categoryFilter.addEventListener('change', filterInventory);
+            statusFilter.addEventListener('change', filterInventory);
+        }
+
+        // Filter inventory
+        function filterInventory() {
+            // Implement filtering logic
+            showToast('Filtering inventory...', 'info');
+        }
+
+        // Show add stock modal
+        function showAddStockModal() {
+            document.getElementById('stockModal').style.display = 'block';
+        }
+
+        // Close stock modal
+        function closeStockModal() {
+            document.getElementById('stockModal').style.display = 'none';
+        }
+
+        // Handle stock form submission
+        function handleStockSubmit(event) {
+            event.preventDefault();
+            if (!validateForm('stockForm')) return;
+
+            // Implement stock submission logic
+            showToast('Stock updated successfully', 'success');
+            closeStockModal();
+        }
+
+        // Edit stock
+        function editStock(id) {
+            showToast('Editing stock item...', 'info');
+        }
+
+        // View stock history
+        function viewHistory(id) {
+            showToast('Loading stock history...', 'info');
+        }
+
+        // Export inventory
+        function exportInventory() {
+            showToast('Exporting inventory data...', 'info');
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' : 
+                              type === 'error' ? 'fa-exclamation-circle' : 
+                              'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
