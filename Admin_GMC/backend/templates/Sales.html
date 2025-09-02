@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - GMC Admin</title>
-    <link rel="stylesheet" href="../css/Sidebar.css">
-    <link rel="stylesheet" href="../css/Dashboard.css">
-    <link rel="stylesheet" href="../css/Settings.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Sales.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="../js/sales.js"></script>
 </head>
 <body>
   <!-- Sidebar directly embedded -->
@@ -79,133 +80,139 @@
       };
     </script>
     <!-- End Sidebar -->
-    <div class="main-content settings-module">
-        <h2 class="settings-title">⚙️ Settings</h2>
-        <!-- Profile Information -->
-        <section class="settings-section profile-info-section">
-            <h3>Profile Information</h3>
-            <form class="profile-form">
-                <label>Full Name:
-                    <input type="text" value="John Doe" required>
+    <div class="main-content sales-module">
+        <div class="sales-header">
+            <h2>📦 Sales Module</h2>
+            <div class="sales-filters">
+                <label>Date Range:
+                    <select>
+                        <option>Last 7 Days</option>
+                        <option>Last 30 Days</option>
+                        <option>Custom</option>
+                    </select>
                 </label>
-                <label>Email Address:
-                    <input type="email" value="admin@gmc.com" required>
+                <label>Rice Variant:
+                    <select>
+                        <option>All</option>
+                        <option>Sinandomeng</option>
+                        <option>Dinorado</option>
+                        <option>Jasmine</option>
+                        <option>Premium</option>
+                    </select>
                 </label>
-                <label>Assigned Branch:
-                    <select required>
+                <label>Branch:
+                    <select>
+                        <option>All</option>
                         <option>Main Branch</option>
-                        <option>Marawoy</option>
-                        <option>Lima</option>
                         <option>Malvar</option>
-                        <option>Bulacnin</option>
-                        <option>Bulacnin Main</option>
                         <option>Boac</option>
-                        <option>Sta. Cruz</option>
                     </select>
                 </label>
-                <label>Role:
-                    <select required>
-                        <option>System Admin</option>
-                        <option>Branch Manager</option>
-                    </select>
-                </label>
-                <button type="submit" class="save-profile-btn">Save Changes</button>
-            </form>
-        </section>
-        <!-- Change Password -->
-        <section class="settings-section change-password-section">
-            <h3>Change Password</h3>
-            <form class="password-form">
-                <label>Current Password:
-                    <input type="password" required>
-                </label>
-                <label>New Password:
-                    <input type="password" required>
-                    <div class="password-strength"><span class="strength-bar"></span> <span class="strength-label">Weak</span></div>
-                </label>
-                <label>Confirm New Password:
-                    <input type="password" required>
-                </label>
-                <button type="submit" class="update-password-btn">Update Password</button>
-            </form>
-        </section>
-        <!-- Forgot Password (Reset via Email) -->
-        <section class="settings-section reset-password-section">
-            <h3>Forgot Password?</h3>
-            <form class="reset-form">
-                <label>Email Address:
-                    <input type="email" value="admin@gmc.com" required>
-                </label>
-                <button type="submit" class="send-reset-btn">Send Reset Link</button>
-                <div class="reset-info">A secure reset link will be sent to your Gmail for password reconfiguration.</div>
-            </form>
-        </section>
-        <!-- System Preferences & Controls -->
-        <section class="settings-section system-preferences-section">
-            <h3>System Preferences & Controls</h3>
-            <div class="preferences-group">
-                <div class="preference-card">
-                    <h4>Low Stock Thresholds</h4>
-                    <form class="thresholds-form">
-                        <label>Sinandomeng: <input type="number" min="1" value="20"> kg</label>
-                        <label>Dinorado: <input type="number" min="1" value="20"> kg</label>
-                        <label>Jasmine: <input type="number" min="1" value="20"> kg</label>
-                        <label>Premium: <input type="number" min="1" value="20"> kg</label>
-                        <button type="submit" class="save-thresholds-btn">Save Thresholds</button>
-                    </form>
+            </div>
+        </div>
+        <div class="sales-indicators-row">
+            <div class="sales-indicator-card">
+                <div class="indicator-title">Total Stock</div>
+                <div class="indicator-value">24,567</div>
+                <div class="indicator-change positive">+2.3% from last week</div>
+            </div>
+            <div class="sales-indicator-card">
+                <div class="indicator-title">Low Stock Items</div>
+                <div class="indicator-value">47</div>
+                <div class="indicator-change negative">+8 items this week</div>
+            </div>
+            <div class="sales-indicator-card">
+                <div class="indicator-title">Forecast Accuracy</div>
+                <div class="indicator-value">87.2%</div>
+                <div class="indicator-change positive">+1.5% improvement</div>
+            </div>
+        </div>
+        <div class="sales-widgets-row">
+            <div class="sales-widget sales-trend-widget">
+                <div class="widget-header">
+                    <h3>📈 Daily Sales Trend</h3>
                 </div>
-                <div class="preference-card">
-                    <h4>Regional Settings</h4>
-                    <form class="regional-form">
-                        <label>Branch:
-                            <select>
-                                <option>Main Branch</option>
-                                <option>Marawoy</option>
-                                <option>Lima</option>
-                                <option>Malvar</option>
-                                <option>Bulacnin</option>
-                                <option>Bulacnin Main</option>
-                                <option>Boac</option>
-                                <option>Sta. Cruz</option>
-                            </select>
-                        </label>
-                        <label>Timezone:
-                            <select>
-                                <option>Asia/Manila</option>
-                                <option>Asia/Singapore</option>
-                                <option>Asia/Tokyo</option>
-                            </select>
-                        </label>
-                        <label>Contact Info:
-                            <input type="text" placeholder="e.g., 0917-123-4567">
-                        </label>
-                        <label>Delivery Window:
-                            <input type="text" placeholder="e.g., 8:00 AM - 5:00 PM">
-                        </label>
-                        <button type="submit" class="save-regional-btn">Save Regional Settings</button>
-                    </form>
-                </div>
-                <div class="preference-card">
-                    <h4>System Maintenance Tools</h4>
-                    <form class="maintenance-form">
-                        <label><input type="checkbox"> System Lock (prevent actions during updates)</label>
-                        <label><input type="checkbox"> Enable/Disable Modules for Maintenance</label>
-                        <button type="button" class="retrain-btn">Trigger Forecast Model Retraining</button>
-                    </form>
+                <div class="chart-container">
+                    <canvas id="dailySalesChart" width="400" height="200"></canvas>
                 </div>
             </div>
-        </section>
-        <!-- Log Out Button -->
-        <section class="settings-section logout-section">
-            <button class="logout-btn" onclick="alert('Logging out...')">
-                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                Log Out
-            </button>
-        </section>
+            <div class="sales-widget product-performance-widget">
+                <div class="widget-header">
+                    <h3>🏅 Product Performance</h3>
+                </div>
+                <table class="performance-table">
+                    <thead>
+                        <tr><th>Rank</th><th>Rice Variant</th><th>Sales Volume</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>Sinandomeng</td><td>5,200</td></tr>
+                        <tr><td>2</td><td>Dinorado</td><td>4,800</td></tr>
+                        <tr><td>3</td><td>Jasmine</td><td>3,900</td></tr>
+                        <tr><td>4</td><td>Premium</td><td>2,700</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="sales-log-section">
+            <div class="sales-log-header">
+                <h3>📝 Sales Log</h3>
+                <div class="export-buttons">
+                    <button>Export PDF</button>
+                    <button>Export Excel</button>
+                    <button>Export CSV</button>
+                </div>
+            </div>
+            <table class="sales-log-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Rice Variant</th>
+                        <th>Quantity Sold</th>
+                        <th>Branch</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>2024-06-01</td><td>Sinandomeng</td><td>120</td><td>Main Branch</td><td>₱18,000</td></tr>
+                    <tr><td>2024-06-01</td><td>Dinorado</td><td>95</td><td>Malvar</td><td>₱14,250</td></tr>
+                    <tr><td>2024-06-01</td><td>Jasmine</td><td>80</td><td>Boac</td><td>₱12,000</td></tr>
+                    <tr><td>2024-06-01</td><td>Premium</td><td>60</td><td>Main Branch</td><td>₱9,600</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
     <script>
       // Sidebar collapse/expand logic (already present)
-      // Placeholder for form logic, password strength, etc.
+      // ... existing code ...
+      // Daily Sales Trend Chart (placeholder data)
+      const salesCtx = document.getElementById('dailySalesChart').getContext('2d');
+      new Chart(salesCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Sales',
+            data: [1200, 1500, 1100, 1800, 2000, 2500, 2200],
+            backgroundColor: '#2e7d32',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) { return '₱' + value.toLocaleString(); }
+              }
+            }
+          }
+        }
+      });
     </script>
 </body>
 </html>

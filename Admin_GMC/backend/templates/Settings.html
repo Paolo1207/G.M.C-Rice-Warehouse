@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - GMC Admin</title>
-    <link rel="stylesheet" href="../css/Sidebar.css">
-    <link rel="stylesheet" href="../css/Dashboard.css">
-    <link rel="stylesheet" href="../css/Deliver.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Dashboard.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/Settings.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
@@ -79,13 +79,21 @@
       };
     </script>
     <!-- End Sidebar -->
-    <div class="main-content deliver-module">
-        <div class="deliver-header">
-            <h2>🚚 Deliver Module</h2>
-            <div class="deliver-filters">
-                <label>Branch:
-                    <select>
-                        <option>All</option>
+    <div class="main-content settings-module">
+        <h2 class="settings-title">⚙️ Settings</h2>
+        <!-- Profile Information -->
+        <section class="settings-section profile-info-section">
+            <h3>Profile Information</h3>
+            <form class="profile-form">
+                <label>Full Name:
+                    <input type="text" value="John Doe" required>
+                </label>
+                <label>Email Address:
+                    <input type="email" value="admin@gmc.com" required>
+                </label>
+                <label>Assigned Branch:
+                    <select required>
+                        <option>Main Branch</option>
                         <option>Marawoy</option>
                         <option>Lima</option>
                         <option>Malvar</option>
@@ -95,98 +103,109 @@
                         <option>Sta. Cruz</option>
                     </select>
                 </label>
-                <label>Supplier:
-                    <select>
-                        <option>All</option>
-                        <option>Supplier A</option>
-                        <option>Supplier B</option>
-                        <option>Supplier C</option>
+                <label>Role:
+                    <select required>
+                        <option>System Admin</option>
+                        <option>Branch Manager</option>
                     </select>
                 </label>
-                <label>Date Range:
-                    <select>
-                        <option>Last 7 Days</option>
-                        <option>Last 30 Days</option>
-                        <option>Custom</option>
-                    </select>
+                <button type="submit" class="save-profile-btn">Save Changes</button>
+            </form>
+        </section>
+        <!-- Change Password -->
+        <section class="settings-section change-password-section">
+            <h3>Change Password</h3>
+            <form class="password-form">
+                <label>Current Password:
+                    <input type="password" required>
                 </label>
-                <label>Status:
-                    <select>
-                        <option>All</option>
-                        <option>Pending</option>
-                        <option>Completed</option>
-                        <option>Delayed</option>
-                    </select>
+                <label>New Password:
+                    <input type="password" required>
+                    <div class="password-strength"><span class="strength-bar"></span> <span class="strength-label">Weak</span></div>
                 </label>
-            </div>
-        </div>
-        <div class="deliver-alerts">
-            <div class="alert-item delayed">
-                <span class="alert-icon">⚠️</span>
-                <span class="alert-message">Delivery to Boac is delayed! Please follow up with the supplier or arrange stock redistribution.</span>
-            </div>
-        </div>
-        <div class="deliver-log-section">
-            <div class="deliver-log-header">
-                <h3>📦 Delivery Log</h3>
-                <div class="export-buttons">
-                    <button>Export PDF</button>
-                    <button>Export Excel</button>
-                    <button>Export CSV</button>
+                <label>Confirm New Password:
+                    <input type="password" required>
+                </label>
+                <button type="submit" class="update-password-btn">Update Password</button>
+            </form>
+        </section>
+        <!-- Forgot Password (Reset via Email) -->
+        <section class="settings-section reset-password-section">
+            <h3>Forgot Password?</h3>
+            <form class="reset-form">
+                <label>Email Address:
+                    <input type="email" value="admin@gmc.com" required>
+                </label>
+                <button type="submit" class="send-reset-btn">Send Reset Link</button>
+                <div class="reset-info">A secure reset link will be sent to your Gmail for password reconfiguration.</div>
+            </form>
+        </section>
+        <!-- System Preferences & Controls -->
+        <section class="settings-section system-preferences-section">
+            <h3>System Preferences & Controls</h3>
+            <div class="preferences-group">
+                <div class="preference-card">
+                    <h4>Low Stock Thresholds</h4>
+                    <form class="thresholds-form">
+                        <label>Sinandomeng: <input type="number" min="1" value="20"> kg</label>
+                        <label>Dinorado: <input type="number" min="1" value="20"> kg</label>
+                        <label>Jasmine: <input type="number" min="1" value="20"> kg</label>
+                        <label>Premium: <input type="number" min="1" value="20"> kg</label>
+                        <button type="submit" class="save-thresholds-btn">Save Thresholds</button>
+                    </form>
+                </div>
+                <div class="preference-card">
+                    <h4>Regional Settings</h4>
+                    <form class="regional-form">
+                        <label>Branch:
+                            <select>
+                                <option>Main Branch</option>
+                                <option>Marawoy</option>
+                                <option>Lima</option>
+                                <option>Malvar</option>
+                                <option>Bulacnin</option>
+                                <option>Bulacnin Main</option>
+                                <option>Boac</option>
+                                <option>Sta. Cruz</option>
+                            </select>
+                        </label>
+                        <label>Timezone:
+                            <select>
+                                <option>Asia/Manila</option>
+                                <option>Asia/Singapore</option>
+                                <option>Asia/Tokyo</option>
+                            </select>
+                        </label>
+                        <label>Contact Info:
+                            <input type="text" placeholder="e.g., 0917-123-4567">
+                        </label>
+                        <label>Delivery Window:
+                            <input type="text" placeholder="e.g., 8:00 AM - 5:00 PM">
+                        </label>
+                        <button type="submit" class="save-regional-btn">Save Regional Settings</button>
+                    </form>
+                </div>
+                <div class="preference-card">
+                    <h4>System Maintenance Tools</h4>
+                    <form class="maintenance-form">
+                        <label><input type="checkbox"> System Lock (prevent actions during updates)</label>
+                        <label><input type="checkbox"> Enable/Disable Modules for Maintenance</label>
+                        <button type="button" class="retrain-btn">Trigger Forecast Model Retraining</button>
+                    </form>
                 </div>
             </div>
-            <table class="deliver-log-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Supplier</th>
-                        <th>Rice Variant</th>
-                        <th>Quantity</th>
-                        <th>Destination Branch</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>2024-06-01</td>
-                        <td>Supplier A</td>
-                        <td>Sinandomeng</td>
-                        <td>150</td>
-                        <td>Marawoy</td>
-                        <td><span class="status-tag completed">Completed</span></td>
-                    </tr>
-                    <tr>
-                        <td>2024-06-01</td>
-                        <td>Supplier B</td>
-                        <td>Dinorado</td>
-                        <td>120</td>
-                        <td>Boac</td>
-                        <td><span class="status-tag delayed">Delayed</span></td>
-                    </tr>
-                    <tr>
-                        <td>2024-06-01</td>
-                        <td>Supplier C</td>
-                        <td>Jasmine</td>
-                        <td>100</td>
-                        <td>Bulacnin Main</td>
-                        <td><span class="status-tag pending">Pending</span></td>
-                    </tr>
-                    <tr>
-                        <td>2024-06-01</td>
-                        <td>Supplier A</td>
-                        <td>Premium</td>
-                        <td>80</td>
-                        <td>Sta. Cruz</td>
-                        <td><span class="status-tag completed">Completed</span></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        </section>
+        <!-- Log Out Button -->
+        <section class="settings-section logout-section">
+            <button class="logout-btn" onclick="alert('Logging out...')">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:8px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Log Out
+            </button>
+        </section>
     </div>
     <script>
       // Sidebar collapse/expand logic (already present)
-      // ... existing code ...
-      // Placeholder for export and filter logic
+      // Placeholder for form logic, password strength, etc.
     </script>
 </body>
 </html>
