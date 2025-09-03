@@ -4,9 +4,9 @@ services:
     env: python
     plan: free
     buildCommand: |
-      cd backend && pip install -r requirements.txt
+      cd Admin_GMC/backend && pip install -r requirements.txt
     startCommand: |
-      cd backend && gunicorn -w 3 -b 0.0.0.0:${PORT} app:create_app
+      cd Admin_GMC/backend && gunicorn -w 3 -b 0.0.0.0:${PORT} app:create_app
     envVars:
       - key: DB_URL
         sync: false
