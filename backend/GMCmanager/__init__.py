@@ -375,12 +375,13 @@ def mgr_inventory_restock_general():
         # Update stock
         inventory_item.stock_kg = (inventory_item.stock_kg or 0.0) + quantity
         
-        # Create restock log
+        # Create restock log - manager performs the restock
         log = RestockLog(
             inventory_item=inventory_item,
             qty_kg=quantity,
             supplier=supplier,
-            note=note or None
+            note=note or None,
+            created_by="Manager"  # This will show as "By: Manager" in admin logs
         )
         db.session.add(log)
         db.session.commit()

@@ -723,7 +723,8 @@ async function hydrateLogsForBranch(branch_name){
       return (j.logs || []).map(l => ({
         date: l.date,
         qty: Number(l.qty_kg ?? l.qty ?? 0),
-        supplier: l.supplier || l.by || "Admin",
+        supplier: l.supplier || "N/A",  // Keep supplier separate
+        created_by: l.created_by || l.by || "Admin",  // Use created_by for "By" column
         note: l.note || "Restock",
         variant: it.variant,
       }));
@@ -791,7 +792,7 @@ function renderLog(onlyVariant=null){
       <td>${l.date}</td>
       <td>${l.variant}</td>
       <td>${Number(l.qty).toLocaleString()}</td>
-      <td>${l.supplier || l.by || "Admin"}</td>
+      <td>${l.created_by || "Admin"}</td>
       <td>${l.note || "Restock"}</td>`;
     logTableBody.appendChild(tr);
   });

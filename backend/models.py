@@ -103,6 +103,7 @@ class RestockLog(db.Model):
     qty_kg = db.Column(db.Float, nullable=False)
     supplier = db.Column(db.String(160))
     note = db.Column(db.String(255))
+    created_by = db.Column(db.String(50), default="Admin")  # Who performed the restock
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     inventory_item = db.relationship("InventoryItem", back_populates="logs")
@@ -114,6 +115,7 @@ class RestockLog(db.Model):
             "qty": self.qty_kg,
             "supplier": self.supplier,
             "note": self.note,
+            "created_by": self.created_by,
             "date": self.created_at.strftime("%Y-%m-%d"),
             "variant": self.inventory_item.product.name,
         }
