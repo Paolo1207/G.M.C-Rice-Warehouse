@@ -225,39 +225,69 @@ document.getElementById('btnWho').onclick = async () => {
     def seed_database():
         """Seed the database with default users and sample data"""
         try:
-            from models import User
+            from models import User, Branch
             from werkzeug.security import generate_password_hash
             
-            # Create default users
-            admin_user = User.query.filter_by(username="admin").first()
-            if not admin_user:
-                admin_user = User(
-                    username="admin",
-                    password_hash=generate_password_hash("admin123"),
-                    role="admin",
-                    email="admin@gmc.com"
-                )
-                db.session.add(admin_user)
+            # Create branches first
+            branches_data = [
+                "Marawoy", "Lipa", "Malvar", "Bulacnin", "Boac", "Sta. Cruz"
+            ]
             
-            manager_user = User.query.filter_by(username="manager1").first()
-            if not manager_user:
-                manager_user = User(
-                    username="manager1", 
-                    password_hash=generate_password_hash("manager123"),
-                    role="manager",
-                    email="manager1@gmc.com"
-                )
-                db.session.add(manager_user)
+            for branch_name in branches_data:
+                existing_branch = Branch.query.filter_by(name=branch_name).first()
+                if not existing_branch:
+                    branch = Branch(name=branch_name, status="operational")
+                    db.session.add(branch)
             
             db.session.commit()
             
-            return """
+            # Get all branches for manager creation
+            branches = Branch.query.all()
+            
+            # Create admin user
+            admin_user = User.query.filter_by(email="admin@gmc.com").first()
+            if not admin_user:
+                admin_user = User(
+                    email="admin@gmc.com",
+                    password_hash=generate_password_hash("adminpass"),
+                    role="admin",
+                    branch_id=None
+                )
+                db.session.add(admin_user)
+            
+            # Create manager users for each branch
+            created_managers = []
+            for branch in branches:
+                email = f"manager_{branch.name.lower().replace(' ', '').replace('.', '')}@gmc.com"
+                existing_manager = User.query.filter_by(email=email).first()
+                if not existing_manager:
+                    manager = User(
+                        email=email,
+                        password_hash=generate_password_hash("managerpass"),
+                        role="manager",
+                        branch_id=branch.id
+                    )
+                    db.session.add(manager)
+                    created_managers.append(f"{branch.name}: {email}")
+            
+            db.session.commit()
+            
+            # Create HTML response
+            managers_html = ""
+            for manager in created_managers:
+                managers_html += f"<p><strong>{manager}</strong><br>Password: managerpass</p>"
+            
+            return f"""
             <h1>Database Seeded Successfully! 🎉</h1>
             <h2>Default Login Credentials:</h2>
-            <h3>Admin:</h3>
-            <p>Username: admin<br>Password: admin123</p>
-            <h3>Manager:</h3>
-            <p>Username: manager1<br>Password: manager123</p>
+            
+            <h3>👨‍💼 ADMIN ACCESS:</h3>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            
+            <h3>👨‍💼 MANAGER ACCESS:</h3>
+            <p>Choose any branch manager:</p>
+            {managers_html}
+            
             <br>
             <a href="/login">Go to Login Page</a>
             """
