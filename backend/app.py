@@ -28,8 +28,9 @@ def create_app() -> Flask:
         print(f"DEBUG: Using production database: {database_url[:50]}...")
     else:
         # Development database (local SQLite for development)
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///instance/gmc.db"
-        print("DEBUG: Using development database: SQLite")
+        # Use a path that works on both local and Render
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///gmc.db"
+        print("DEBUG: Using development database: SQLite at gmc.db")
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
