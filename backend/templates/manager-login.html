@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G.M.C Rice Warehouse - Manager Access</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(33, 150, 243, 0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        h1 {
+            color: #1565C0;
+            margin-bottom: 0.5rem;
+            font-size: 2.2rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #1565C0;
+            font-weight: 600;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #E3F2FD;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #FFFFFF;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .back-btn {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .back-btn:hover {
+            color: #1565C0;
+        }
+
+        .manager-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+        }
+
+        .error-message {
+            background: #FFEBEE;
+            color: #C62828;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #F44336;
+            display: none;
+        }
+
+        .branch-info {
+            background: #E3F2FD;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #2196F3;
+        }
+
+        .branch-info h3 {
+            color: #1565C0;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .branch-info p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">🏢</div>
+        <div class="manager-badge">Branch Manager Access</div>
+        <h1>Manager Login</h1>
+        <p class="subtitle">Access your branch inventory management</p>
+        
+        <div class="branch-info">
+            <h3>Branch Selection Required</h3>
+            <p>Please select your assigned branch to access your inventory management dashboard.</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <form id="managerLoginForm">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="branch">Select Your Branch</label>
+                <select id="branch" name="branch" required>
+                    <option value="">Choose your branch...</option>
+                    <option value="1">Marawoy</option>
+                    <option value="2">Lipa</option>
+                    <option value="3">Malvar</option>
+                    <option value="4">Bulacnin</option>
+                    <option value="5">Boac</option>
+                    <option value="6">Sta. Cruz</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="login-btn">Login as Branch Manager</button>
+        </form>
+        
+        <a href="/login" class="back-btn">← Back to Role Selection</a>
+    </div>
+
+    <script>
+        document.getElementById('managerLoginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const branch = document.getElementById('branch').value;
+            const errorDiv = document.getElementById('errorMessage');
+            
+            // Basic validation
+            if (!email || !password || !branch) {
+                errorDiv.textContent = 'Please fill in all fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                // Call the backend login endpoint
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    // Check if user's branch matches selected branch
+                    const selectedBranchId = parseInt(branch);
+                    if (data.user.branch_id !== selectedBranchId) {
+                        errorDiv.textContent = 'You are not authorized for this branch';
+                        errorDiv.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Redirect to manager dashboard with branch info
+                    const branchName = document.getElementById('branch').selectedOptions[0].text;
+                    window.location.href = `/manager/dashboard?branch=${branch}&branch_name=${encodeURIComponent(branchName)}`;
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid email or password';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Login failed. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Update branch info when selection changes
+        document.getElementById('branch').addEventListener('change', function() {
+            const branchInfo = document.querySelector('.branch-info');
+            const selectedBranch = this.selectedOptions[0];
+            
+            if (selectedBranch.value) {
+                branchInfo.innerHTML = `
+                    <h3>Selected Branch: ${selectedBranch.text}</h3>
+                    <p>You will access the inventory management for this branch.</p>
+                `;
+            } else {
+                branchInfo.innerHTML = `
+                    <h3>Branch Selection Required</h3>
+                    <p>Please select your assigned branch to access your inventory management dashboard.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

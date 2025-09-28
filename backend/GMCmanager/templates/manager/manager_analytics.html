@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Analytics - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager static assets -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/analytics.css') }}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+        <div class="nav-section">
+          <h2>Reports</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('manager.analytics') }}" class="active"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="analytics-container">
+        <div class="analytics-header">
+          <h2>Analytics</h2>
+          <div class="analytics-actions">
+            <button class="btn primary" onclick="exportAnalytics()">
+              <i class="fas fa-download"></i> Export Analytics
+            </button>
+          </div>
+        </div>
+
+        <!-- Forecast Accuracy -->
+        <div class="analytics-section">
+          <h3>Forecast Accuracy</h3>
+          <div class="accuracy-overview">
+            <div class="accuracy-card">
+              <div class="accuracy-icon"><i class="fas fa-bullseye"></i></div>
+              <div class="accuracy-info">
+                <h4>Overall Accuracy</h4>
+                <p class="accuracy-value">92%</p>
+                <p class="accuracy-period">July 1-7</p>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="forecastAccuracyChart"></canvas>
+            </div>
+          </div>
+
+          <div class="product-accuracy">
+            <h4>Accuracy by Product</h4>
+            <div class="table-container">
+              <table class="accuracy-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Forecasted</th>
+                    <th>Actual</th>
+                    <th>Accuracy</th>
+                    <th>Trend</th>
+                  </tr>
+                </thead>
+                <tbody id="productAccuracyBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inventory Trends -->
+        <div class="analytics-section">
+          <h3>Inventory Trends</h3>
+          <div class="trends-grid">
+            <div class="chart-container">
+              <h4>Stock Movement</h4>
+              <canvas id="stockMovementChart"></canvas>
+            </div>
+            <div class="chart-container">
+              <h4>Category Stock Levels</h4>
+              <canvas id="categoryStockChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales Trends -->
+        <div class="analytics-section">
+          <h3>Sales Trends</h3>
+          <div class="trends-grid">
+            <div class="chart-container">
+              <h4>Top 5 Bestselling Items</h4>
+              <canvas id="topProductsChart"></canvas>
+            </div>
+            <div class="chart-container">
+              <h4>Weekly Sales Performance</h4>
+              <canvas id="weeklySalesChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Risk Visualization -->
+        <div class="analytics-section">
+          <h3>Risk Visualization</h3>
+          <div class="risk-grid">
+            <div class="chart-container">
+              <h4>Product Risk Heatmap</h4>
+              <canvas id="riskHeatmap"></canvas>
+            </div>
+            <div class="risk-table-container">
+              <h4>High-Risk Products</h4>
+              <div class="table-container">
+                <table class="risk-table">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Risk Level</th>
+                      <th>Forecasted Shortage/Overstock</th>
+                      <th>Suggested Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="riskTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Manager JS -->
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () { initAnalytics(); });
+
+    async function initAnalytics() {
+      updateBranchTitle();
+      const { branchId } = getBranchParams();
+      if (!branchId) return;
+      const data = await fetchBranchAnalytics(branchId);
+      if (!data) return;
+      const a = data.analytics || {};
+      renderForecastAccuracy(a);
+      renderInventoryTrends(a);
+      renderSalesTrends(a);
+      renderRiskVisualization(a);
+    }
+
+    // Fetch analytics for branch
+    async function fetchBranchAnalytics(branchId) {
+      try {
+        const resp = await fetch(`/manager/api/analytics?branch_id=${branchId}`);
+        const data = await resp.json();
+        return data.ok ? data : null;
+      } catch (e) {
+        console.error('Failed to fetch manager analytics', e);
+        return null;
+      }
+    }
+
+    function getBranchParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchId = urlParams.get('branch') || urlParams.get('branch_id');
+      const branchName = urlParams.get('branch_name');
+      return { branchId, branchName };
+    }
+
+    // Forecast Accuracy
+    function renderForecastAccuracy(analytics) {
+      const fva = analytics.forecast_vs_actual_7d || [];
+      const labels = fva.map(x => x.date);
+      const forecast = fva.map(x => x.forecast || 0);
+      const actual = fva.map(x => x.actual || 0);
+      const ctx = document.getElementById('forecastAccuracyChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [
+          { label: 'Forecasted', data: forecast, borderColor: 'rgb(75, 192, 192)', tension: 0.1 },
+          { label: 'Actual',     data: actual,   borderColor: 'rgb(255, 99, 132)', tension: 0.1 }
+        ]},
+        options: { responsive: true, plugins: { title: { display: true, text: 'Forecast vs Actual Sales (Qty)' } } }
+      });
+
+      const products = analytics.product_accuracy || [];
+      const tbody = document.getElementById('productAccuracyBody');
+      tbody.innerHTML = '';
+      products.forEach(item => {
+        const row = document.createElement('tr');
+        const trend = 'up';
+        row.innerHTML = `
+          <td>${item.name || ('Product ' + item.product_id)}</td>
+          <td>${(item.forecasted || 0).toLocaleString()}</td>
+          <td>${(item.actual || 0).toLocaleString()}</td>
+          <td>${(item.accuracy || 0).toFixed(1)}%</td>
+          <td><i class="fas fa-arrow-${trend} ${trend === 'up' ? 'positive' : 'negative'}"></i></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Inventory Trends
+    function renderInventoryTrends(analytics) {
+      const sm = analytics.stock_movement_7d || { labels: [], stock_in: [], stock_out: [] };
+      const stockMovementCtx = document.getElementById('stockMovementChart').getContext('2d');
+      new Chart(stockMovementCtx, {
+        type: 'bar',
+        data: {
+          labels: sm.labels,
+          datasets: [
+            { label: 'Stock In (kg)',  data: sm.stock_in, backgroundColor: 'rgba(75,192,192,0.2)', borderColor: 'rgb(75,192,192)', borderWidth: 1 },
+            { label: 'Stock Out (kg)', data: sm.stock_out, backgroundColor: 'rgba(255,99,132,0.2)', borderColor: 'rgb(255,99,132)', borderWidth: 1 }
+          ]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Daily Stock Movement (kg)' } } }
+      });
+
+      const cats = analytics.category_levels || [];
+      const categoryStockCtx = document.getElementById('categoryStockChart').getContext('2d');
+      new Chart(categoryStockCtx, {
+        type: 'doughnut',
+        data: {
+          labels: cats.map(c => c.category),
+          datasets: [{ data: cats.map(c => c.stock_kg || 0), backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)'] }]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Stock Distribution by Category (kg)' } } }
+      });
+    }
+
+    // Sales Trends
+    function renderSalesTrends(analytics) {
+      const tops = analytics.top_products_month || [];
+      const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+      new Chart(topProductsCtx, {
+        type: 'pie',
+        data: {
+          labels: tops.map(t => t.name),
+          datasets: [{ data: tops.map(t => t.quantity || 0), backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)'] }]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Top 5 Bestselling Items (Qty)' } } }
+      });
+
+      const weekly = analytics.weekly_sales_4w || { labels: [], sales: [] };
+      const weeklySalesCtx = document.getElementById('weeklySalesChart').getContext('2d');
+      new Chart(weeklySalesCtx, {
+        type: 'bar',
+        data: { labels: weekly.labels, datasets: [{ label: 'Sales (₱)', data: weekly.sales, backgroundColor: 'rgba(75,192,192,0.2)', borderColor: 'rgb(75,192,192)', borderWidth: 1 }] },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Weekly Sales Performance (₱)' } } }
+      });
+    }
+
+    // Risk Visualization
+    function renderRiskVisualization(analytics) {
+      const risks = analytics.branch_risks || [];
+      const riskHeatmapCtx = document.getElementById('riskHeatmap').getContext('2d');
+      new Chart(riskHeatmapCtx, {
+        type: 'bar',
+        data: {
+          labels: risks.map(r => r.product_name || ('Product ' + r.product_id)),
+          datasets: [{ label: 'Risk Score', data: risks.map(r => r.risk_score || 0), backgroundColor: ['rgb(255,99,132)','rgb(255,159,64)','rgb(255,205,86)','rgb(75,192,192)','rgb(54,162,235)'] }]
+        },
+        options: { responsive: true, plugins: { title: { display: true, text: 'Product Risk Levels' } } }
+      });
+
+      const tbody = document.getElementById('riskTableBody');
+      tbody.innerHTML = '';
+      risks.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.product_name || ('Product ' + item.product_id)}</td>
+          <td><span class="risk-level ${item.risk_level.toLowerCase()}">${item.risk_level}</span></td>
+          <td>Shortage: ${Number(item.gap_kg || 0).toLocaleString()} kg</td>
+          <td>${item.action}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function exportAnalytics() {
+      try {
+        showNotification('Exporting analytics data...', 'info');
+        setTimeout(() => { showNotification('Analytics exported successfully', 'success'); }, 1500);
+      } catch (err) {
+        console.error('Error exporting analytics:', err);
+        showNotification('Error exporting analytics', 'error');
+      }
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const { branchName, branchId } = getBranchParams();
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Analytics - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - G.M.C Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="../js/dashboard.js"></script>
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+      <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+           <li class="active" title="Dashboard"><a href="{{ url_for('admin.admin_dashboard') }}"><span class="sidebar-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="13" width="7" height="8" rx="2"/><rect x="14" y="3" width="7" height="18" rx="2"/></svg></span><span class="sidebar-label">Dashboard</span></a></li>
+        <li title="Analytics"><a href="{{ url_for('admin.analytics') }}"><span class="sidebar-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="sidebar-label">Analytics</span></a></li>
+
+          <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+            <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+         <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+            <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+           
+            <li title="Purchase">
+  <a href="{{ url_for('admin.purchase') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Purchase</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+          <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+          <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+   <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name sidebar-label" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+         <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="dashboard-header">
+            <div class="dashboard-title-section">
+                <h2>🏠 Dashboard</h2>
+                
+            </div>
+            <div class="dashboard-search">
+                <input type="text" placeholder="Search products, orders, users...">
+                <button class="search-btn" aria-label="Search">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Real-time Status Cards -->
+        <div class="dashboard-cards-row">
+            <div class="dashboard-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="7" width="18" height="13" rx="2"/>
+                        <path d="M16 3v4"/>
+                        <path d="M8 3v4"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Today's Sales</div>
+                    <div class="dashboard-card-value" id="today-sales">₱0</div>
+                    <div class="dashboard-card-change positive">Real-time data</div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-icon warning">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Low Stock Items</div>
+                    <div class="dashboard-card-value" id="low-stock-count">0</div>
+                    <div class="dashboard-card-change negative">Items below warning level</div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 17l6-6 4 4 8-8"/>
+                        <path d="M14 7h7v7"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Forecast Accuracy</div>
+                    <div class="dashboard-card-value" id="forecast-accuracy">0%</div>
+                    <div class="dashboard-card-change positive">Based on last 30 days</div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">This Month Sales</div>
+                    <div class="dashboard-card-value" id="month-sales">₱0</div>
+                    <div class="dashboard-card-change">Current month total</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts and Announcements Row -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget alerts-widget">
+                <div class="widget-header">
+                    <h3>🚨 Alerts</h3>
+                    <span class="alert-count">5</span>
+                </div>
+                <div class="alerts-list">
+                    <div class="alert-item critical">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Expiry Alert</div>
+                            <div class="alert-desc">15 items expiring in 7 days</div>
+                        </div>
+                        <div class="alert-time">2h ago</div>
+                    </div>
+                    <div class="alert-item warning">
+                        <div class="alert-icon">📉</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Stock Risk</div>
+                            <div class="alert-desc">Product XYZ below safety stock</div>
+                        </div>
+                        <div class="alert-time">4h ago</div>
+                    </div>
+                    <div class="alert-item info">
+                        <div class="alert-icon">📈</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Demand Spike</div>
+                            <div class="alert-desc">Unusual demand for Product ABC</div>
+                        </div>
+                        <div class="alert-time">6h ago</div>
+                    </div>
+                    <div class="alert-item warning">
+                        <div class="alert-icon">🔧</div>
+                        <div class="alert-content">
+                            <div class="alert-title">System Maintenance</div>
+                            <div class="alert-desc">Scheduled maintenance in 2 hours</div>
+                        </div>
+                        <div class="alert-time">1h ago</div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-widget announcements-widget">
+                <div class="widget-header">
+                    <h3>📢 Announcements</h3>
+                    <button class="new-announcement-btn">+</button>
+                </div>
+                <div class="announcements-list">
+                    <div class="announcement-item">
+                        <div class="announcement-icon">📋</div>
+                        <div class="announcement-content">
+                            <div class="announcement-title">System Maintenance</div>
+                            <div class="announcement-desc">Scheduled maintenance on Sunday 2-4 AM. System will be temporarily unavailable.</div>
+                            <div class="announcement-time">Posted 1 day ago</div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <div class="announcement-icon">🎉</div>
+                        <div class="announcement-content">
+                            <div class="announcement-title">New Features Released</div>
+                            <div class="announcement-desc">Enhanced forecasting algorithm deployed. Improved accuracy by 15%.</div>
+                            <div class="announcement-time">Posted 3 days ago</div>
+                        </div>
+                    </div>
+                    <div class="announcement-item">
+                        <div class="announcement-icon">👥</div>
+                        <div class="announcement-content">
+                            <div class="announcement-title">Team Meeting</div>
+                            <div class="announcement-desc">Monthly review meeting scheduled for Friday 10 AM. All managers required.</div>
+                            <div class="announcement-time">Posted 5 days ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Trend Chart -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>📈 Sales Trend</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period" id="salesTrendPeriod">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <select class="branch-filter" id="salesTrendBranch">
+                            <option value="">All Branches</option>
+                            <option value="1">Marawoy</option>
+                            <option value="2">Lipa</option>
+                            <option value="3">Malvar</option>
+                            <option value="4">Bulacnin</option>
+                            <option value="5">Boac</option>
+                            <option value="6">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="salesTrendChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast vs Actual Chart -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>🔮 Forecast vs Actual</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period" id="forecastPeriod">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <select class="branch-filter" id="forecastBranch">
+                            <option value="">All Branches</option>
+                            <option value="1">Marawoy</option>
+                            <option value="2">Lipa</option>
+                            <option value="3">Malvar</option>
+                            <option value="4">Bulacnin</option>
+                            <option value="5">Boac</option>
+                            <option value="6">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="forecastVsActualChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products Chart -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget chart-widget">
+                <div class="widget-header">
+                    <h3>🏆 Top Products</h3>
+                    <div class="chart-controls">
+                        <span class="chart-subtitle">This Month</span>
+                        <select class="branch-filter" id="topProductsBranch">
+                            <option value="">All Branches</option>
+                            <option value="1">Marawoy</option>
+                            <option value="2">Lipa</option>
+                            <option value="3">Malvar</option>
+                            <option value="4">Bulacnin</option>
+                            <option value="5">Boac</option>
+                            <option value="6">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="topProductsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Metrics Row -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget metrics-widget">
+                <div class="widget-header">
+                    <h3>📈 Key Metrics</h3>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">Revenue</div>
+                        <div class="metric-value">$124,567</div>
+                        <div class="metric-change positive">+12.5%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Orders</div>
+                        <div class="metric-value">1,234</div>
+                        <div class="metric-change positive">+8.2%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Avg Order Value</div>
+                        <div class="metric-value">$101</div>
+                        <div class="metric-change positive">+3.9%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Customer Satisfaction</div>
+                        <div class="metric-value">4.8/5</div>
+                        <div class="metric-change positive">+0.2</div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-widget recent-activity-widget">
+                <div class="widget-header">
+                    <h3>🕒 Recent Activity</h3>
+                </div>
+                <div class="activity-list">
+                    <div class="activity-item">
+                        <div class="activity-icon">📦</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Stock Updated</div>
+                            <div class="activity-desc">Product ABC quantity updated by Admin</div>
+                            <div class="activity-time">5 min ago</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">💰</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Sale Completed</div>
+                            <div class="activity-desc">Order #12345 processed successfully</div>
+                            <div class="activity-time">12 min ago</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">📊</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Report Generated</div>
+                            <div class="activity-desc">Monthly inventory report exported</div>
+                            <div class="activity-time">1 hour ago</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">👤</div>
+                        <div class="activity-content">
+                            <div class="activity-title">User Login</div>
+                            <div class="activity-desc">Sarah Johnson logged in from Branch 3</div>
+                            <div class="activity-time">2 hours ago</div>
+                        </div>
+                    </div>
+                    <div class="activity-item">
+                        <div class="activity-icon">🔄</div>
+                        <div class="activity-content">
+                            <div class="activity-title">System Sync</div>
+                            <div class="activity-desc">Inventory synchronized across all branches</div>
+                            <div class="activity-time">3 hours ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Row -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget quick-actions-widget">
+                <div class="widget-header">
+                    <h3>⚡ Quick Actions</h3>
+                    <div class="quick-actions-subtitle">Common tasks and shortcuts</div>
+                </div>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-btn primary-action">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Add New Product</div>
+                            <div class="quick-action-desc">Create new inventory item</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <path d="M3 9h18M9 21V9"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Generate Report</div>
+                            <div class="quick-action-desc">Export data analytics</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="7" r="4"/>
+                                <path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Manage Users</div>
+                            <div class="quick-action-desc">User permissions & roles</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 12 5.1V5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82v.09c0 .66.26 1.3.73 1.77z"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">System Settings</div>
+                            <div class="quick-action-desc">Configure preferences</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            <div class="dashboard-widget system-status-widget">
+                <div class="widget-header">
+                    <h3>🔧 System Status</h3>
+                </div>
+                <div class="system-status-list">
+                    <div class="status-item online">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">Database</div>
+                            <div class="status-desc">All systems operational</div>
+                        </div>
+                    </div>
+                    <div class="status-item online">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">API Services</div>
+                            <div class="status-desc">Response time: 45ms</div>
+                        </div>
+                    </div>
+                    <div class="status-item warning">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">Backup System</div>
+                            <div class="status-desc">Last backup: 2 hours ago</div>
+                        </div>
+                    </div>
+                    <div class="status-item online">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">Security</div>
+                            <div class="status-desc">All checks passed</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+
+        // Load KPI data from API
+        async function loadKPIData() {
+            try {
+                // Use dashboard API for all KPIs (includes today_sales, month_sales, low_stock_count, forecast_accuracy)
+                // This shows TOTAL across ALL branches for admin view
+                const response = await fetch('/admin/api/dashboard/kpis');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const kpis = data.kpis;
+                    
+                    // Update all KPI cards with data from dashboard API
+                    document.getElementById('today-sales').textContent = '₱' + (kpis.today_sales || 0).toLocaleString();
+                    document.getElementById('month-sales').textContent = '₱' + (kpis.month_sales || 0).toLocaleString();
+                    document.getElementById('low-stock-count').textContent = kpis.low_stock_count || 0;
+                    document.getElementById('forecast-accuracy').textContent = (kpis.forecast_accuracy || 0).toFixed(1) + '%';
+                }
+            } catch (error) {
+                console.error('Error loading KPI data:', error);
+            }
+        }
+
+        // Load chart data from API
+        async function loadChartData() {
+            try {
+                // Get filter values
+                const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+                const salesTrendBranch = document.getElementById('salesTrendBranch')?.value || '';
+                const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
+                const forecastBranch = document.getElementById('forecastBranch')?.value || '';
+                const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
+
+                // Build query parameters - use the most restrictive filters
+                const params = new URLSearchParams();
+                if (salesTrendBranch) params.append('branch_id', salesTrendBranch);
+                if (salesTrendPeriod) params.append('days', salesTrendPeriod);
+
+                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const charts = data.charts;
+                    updateSalesTrendChart(charts.sales_trend);
+                    updateForecastVsActualChart(charts.forecast_vs_actual);
+                    updateTopProductsChart(charts.top_products);
+                }
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+            }
+        }
+
+        // Update Sales Trend Chart
+        function updateSalesTrendChart(data) {
+            const ctx = document.getElementById('salesTrendChart');
+            if (!ctx) return;
+
+            if (window.salesTrendChart) {
+                window.salesTrendChart.destroy();
+            }
+
+            // Handle empty data
+            if (!data || data.length === 0) {
+                data = [{ date: 'No Data', sales: 0 }];
+            }
+
+            const labels = data.map(item => item.date);
+            const salesData = data.map(item => item.sales);
+
+            window.salesTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                    labels: labels,
+                datasets: [{
+                        label: 'Daily Sales (₱)',
+                        data: salesData,
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#2e7d32',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Sales Trend (Last 30 Days)',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return '₱' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '₱' + value.toLocaleString();
+                                },
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Update Forecast vs Actual Chart
+        function updateForecastVsActualChart(data) {
+            const ctx = document.getElementById('forecastVsActualChart');
+            if (!ctx) return;
+
+            if (window.forecastVsActualChart) {
+                window.forecastVsActualChart.destroy();
+            }
+
+            // Handle empty data
+            if (!data || data.length === 0) {
+                data = [{ date: 'No Data', actual: 0, forecast: 0 }];
+            }
+
+            const labels = data.map(item => item.date);
+            const actualData = data.map(item => item.actual);
+            const forecastData = data.map(item => item.forecast);
+
+            window.forecastVsActualChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Actual Sales (kg)',
+                        data: actualData,
+                        borderColor: '#1976d2',
+                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: '#1976d2',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }, {
+                        label: 'Forecast (kg)',
+                        data: forecastData,
+                    borderColor: '#ff9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    borderWidth: 3,
+                        borderDash: [5, 5],
+                    fill: false,
+                    tension: 0.4,
+                    pointBackgroundColor: '#ff9800',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Forecast vs Actual Sales',
+                            font: { size: 14, weight: 'bold' }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
+                                }
+                            }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                            title: { 
+                                display: true, 
+                                text: 'Quantity (kg)',
+                                font: { size: 12, weight: 'bold' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' kg';
+                                },
+                                font: { size: 11 }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                                font: { size: 11 }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Update Top Products Chart
+        function updateTopProductsChart(data) {
+            const ctx = document.getElementById('topProductsChart');
+            if (!ctx) return;
+
+            if (window.topProductsChart) {
+                window.topProductsChart.destroy();
+            }
+
+            // Handle empty data
+            if (!data || data.length === 0) {
+                data = [{ name: 'No Data', quantity: 0 }];
+            }
+
+            const labels = data.map(item => item.name);
+            const quantities = data.map(item => item.quantity);
+
+            window.topProductsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantity Sold (kg)',
+                        data: quantities,
+                        backgroundColor: [
+                            'rgba(46, 125, 50, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(236, 72, 153, 0.8)'
+                        ],
+                        borderColor: [
+                            '#2e7d32',
+                            '#3b82f6',
+                            '#f59e0b',
+                            '#8b5cf6',
+                            '#ec4899'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: false 
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Top 5 Products This Month',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toLocaleString() + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Quantity (kg)',
+                                font: { size: 12, weight: 'bold' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' kg';
+                                },
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize dashboard
+        async function initializeDashboard() {
+            await loadKPIData();
+            await loadChartData();
+            
+            // Add filter event listeners
+            setupFilterListeners();
+            
+            // Refresh data every 5 minutes
+            setInterval(async () => {
+                await loadKPIData();
+                await loadChartData();
+            }, 300000);
+        }
+
+        // Setup filter event listeners
+        function setupFilterListeners() {
+            // Sales trend filters
+            const salesTrendPeriod = document.getElementById('salesTrendPeriod');
+            const salesTrendBranch = document.getElementById('salesTrendBranch');
+            
+            if (salesTrendPeriod) {
+                salesTrendPeriod.addEventListener('change', () => {
+                    loadChartData();
+                });
+            }
+            
+            if (salesTrendBranch) {
+                salesTrendBranch.addEventListener('change', () => {
+                    loadChartData();
+                });
+            }
+
+            // Forecast filters
+            const forecastPeriod = document.getElementById('forecastPeriod');
+            const forecastBranch = document.getElementById('forecastBranch');
+            
+            if (forecastPeriod) {
+                forecastPeriod.addEventListener('change', () => {
+                    loadChartData();
+                });
+            }
+            
+            if (forecastBranch) {
+                forecastBranch.addEventListener('change', () => {
+                    loadChartData();
+                });
+            }
+
+            // Top products filter
+            const topProductsBranch = document.getElementById('topProductsBranch');
+            
+            if (topProductsBranch) {
+                topProductsBranch.addEventListener('change', () => {
+                    loadChartData();
+                });
+            }
+        }
+
+
+        // Initialize dashboard on page load
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+        // Add quick action button functionality
+        document.querySelectorAll('.quick-action-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const actionTitle = this.querySelector('.quick-action-title').textContent;
+                console.log(`Quick action clicked: ${actionTitle}`);
+                
+                // Add navigation logic based on action
+                switch(actionTitle) {
+                    case 'Add New Product':
+                        window.location.href = '/admin/inventory';
+                        break;
+                    case 'Generate Report':
+                        window.location.href = '/admin/reports';
+                        break;
+                    case 'Manage Users':
+                        window.location.href = '/admin/user';
+                        break;
+                    case 'System Settings':
+                        window.location.href = '/admin/settings';
+                        break;
+                    default:
+                        console.log('Action not implemented yet');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

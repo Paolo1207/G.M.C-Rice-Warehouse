@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Inventory - G.M.C. Rice Warehouse</title>
+    <!-- Static files should come from the manager blueprint -->
+    <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/inventory.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+                <div class="nav-section">
+                    <h2>Main Menu</h2>
+                    <ul>
+                        <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+                        <li><a href="{{ url_for('manager.inventory') }}" class="active"><i class="fas fa-box"></i> Inventory</a></li>
+                        <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+                        <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                        <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Reports</h2>
+                    <ul>
+                        <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+                        <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Settings</h2>
+                    <ul>
+                        <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                        <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="inventory-container">
+                <div class="inventory-header">
+                    <h2><i class="fas fa-box"></i> Inventory Management</h2>
+                    <div class="inventory-actions">
+                        <button class="btn primary" onclick="showAddStockModal()">
+                            <i class="fas fa-plus"></i> Add Stock
+                        </button>
+                        <button class="btn secondary" onclick="exportInventory()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <div class="inventory-filters">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchStock" placeholder="Search products...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
+                            <option value="premium">Premium Rice</option>
+                            <option value="regular">Regular Rice</option>
+                            <option value="special">Special Varieties</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="low">Low Stock</option>
+                            <option value="out">Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="inventory-table-container">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add/Edit Stock Modal -->
+                <div id="stockModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-box"></i> Add new product</h3>
+                            <button class="close-btn" onclick="closeStockModal()">&times;</button>
+                        </div>
+                        <div class="modal-actions" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                            <button class="btn secondary" type="button" onclick="addCustomField()"><i class="fas fa-plus"></i> Add Custom Field</button>
+                            <button class="btn secondary" type="button" onclick="bulkUpload()"><i class="fas fa-upload"></i> Bulk Upload</button>
+                        </div>
+                        <form id="productForm" onsubmit="handleProductSubmit(event)">
+                            <div class="form-group">
+                                <label for="productName">Product Name</label>
+                                <input type="text" id="productName" name="productName" placeholder="Sinandomeng" required>
+                                <div class="hint">Ex: Sinandomeng</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="warningThreshold">Warning Threshold Stock Level</label>
+                                <input type="number" id="warningThreshold" name="warningThreshold" placeholder="Ex: 100" min="0">
+                                <div class="hint">Ex: 100</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="autoOrderLevel">Auto Order Stock Level</label>
+                                <input type="number" id="autoOrderLevel" name="autoOrderLevel" placeholder="Ex: 50" min="0">
+                                <div class="hint">Ex: 50</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Category</label>
+                                <select id="category" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="white">White Rice</option>
+                                    <option value="premium">Premium Rice</option>
+                                    <option value="regular">Regular Rice</option>
+                                    <option value="special">Special Varieties</option>
+                                </select>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="barcode">Barcode Number</label>
+                                <input type="text" id="barcode" name="barcode" placeholder="QWERTY0987">
+                                <div class="hint">Ex: QWERTY0987</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="grn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="grn" name="grn" placeholder="QWERTY56787">
+                                <div class="hint">Ex: QWERTY56787</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="recordedStock">Recorded Stock Level</label>
+                                <input type="number" id="recordedStock" name="recordedStock" placeholder="Ex: 2000" min="0">
+                                <div class="hint">Ex: 2000</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="purchasingPrice">Purchasing Price</label>
+                                <input type="text" id="purchasingPrice" name="purchasingPrice" placeholder="Ex: $100">
+                                <div class="hint">Ex: $100</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sellingMargin">Selling Price Margin</label>
+                                <input type="text" id="sellingMargin" name="sellingMargin" placeholder="Ex: 20%">
+                                <div class="hint">Ex: 20%</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sku">SKU Code</label>
+                                <input type="text" id="sku" name="sku" class="sku-input" placeholder="RTY1234455">
+                                <div class="hint">Ex: RTY1234455</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Product Description</label>
+                                <textarea id="description" name="description" rows="3" placeholder="Ex: Type something about product here"></textarea>
+                                <div class="hint">Ex: Type something about product here</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Add Product</button>
+                                <button type="button" class="btn secondary" onclick="closeStockModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit Inventory Modal -->
+                <div id="editStockModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-pen"></i> Edit product</h3>
+                            <button class="close-btn" onclick="closeEditModal()">&times;</button>
+                        </div>
+                        <form id="editProductForm">
+                            <input type="hidden" id="editItemId" name="__id">
+                            <div class="form-group">
+                                <label for="editProductName">Product Name</label>
+                                <input type="text" id="editProductName" name="productName" placeholder="Sinandomeng">
+                            </div>
+                            <div class="form-group">
+                                <label for="editWarningThreshold">Warning Threshold Stock Level</label>
+                                <input type="number" id="editWarningThreshold" name="warningThreshold" placeholder="Ex: 100" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="editAutoOrderLevel">Auto Order Stock Level</label>
+                                <input type="number" id="editAutoOrderLevel" name="autoOrderLevel" placeholder="Ex: 50" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="editCategory">Category</label>
+                                <input type="text" id="editCategory" name="category" placeholder="Premium">
+                            </div>
+                            <div class="form-group">
+                                <label for="editBarcode">Barcode Number</label>
+                                <input type="text" id="editBarcode" name="barcode" placeholder="QWERTY0987">
+                            </div>
+                            <div class="form-group">
+                                <label for="editGrn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="editGrn" name="grn" placeholder="QWERTY56787">
+                            </div>
+                            <div class="form-group">
+                                <label for="editRecordedStock">Recorded Stock Level</label>
+                                <input type="number" id="editRecordedStock" name="recordedStock" placeholder="Ex: 2000" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="editPurchasingPrice">Purchasing Price</label>
+                                <input type="text" id="editPurchasingPrice" name="purchasingPrice" placeholder="Ex: $100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editSellingMargin">Selling Price Margin</label>
+                                <input type="text" id="editSellingMargin" name="sellingMargin" placeholder="Ex: 20%">
+                            </div>
+                            <div class="form-group">
+                                <label for="editSku">SKU Code</label>
+                                <input type="text" id="editSku" name="sku" class="sku-input" placeholder="RTY1234455">
+                            </div>
+                            <div class="form-group">
+                                <label for="editDescription">Product Description</label>
+                                <textarea id="editDescription" name="description" rows="3" placeholder="Ex: Type something about product here"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Update</button>
+                                <button type="button" class="btn secondary" onclick="closeEditModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- View Inventory Modal (manager theme) -->
+                <div id="viewItemModal" class="modal">
+                    <div class="modal-content" style="border-top:4px solid #1a365d">
+                        <div class="modal-header">
+                            <h3 style="color:#1a365d"><i class="fas fa-eye"></i> Product details</h3>
+                            <button class="close-btn" onclick="closeViewModal()">&times;</button>
+                        </div>
+
+                        <div class="grid-3col gap-16" id="viewFields"></div>
+
+                        <div class="form-actions" style="margin-top:16px">
+                            <button type="button" class="btn secondary" onclick="closeViewModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Initialize inventory page
+        document.addEventListener('DOMContentLoaded', function() {
+            initInventory();
+        });
+
+        function initInventory() {
+            loadInventoryData();
+            setupEventListeners();
+        }
+
+        // --- Helpers ---
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                              type === 'error' ? 'fa-exclamation-circle' :
+                              'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function mapItem(it) {
+            return {
+                id: it.id,
+                name: it.product_name || '',
+                category: it.category || '',
+                quantity: Number(it.stock ?? 0),
+                unit: 'kg',
+                status: it.status || (Number(it.stock ?? 0) <= 0 ? 'out' : 'available'),
+                lastUpdated: it.updated_at || it.created_at || null
+            };
+        }
+
+        // --- CRUD using manager API ---
+        async function loadInventoryData(query = '') {
+            try {
+                const res = await fetch(`/manager/api/inventory${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load');
+                const data = (json.items || []).map(mapItem);
+            renderInventoryTable(data);
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load inventory', 'error');
+            }
+        }
+
+        async function createProduct(payload) {
+            const res = await fetch('/manager/api/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Create failed');
+            return json.item;
+        }
+
+        async function updateItem(id, patch) {
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(patch)
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Update failed');
+            return json.item;
+        }
+
+        async function deleteItem(id) {
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`, {
+                method: 'DELETE'
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Delete failed');
+            return true;
+        }
+
+        async function fetchLogs(id) {
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}/logs`);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Logs failed');
+            return json.logs || [];
+        }
+
+        // Render inventory table
+        function renderInventoryTable(data) {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.category}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.unit}</td>
+                    <td><span class="status-badge ${item.status}">${item.status}</span></td>
+                    <td>${formatDate(item.lastUpdated)}</td>
+                    <td>
+                        <button class="btn-icon" onclick="editStock(${item.id})" title="Quick Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon" onclick="viewHistory(${item.id})" title="View History">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="btn-icon" onclick="removeItem(${item.id})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchStock');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            searchInput.addEventListener('input', () => filterInventory());
+            categoryFilter.addEventListener('change', filterInventory);
+            statusFilter.addEventListener('change', filterInventory);
+
+            document.getElementById('productForm')?.addEventListener('submit', handleProductSubmit);
+        }
+
+        // Filter inventory (client-side by re-rendering from server + simple client filter)
+        async function filterInventory() {
+            const q = document.getElementById('searchStock').value.trim();
+            await loadInventoryData(q);
+            showToast('Filtered', 'info');
+        }
+
+        // Show add stock modal
+        function showAddStockModal() {
+            document.getElementById('stockModal').style.display = 'block';
+        }
+
+        // Close stock modal
+        function closeStockModal() {
+            document.getElementById('stockModal').style.display = 'none';
+        }
+
+        // Handle product create (maps to manager create API)
+        async function handleProductSubmit(event) {
+            event.preventDefault();
+            try {
+                const fd = new FormData(event.target);
+                const payload = {
+                    product_name: (fd.get('productName') || '').trim(),
+                    category: (fd.get('category') || '').trim() || null,
+                    barcode: (fd.get('barcode') || '').trim() || null,
+                    sku: (fd.get('sku') || '').trim() || null,
+                    desc: (fd.get('description') || '').trim() || null,
+                    warn_level: fd.get('warningThreshold') === '' ? null : Number(fd.get('warningThreshold')),
+                    auto_level: fd.get('autoOrderLevel') === '' ? null : Number(fd.get('autoOrderLevel')),
+                    stock_kg: fd.get('recordedStock') === '' ? 0 : Number(fd.get('recordedStock')),
+                    unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? 0 : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
+                    margin: (fd.get('sellingMargin') || '').trim() || null,
+                    batch_code: (fd.get('grn') || '').trim() || null
+                };
+
+                if (!payload.product_name) { showToast('Product name required', 'error'); return; }
+
+                await createProduct(payload);
+            closeStockModal();
+                event.target.reset();
+                showToast('Product added', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Create failed', 'error');
+            }
+        }
+
+        // Open Edit modal and prefill
+        async function editStock(id) {
+            try {
+                const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`);
+                const j = await res.json();
+                if (!res.ok || j.ok === false) throw new Error(j.error || 'Load failed');
+                const it = j.item || {};
+
+                document.getElementById('editItemId').value = it.id;
+                document.getElementById('editProductName').value = it.product_name || '';
+                document.getElementById('editCategory').value = it.category || '';
+                document.getElementById('editBarcode').value = it.barcode || '';
+                document.getElementById('editSku').value = it.sku || '';
+                document.getElementById('editDescription').value = it.desc || '';
+                document.getElementById('editRecordedStock').value = Number(it.stock ?? 0);
+                document.getElementById('editPurchasingPrice').value = Number(it.price ?? 0);
+                document.getElementById('editGrn').value = it.batch || '';
+                document.getElementById('editWarningThreshold').value = it.warn ?? '';
+                document.getElementById('editAutoOrderLevel').value = it.auto ?? '';
+
+                document.getElementById('editStockModal').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Open edit failed', 'error');
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editStockModal').style.display = 'none';
+        }
+
+        // Submit edit
+        document.getElementById('editProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const fd = new FormData(e.target);
+                const id = fd.get('__id');
+                const payload = {
+                    product_name: (fd.get('productName') || '').trim() || undefined,
+                    category: (fd.get('category') || '').trim() || undefined,
+                    barcode: (fd.get('barcode') || '').trim() || undefined,
+                    sku: (fd.get('sku') || '').trim() || undefined,
+                    desc: (fd.get('description') || '').trim() || undefined,
+                    warn_level: fd.get('warningThreshold') === '' ? undefined : Number(fd.get('warningThreshold')),
+                    auto_level: fd.get('autoOrderLevel') === '' ? undefined : Number(fd.get('autoOrderLevel')),
+                    stock_kg: fd.get('recordedStock') === '' ? undefined : Number(fd.get('recordedStock')),
+                    unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? undefined : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
+                    margin: (fd.get('sellingMargin') || '').trim() || undefined,
+                    batch_code: (fd.get('grn') || '').trim() || undefined
+                };
+
+                Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+                await updateItem(id, payload);
+                closeEditModal();
+                showToast('Updated', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Update failed', 'error');
+            }
+        });
+
+        async function removeItem(id) {
+            if (!confirm('Delete this item?')) return;
+            try {
+                await deleteItem(id);
+                showToast('Deleted', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Delete failed', 'error');
+            }
+        }
+
+        // View item (manager-themed modal) with server data + logs
+        async function viewHistory(id) {
+            try {
+                const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`);
+                const j = await res.json();
+                if (!res.ok || j.ok === false) throw new Error(j.error || 'Fetch failed');
+                const it = j.item || {};
+                const logs = await fetchLogs(id).catch(()=>[]);
+
+                const V = (label, value) => `
+                    <div class="form-group">
+                        <label style="color:#1a365d">${label}</label>
+                        <input value="${String(value ?? '')}" readonly>
+                    </div>`;
+
+                const fields = [
+                    V('Product Name', it.product_name),
+                    V('Category', it.category),
+                    V('Barcode', it.barcode),
+                    V('SKU', it.sku),
+                    V('Recorded Stock (kg)', it.stock),
+                    V('Unit Price', it.price),
+                    V('Warning Threshold', it.warn),
+                    V('Auto Order Level', it.auto),
+                    V('Batch / GRN', it.batch),
+                    `
+                    <div class="form-group col-span-3">
+                        <label style="color:#1a365d">Description</label>
+                        <input value="${it.desc ?? ''}" readonly>
+                    </div>
+                    `,
+                    `
+                    <div class="form-group col-span-3">
+                        <label style="color:#1a365d">Recent Restock Logs</label>
+                        <div style="max-height:180px;overflow:auto;border:1px solid #e6eef9;border-radius:8px;padding:8px">
+                            ${logs.length ? logs.map(l => `<div style="padding:6px 4px;border-bottom:1px dashed #e6eef9">
+                                <strong>${l.date || ''}</strong> — +${Number(l.qty_kg ?? l.qty ?? 0)} kg
+                                <span style="opacity:.7"> (${l.supplier || 'Manager'})</span>
+                                <div style="opacity:.8">${l.note || ''}</div>
+                            </div>`).join('') : '<div style="opacity:.7">No logs</div>'}
+                        </div>
+                    </div>
+                    `
+                ].join('');
+
+                document.getElementById('viewFields').innerHTML = fields;
+                document.getElementById('viewItemModal').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Load failed', 'error');
+            }
+        }
+
+        function closeViewModal() { document.getElementById('viewItemModal').style.display = 'none'; }
+
+        // Export inventory (client-side CSV of current table)
+        function exportInventory() {
+            const rows = [['Product Name','Category','Quantity','Unit','Status']];
+            document.querySelectorAll('#inventoryTableBody tr').forEach(tr => {
+                const cols = Array.from(tr.children).slice(0,5).map(td => td.textContent.trim());
+                rows.push(cols);
+            });
+            const csv = rows.map(r => r.map(v => /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v).join(',')).join('\n');
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'manager_inventory.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        // Update title and header based on branch selection
+        function updateBranchTitle() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const branchName = urlParams.get('branch_name');
+            const branchId = urlParams.get('branch');
+            
+            if (branchName) {
+                const decodedBranchName = decodeURIComponent(branchName);
+                document.getElementById('pageTitle').textContent = `Inventory - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+                document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+                
+                // Update all navigation links to preserve branch parameters
+                updateNavigationLinks(branchId, branchName);
+            }
+        }
+
+        // Update navigation links to include branch parameters
+        function updateNavigationLinks(branchId, branchName) {
+            const navLinks = document.querySelectorAll('.nav-main a[href]');
+            navLinks.forEach(link => {
+                const currentHref = link.getAttribute('href');
+                if (currentHref && !currentHref.includes('branch=')) {
+                    const separator = currentHref.includes('?') ? '&' : '?';
+                    link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+                }
+            });
+        }
+
+        // Call the function when page loads
+        document.addEventListener('DOMContentLoaded', updateBranchTitle);
+    </script>
+     <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+</body>
+</html>

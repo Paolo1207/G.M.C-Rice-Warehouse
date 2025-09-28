@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Dashboard - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager static assets -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/dashboard.css') }}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Notification Popup System -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/notification-popup.css') }}">
+  <script src="{{ url_for('manager.static', filename='js/notification-popup.js') }}" defer></script>
+  
+  <style>
+    .chart-controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 15px;
+      gap: 10px;
+    }
+    
+    .chart-period {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: white;
+      font-size: 14px;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .chart-period:hover {
+      border-color: #1a365d;
+      box-shadow: 0 2px 4px rgba(26, 54, 93, 0.1);
+    }
+    
+    .chart-period:focus {
+      outline: none;
+      border-color: #1a365d;
+      box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+         <ul>
+            <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <!-- FIXED: qualify endpoints to manager.* -->
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="dashboard-container">
+
+        <!-- Overview Cards -->
+        <div class="overview-cards">
+          <div class="card">
+            <div class="card-icon">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="card-content">
+              <h3>Today's Sales</h3>
+              <p class="number" id="today-sales">₱0</p>
+              <p class="trend positive">
+                <i class="fas fa-arrow-up"></i>
+                Real-time data
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="card-content">
+              <h3>This Month Sales</h3>
+              <p class="number" id="month-sales">₱0</p>
+              <p class="trend positive">
+                <i class="fas fa-arrow-up"></i>
+                Current month total
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon warning">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="card-content">
+              <h3>Low Stock Items</h3>
+              <p class="number" id="low-stock-count">0</p>
+              <p class="trend negative">
+                <i class="fas fa-arrow-up"></i>
+                Items below warning level
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon success">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="card-content">
+              <h3>Forecast Accuracy</h3>
+              <p class="number" id="forecast-accuracy">0%</p>
+              <p class="trend positive">
+                <i class="fas fa-arrow-up"></i>
+                Based on last 30 days
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts and Announcements -->
+        <div class="dashboard-grid">
+          <div class="grid-item">
+            <h3><i class="fas fa-bell"></i> Real-time Alerts</h3>
+            <div class="alert-list">
+              <div class="alert-item warning">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>2 items near expiry date</span>
+              </div>
+              <div class="alert-item caution">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>Stock below reorder level for 5 items</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-item">
+            <h3><i class="fas fa-bullhorn"></i> Announcements</h3>
+            <div class="announcement-list">
+              <div class="announcement-item">
+                <div class="announcement-header">
+                  <span class="title">System Maintenance</span>
+                  <span class="date">Mar 15, 2024</span>
+                </div>
+                <p>Scheduled maintenance on March 20, 2024, from 2 AM to 4 AM.</p>
+              </div>
+              <div class="announcement-item">
+                <div class="announcement-header">
+                  <span class="title">Delivery Delay Notice</span>
+                  <span class="date">Mar 14, 2024</span>
+                </div>
+                <p>Expected delivery delay for incoming stock due to weather conditions.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales Trend Chart -->
+        <div class="chart-container">
+          <h3><i class="fas fa-chart-line"></i> Sales Trend</h3>
+          <div class="chart-controls">
+            <select class="chart-period" id="salesTrendPeriod">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+          <canvas id="salesTrendChart"></canvas>
+        </div>
+
+        <!-- Forecast vs Actual Chart -->
+        <div class="chart-container">
+          <h3><i class="fas fa-chart-line"></i> Forecast vs Actual</h3>
+          <div class="chart-controls">
+            <select class="chart-period" id="forecastPeriod">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+          <canvas id="forecastVsActualChart"></canvas>
+        </div>
+
+        <!-- Top Products Chart -->
+        <div class="chart-container">
+          <h3><i class="fas fa-chart-bar"></i> Top Products This Month</h3>
+          <canvas id="topProductsChart"></canvas>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- FIXED: manager static JS -->
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () { 
+      updateBranchTitle();
+      initDashboard(); 
+    });
+
+    // Load KPI data from API
+    async function loadKPIData() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = urlParams.get('branch');
+        
+        let apiUrl = '/admin/api/dashboard/kpis';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.ok) {
+          const kpis = data.kpis;
+          
+          // Update KPI cards with real data
+          document.getElementById('today-sales').textContent = '₱' + kpis.today_sales.toLocaleString();
+          document.getElementById('month-sales').textContent = '₱' + kpis.month_sales.toLocaleString();
+          document.getElementById('low-stock-count').textContent = kpis.low_stock_count;
+          document.getElementById('forecast-accuracy').textContent = kpis.forecast_accuracy.toFixed(1) + '%';
+        }
+      } catch (error) {
+        console.error('Error loading KPI data:', error);
+      }
+    }
+
+    // Load chart data from API
+    async function loadChartData() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = urlParams.get('branch');
+        
+        // Get filter values
+        const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+        const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
+        
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (branchId) params.append('branch_id', branchId);
+        if (salesTrendPeriod) params.append('days', salesTrendPeriod);
+        
+        const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.ok) {
+          const charts = data.charts;
+          updateSalesTrendChart(charts.sales_trend);
+          updateForecastVsActualChart(charts.forecast_vs_actual);
+          updateTopProductsChart(charts.top_products);
+        }
+      } catch (error) {
+        console.error('Error loading chart data:', error);
+      }
+    }
+
+    function initDashboard() {
+      // Load real data
+      loadKPIData();
+      loadChartData();
+      
+      // Setup filter event listeners
+      setupFilterListeners();
+      
+      // Auto refresh every 5 minutes
+      setInterval(async () => {
+        await loadKPIData();
+        await loadChartData();
+      }, 300000);
+    }
+
+    // Update Sales Trend Chart
+    function updateSalesTrendChart(data) {
+      const ctx = document.getElementById('salesTrendChart');
+      if (!ctx) return;
+
+      if (window.salesTrendChart) {
+        window.salesTrendChart.destroy();
+      }
+
+      // Handle empty data
+      if (!data || data.length === 0) {
+        data = [{ date: 'No Data', sales: 0 }];
+      }
+
+      const labels = data.map(item => item.date);
+      const salesData = data.map(item => item.sales);
+
+      window.salesTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Daily Sales (₱)',
+            data: salesData,
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#1a365d',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            title: { 
+              display: true, 
+              text: 'Sales Trend (Last 30 Days)',
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#1a365d',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return '₱' + context.parsed.y.toLocaleString();
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                callback: function(value) {
+                  return '₱' + value.toLocaleString();
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 }
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
+    }
+
+    // Update Forecast vs Actual Chart
+    function updateForecastVsActualChart(data) {
+      const ctx = document.getElementById('forecastVsActualChart');
+      if (!ctx) return;
+
+      if (window.forecastVsActualChart) {
+        window.forecastVsActualChart.destroy();
+      }
+
+      // Handle empty data
+      if (!data || data.length === 0) {
+        data = [{ date: 'No Data', actual: 0, forecast: 0 }];
+      }
+
+      const labels = data.map(item => item.date);
+      const actualData = data.map(item => item.actual);
+      const forecastData = data.map(item => item.forecast);
+
+      window.forecastVsActualChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Actual Sales (kg)',
+            data: actualData,
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            borderWidth: 3,
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: '#1a365d',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }, {
+            label: 'Forecast (kg)',
+            data: forecastData,
+            borderColor: '#ecc94b',
+            backgroundColor: 'rgba(236, 201, 75, 0.1)',
+            borderWidth: 3,
+            borderDash: [5, 5],
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: '#ecc94b',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              display: true,
+              position: 'top'
+            },
+            title: { 
+              display: true, 
+              text: 'Forecast vs Actual Sales',
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#1a365d',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              title: { 
+                display: true, 
+                text: 'Quantity (kg)',
+                font: { size: 12, weight: 'bold' }
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString() + ' kg';
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 }
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
+    }
+
+    // Update Top Products Chart
+    function updateTopProductsChart(data) {
+      const ctx = document.getElementById('topProductsChart');
+      if (!ctx) return;
+
+      if (window.topProductsChart) {
+        window.topProductsChart.destroy();
+      }
+
+      // Handle empty data
+      if (!data || data.length === 0) {
+        data = [{ name: 'No Data', quantity: 0 }];
+      }
+
+      const labels = data.map(item => item.name);
+      const quantities = data.map(item => item.quantity);
+
+      window.topProductsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Quantity Sold (kg)',
+            data: quantities,
+            backgroundColor: [
+              'rgba(26, 54, 93, 0.8)',
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(139, 92, 246, 0.8)',
+              'rgba(236, 72, 153, 0.8)'
+            ],
+            borderColor: [
+              '#1a365d',
+              '#3b82f6',
+              '#f59e0b',
+              '#8b5cf6',
+              '#ec4899'
+            ],
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              display: false 
+            },
+            title: { 
+              display: true, 
+              text: 'Top 5 Products This Month',
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#1a365d',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return context.parsed.y.toLocaleString() + ' kg';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              title: { 
+                display: true, 
+                text: 'Quantity (kg)',
+                font: { size: 12, weight: 'bold' }
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString() + ' kg';
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Setup filter event listeners
+    function setupFilterListeners() {
+      // Sales trend filter
+      const salesTrendPeriod = document.getElementById('salesTrendPeriod');
+      if (salesTrendPeriod) {
+        salesTrendPeriod.addEventListener('change', () => {
+          loadChartData();
+        });
+      }
+
+      // Forecast filter
+      const forecastPeriod = document.getElementById('forecastPeriod');
+      if (forecastPeriod) {
+        forecastPeriod.addEventListener('change', () => {
+          loadChartData();
+        });
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                        type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchName = urlParams.get('branch_name');
+      const branchId = urlParams.get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Dashboard - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+</body>
+</html>

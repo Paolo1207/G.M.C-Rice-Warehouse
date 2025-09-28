@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forecast - G.M.C Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Forecast.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+         <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+           <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li  title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li class="active" title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 3v5h5M21 21v-5h-5M21 3l-7 7M3 21l7-7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+          <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+           <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+          <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M16 11V7a4 4 0 0 0-8 0v4M5 9h14l1 12H4L5 9z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+          <li title="Purchase">
+  <a href="{{ url_for('admin.purchase') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Purchase</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+            <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+
+           <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+           <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+          <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="forecast-header glass-card">
+            <div class="forecast-title-section" style="display: flex; align-items: center; gap: 16px;">
+                <span style="display: flex; align-items: center;">
+                  <span style="display: inline-block; width: 32px; height: 32px; background: #2e7d32; border-radius: 6px; margin-right: 8px;"></span>
+                </span>
+                <div>
+                  <h2 style="font-size:2.3rem; font-weight:800; color:#2e7d32; margin:0; letter-spacing:-1px;">Forecast</h2>
+                  <div style="font-size:1.08rem; color:#64748b; font-weight:500; margin-top:2px;">
+                    Data-driven rice demand, price, and stock risk forecasting for all branches
+                  </div>
+                </div>
+            </div>
+        </div>
+        <div class="forecast-controls glass-card">
+            <div class="forecast-filter-group">
+                <label for="branch-select">Branch:</label>
+                <select id="branch-select">
+                    <option value="">Select Branch</option>
+                </select>
+            </div>
+            <div class="forecast-filter-group">
+                <label for="product-select">Product:</label>
+                <select id="product-select">
+                    <option value="">Select Product</option>
+                </select>
+            </div>
+            <div class="forecast-filter-group">
+                <label for="model-type-select">Model Type:</label>
+                <select id="model-type-select">
+                    <option value="ARIMA">ARIMA</option>
+                    <option value="ML">Machine Learning</option>
+                    <option value="Seasonal">Seasonal</option>
+                </select>
+            </div>
+            <div class="forecast-filter-group">
+                <label for="periods-select">Forecast Period:</label>
+                <select id="periods-select">
+                    <option value="7">Next 7 days</option>
+                    <option value="30" selected>Next 30 days</option>
+                    <option value="90">Next 90 days</option>
+                </select>
+            </div>
+            <button class="forecast-run-btn" id="generate-forecast-btn">Generate Forecast</button>
+            <div class="forecast-export-group">
+                <label>Export:</label>
+                <button class="export-btn" onclick="exportReport('forecast')">CSV</button>
+            </div>
+        </div>
+        <div class="forecast-alerts glass-card">
+            <div class="alerts-header">
+                <h3>🔔 Smart Alerts</h3>
+            </div>
+            <div class="alerts-list" id="alerts-list">
+                <div class="alert-item info">
+                    <span class="alert-icon">📊</span>
+                    <span class="alert-message">Select a branch and product to generate forecasts</span>
+                </div>
+            </div>
+        </div>
+        <div class="forecast-summary glass-card">
+            <h3>📋 Forecast Summary</h3>
+            <div id="forecast-summary-content">
+                <p style="text-align: center; color: #64748b; padding: 20px;">
+                    Generate a forecast to see the summary here
+                </p>
+            </div>
+        </div>
+        <div class="forecast-visuals">
+            <div class="glass-card forecast-chart-card">
+                <h3>📈 Demand Forecast Chart</h3>
+                <canvas id="demandForecastChart" height="180"></canvas>
+            </div>
+            <div class="glass-card forecast-chart-card">
+                <h3>📊 Forecast Accuracy</h3>
+                <canvas id="accuracyChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Global variables
+        let demandChart = null;
+        let accuracyChart = null;
+        let branches = [];
+        let products = [];
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBranches();
+            loadProducts();
+            setupEventListeners();
+        });
+
+        // Load branches from API
+        async function loadBranches() {
+            try {
+                const response = await fetch('/admin/api/branches');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    branches = data.branches;
+                    const branchSelect = document.getElementById('branch-select');
+                    branchSelect.innerHTML = '<option value="">Select Branch</option>';
+                    
+                    branches.forEach(branch => {
+                        const option = document.createElement('option');
+                        option.value = branch.id;
+                        option.textContent = branch.name;
+                        branchSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading branches:', error);
+            }
+        }
+
+        // Load products from API (all products initially)
+        async function loadProducts() {
+            try {
+                const response = await fetch('/admin/api/products');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    products = data.products;
+                    // Don't populate dropdown yet - wait for branch selection
+                    updateProductDropdown();
+                }
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+
+        // Update product dropdown based on selected branch
+        async function updateProductDropdown() {
+            const branchId = document.getElementById('branch-select').value;
+            const productSelect = document.getElementById('product-select');
+            
+            if (!branchId) {
+                productSelect.innerHTML = '<option value="">Select Branch First</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/api/products/branch?branch_id=${branchId}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    productSelect.innerHTML = '<option value="">Select Product</option>';
+                    
+                    if (data.items && data.items.length > 0) {
+                        data.items.forEach(item => {
+                            const option = document.createElement('option');
+                            const stock = item.stock_kg || item.stock || 0;
+                            option.value = item.product_id;
+                            option.textContent = `${item.product_name} (${stock}kg in stock)`;
+                            productSelect.appendChild(option);
+                        });
+                    } else {
+                        productSelect.innerHTML = '<option value="">No products available in this branch</option>';
+                    }
+                } else {
+                    productSelect.innerHTML = '<option value="">Error loading products</option>';
+                }
+            } catch (error) {
+                console.error('Error loading branch products:', error);
+                productSelect.innerHTML = '<option value="">Error loading products</option>';
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('generate-forecast-btn').addEventListener('click', generateForecast);
+            document.getElementById('branch-select').addEventListener('change', updateProductDropdown);
+        }
+
+        // Generate forecast
+        async function generateForecast() {
+            const branchId = document.getElementById('branch-select').value;
+            const productId = document.getElementById('product-select').value;
+            const modelType = document.getElementById('model-type-select').value;
+            const periods = parseInt(document.getElementById('periods-select').value);
+
+            if (!branchId || !productId) {
+                showAlert('Please select both branch and product', 'warning');
+                return;
+            }
+
+            try {
+                showAlert('Generating forecast...', 'info');
+                
+                const response = await fetch('/admin/api/forecast/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        branch_id: parseInt(branchId),
+                        product_id: parseInt(productId),
+                        model_type: modelType,
+                        periods: periods
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showAlert('Forecast generated successfully!', 'success');
+                    displayForecastResults(data.forecast, branchId, productId);
+                    updateCharts(data.forecast);
+                } else {
+                    showAlert('Error generating forecast: ' + data.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error generating forecast:', error);
+                showAlert('Error generating forecast', 'error');
+            }
+        }
+
+        // Display forecast results
+        function displayForecastResults(forecast, branchId, productId) {
+            const branchName = branches.find(b => b.id == branchId)?.name || 'Unknown';
+            const productName = products.find(p => p.id == productId)?.name || 'Unknown';
+            
+            const summaryContent = document.getElementById('forecast-summary-content');
+            summaryContent.innerHTML = `
+                <div style="padding: 20px;">
+                    <h4>Forecast Results for ${productName} at ${branchName}</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong>Model Type:</strong><br>${forecast.model_type}
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong>Accuracy Score:</strong><br>${(forecast.accuracy_score * 100).toFixed(1)}%
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong>Avg Daily Demand:</strong><br>${forecast.forecast_values.slice(0, 7).reduce((a, b) => a + b, 0) / 7} kg
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong>Total Forecast Period:</strong><br>${forecast.forecast_values.length} days
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update charts
+        function updateCharts(forecast) {
+            updateDemandChart(forecast);
+            updateAccuracyChart(forecast);
+        }
+
+        // Update demand forecast chart
+        function updateDemandChart(forecast) {
+            const ctx = document.getElementById('demandForecastChart').getContext('2d');
+            
+            if (demandChart) {
+                demandChart.destroy();
+            }
+
+            const labels = forecast.forecast_values.map((_, index) => `Day ${index + 1}`);
+            
+            demandChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                    labels: labels,
+                datasets: [{
+                        label: 'Predicted Demand',
+                        data: forecast.forecast_values,
+                    borderColor: '#2e7d32',
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                    }, {
+                        label: 'Confidence Lower',
+                        data: forecast.confidence_lower,
+                        borderColor: '#ff9800',
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false
+                    }, {
+                        label: 'Confidence Upper',
+                        data: forecast.confidence_upper,
+                    borderColor: '#ff9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: {
+                            display: true,
+                            text: 'Demand Forecast with Confidence Intervals'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Demand (kg)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update accuracy chart
+        function updateAccuracyChart(forecast) {
+            const ctx = document.getElementById('accuracyChart').getContext('2d');
+            
+            if (accuracyChart) {
+                accuracyChart.destroy();
+            }
+
+            accuracyChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                    labels: ['Accuracy', 'Error'],
+                datasets: [{
+                        data: [forecast.accuracy_score * 100, (1 - forecast.accuracy_score) * 100],
+                        backgroundColor: ['#2e7d32', '#f44336'],
+                    borderWidth: 0
+                }]
+            },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        title: {
+                            display: true,
+                            text: 'Model Accuracy'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Show alert
+        function showAlert(message, type) {
+            const alertsList = document.getElementById('alerts-list');
+            const alertClass = type === 'error' ? 'critical' : type === 'warning' ? 'warning' : type === 'success' ? 'info' : 'info';
+            const icon = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : type === 'success' ? '✅' : '📊';
+            
+            alertsList.innerHTML = `
+                <div class="alert-item ${alertClass}">
+                    <span class="alert-icon">${icon}</span>
+                    <span class="alert-message">${message}</span>
+                </div>
+            `;
+        }
+
+        // Export report
+        function exportReport(type) {
+            window.open(`/admin/api/reports/export/${type}`, '_blank');
+        }
+    </script>
+</body>
+</html>

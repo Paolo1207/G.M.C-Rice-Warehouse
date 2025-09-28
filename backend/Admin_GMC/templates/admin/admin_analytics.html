@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - GMC Admin</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Analytics.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+        <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+          <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li class="active" title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+
+          <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+           <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+          <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+
+         
+           <li title="Purchase">
+  <a href="{{ url_for('admin.purchase') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Purchase</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+        <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+
+           <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+           <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+          <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="analytics-header">
+            <div class="analytics-title-section">
+                <h2 class="analytics-title-gradient">📊 Analytics</h2>
+                <div class="analytics-subtitle">Visual insights into warehouse and sales performance across all branches</div>
+            </div>
+            <div class="analytics-controls">
+                <div class="date-range-picker">
+                    <label>Date Range:</label>
+                    <select class="date-range-select">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                        <option value="365">Last year</option>
+                    </select>
+                </div>
+                <button class="export-btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7,10 12,15 17,10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Key Metrics Row -->
+        <div class="analytics-cards-row">
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 17l6-6 4 4 8-8"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Total Sales</div>
+                    <div class="analytics-card-value" id="total-sales">₱0</div>
+                    <div class="analytics-card-change positive">Real-time data</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="7" width="18" height="13" rx="2"/>
+                        <path d="M16 3v4"/>
+                        <path d="M8 3v4"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Units Sold</div>
+                    <div class="analytics-card-value" id="units-sold">0</div>
+                    <div class="analytics-card-change positive">This month</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Avg Order Value</div>
+                    <div class="analytics-card-value" id="avg-order-value">₱0</div>
+                    <div class="analytics-card-change positive">This month</div>
+                </div>
+            </div>
+            <div class="analytics-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 17l6-6 4 4 8-8"/>
+                        <path d="M14 7h7v7"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="analytics-card-title">Forecast Accuracy</div>
+                    <div class="analytics-card-value" id="forecast-accuracy">0%</div>
+                    <div class="analytics-card-change positive">Last 30 days</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Stock per Branch Chart -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>🏢 Total Stock per Branch</h3>
+                    <div class="chart-controls">
+                        <select class="chart-type-select" id="stockChartType">
+                            <option value="bar" selected>Bar Chart</option>
+                            <option value="cards">Cards View</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container" id="stockChartContainer">
+                    <canvas id="stockPerBranchChart" width="400" height="200"></canvas>
+                </div>
+                <div class="analytics-cards-row" id="stockCardsContainer" style="display:none"></div>
+            </div>
+        </div>
+
+        <!-- Sales Trends Chart -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>📈 Sales Trends by Branch</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period" id="salesPeriod">
+                            <option value="daily">Daily</option>
+                            <option value="weekly" selected>Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                        <select class="region-select" id="salesBranchSelect">
+                            <option value="" selected>All Branches</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="salesTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast Accuracy & Demand/Supply Gaps -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget chart-widget">
+                <div class="widget-header">
+                    <h3>🎯 Forecast Accuracy by Branch</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="forecastAccuracyChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            <div class="analytics-widget demand-supply-widget">
+                <div class="widget-header">
+                    <h3>⚖️ Demand/Supply Gaps</h3>
+                    <span class="alert-count">3</span>
+                </div>
+                <div class="demand-supply-list">
+                    <div class="gap-item critical">
+                        <div class="gap-icon">⚠️</div>
+                        <div class="gap-content">
+                            <div class="gap-title">Marawoy - Jasmine Rice</div>
+                            <div class="gap-desc">Supply: 500kg | Demand: 800kg | Gap: -300kg</div>
+                        </div>
+                        <div class="gap-status">Critical</div>
+                    </div>
+                    <div class="gap-item warning">
+                        <div class="gap-icon">📉</div>
+                        <div class="gap-content">
+                            <div class="gap-title">Lima - Basmati Rice</div>
+                            <div class="gap-desc">Supply: 1200kg | Demand: 1000kg | Gap: +200kg</div>
+                        </div>
+                        <div class="gap-status">Overstock</div>
+                    </div>
+                    <div class="gap-item info">
+                        <div class="gap-icon">📊</div>
+                        <div class="gap-content">
+                            <div class="gap-title">Malvar - Brown Rice</div>
+                            <div class="gap-desc">Supply: 750kg | Demand: 750kg | Gap: 0kg</div>
+                        </div>
+                        <div class="gap-status">Balanced</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top-Selling Rice per Branch -->
+        <div class="analytics-widgets-row">
+            <div class="analytics-widget top-products-widget">
+                <div class="widget-header">
+                    <h3>🏆 Top-Selling Rice per Branch</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Branch Tabs -->
+                <div class="branch-tabs">
+                    <button class="branch-tab active" data-branch="marawoy">
+                        <span>Marawoy</span>
+                    </button>
+                    <button class="branch-tab" data-branch="lipa">
+                        <span>Lipa</span>
+                    </button>
+                    <button class="branch-tab" data-branch="malvar">
+                        <span>Malvar</span>
+                    </button>
+                    <button class="branch-tab" data-branch="bulacnin">
+                        <span>Bulacnin</span>
+                    </button>
+                    <button class="branch-tab" data-branch="boac">
+                        <span>Boac</span>
+                    </button>
+                    <button class="branch-tab" data-branch="sta-cruz">
+                        <span>Sta. Cruz</span>
+                    </button>
+                </div>
+                
+                <!-- Enhanced Product List -->
+                <div class="top-products-list">
+                    <div class="product-item">
+                        <div class="product-rank">1</div>
+                        <div class="product-info">
+                            <div class="product-name">Jasmine Rice Premium</div>
+                            <div class="product-sales">2,134 units sold</div>
+                        </div>
+                        <div class="product-revenue">$42,680</div>
+                        <div class="product-trend positive">+18.2%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">2</div>
+                        <div class="product-info">
+                            <div class="product-name">Basmati Rice Long Grain</div>
+                            <div class="product-sales">1,891 units sold</div>
+                        </div>
+                        <div class="product-revenue">$37,820</div>
+                        <div class="product-trend positive">+12.7%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">3</div>
+                        <div class="product-info">
+                            <div class="product-name">Brown Rice Organic</div>
+                            <div class="product-sales">1,432 units sold</div>
+                        </div>
+                        <div class="product-revenue">$28,640</div>
+                        <div class="product-trend positive">+9.4%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">4</div>
+                        <div class="product-info">
+                            <div class="product-name">White Rice Regular</div>
+                            <div class="product-sales">1,156 units sold</div>
+                        </div>
+                        <div class="product-revenue">$23,120</div>
+                        <div class="product-trend positive">+7.8%</div>
+                    </div>
+                    
+                    <div class="product-item">
+                        <div class="product-rank">5</div>
+                        <div class="product-info">
+                            <div class="product-name">Red Rice Premium</div>
+                            <div class="product-sales">987 units sold</div>
+                        </div>
+                        <div class="product-revenue">$19,740</div>
+                        <div class="product-trend positive">+5.2%</div>
+                    </div>
+                </div>
+            </div>
+            <div class="analytics-widget turnover-widget">
+                <div class="widget-header">
+                    <h3>🔄 Inventory Turnover Rate</h3>
+                </div>
+                <div class="turnover-list" id="turnoverList"></div>
+            </div>
+        </div>
+
+        
+    </div>
+
+    <script>
+        // Load analytics data on page load
+        document.addEventListener('DOMContentLoaded', async function() {
+            setupOverviewFilters();
+            await hydrateBranchMaps();
+            wireBranchTabs();
+            loadAnalyticsData();
+        });
+
+        let BRANCH_ID_BY_NAME = {};
+        let BRANCH_NAME_BY_ID = {};
+        const normalizeName = (s) => (s||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');
+
+        async function hydrateBranchMaps() {
+            try {
+                const r = await fetch('/admin/api/branches');
+                const j = await r.json();
+                if (j.ok && Array.isArray(j.branches)) {
+                    BRANCH_ID_BY_NAME = {};
+                    BRANCH_NAME_BY_ID = {};
+                    j.branches.forEach(b => { BRANCH_ID_BY_NAME[b.name] = b.id; BRANCH_NAME_BY_ID[b.id] = b.name; });
+                }
+            } catch (e) { console.warn('hydrateBranchMaps failed', e); }
+        }
+
+        function wireBranchTabs() {
+            const tabs = document.querySelectorAll('.branch-tab');
+            tabs.forEach(tab => {
+                const label = tab.textContent.trim();
+                let bid = BRANCH_ID_BY_NAME[label];
+                if (!bid) {
+                    const norm = normalizeName(label);
+                    const matching = Object.entries(BRANCH_ID_BY_NAME).find(([n]) => normalizeName(n) === norm);
+                    if (matching) bid = matching[1];
+                }
+                if (bid) tab.dataset.branchId = bid;
+                tab.addEventListener('click', async () => {
+                    tabs.forEach(t=>t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const id = tab.dataset.branchId;
+                    const list = document.querySelector('.top-products-list');
+                    if (list) list.innerHTML = '';
+                    if (id) await loadTopProducts(id);
+                });
+            });
+        }
+
+        // Load analytics data from API
+        async function loadAnalyticsData() {
+            try {
+                const daysSel = document.querySelector('.date-range-select');
+                const days = daysSel ? parseInt(daysSel.value || '30', 10) : 30;
+                
+                // Load KPI data from the working sales API (30 days default)
+                const kpiResponse = await fetch('/admin/api/sales/kpis');
+                const kpiData = await kpiResponse.json();
+                if (kpiData.ok) {
+                    updateAnalyticsCards(kpiData.kpis);
+                }
+                
+                // Also get low stock and forecast accuracy from dashboard API
+                const dashboardResponse = await fetch('/admin/api/dashboard/kpis');
+                const dashboardData = await dashboardResponse.json();
+                if (dashboardData.ok) {
+                    updateAnalyticsCardsAdditional(dashboardData.kpis);
+                }
+
+                // Load dashboard charts (top products etc.) as fallback for initial list
+                const chartResponse = await fetch('/admin/api/dashboard/charts');
+                const chartData = await chartResponse.json();
+                if (chartData.ok) updateAnalyticsCharts(chartData.charts);
+
+                // Load analytics overview (branch series, accuracy, stock, gaps)
+                const overviewResponse = await fetch(`/admin/api/analytics/overview?days=${days}`);
+                const overviewData = await overviewResponse.json();
+                if (overviewData.ok && overviewData.analytics) {
+                    const a = overviewData.analytics;
+                    // store branch maps from overview too (non-destructive)
+                    (a.stock_per_branch || []).forEach(b => { BRANCH_NAME_BY_ID[b.branch_id] = b.branch_name; BRANCH_ID_BY_NAME[b.branch_name] = b.branch_id; });
+                    populateBranchSelect(a);
+                    updateStockPerBranchChart(a.stock_per_branch || []);
+                    updateSalesTrendsByBranch(a.sales_trends_by_branch || { labels: [], series: [] });
+                    updateForecastAccuracyChart(a.forecast_accuracy_by_branch || []);
+                    updateDemandSupplyList(a.demand_supply_gaps || []);
+                    updateTurnoverList(a.inventory_turnover_by_branch || []);
+                    // initialize top products for the first branch if present
+                    const firstBranchId = (a.stock_per_branch && a.stock_per_branch[0] && a.stock_per_branch[0].branch_id)
+                        || (Object.keys(BRANCH_NAME_BY_ID)[0] ? Number(Object.keys(BRANCH_NAME_BY_ID)[0]) : null);
+                    if (firstBranchId) { await loadTopProducts(firstBranchId); activateBranchTabById(firstBranchId); }
+                }
+            } catch (error) {
+                console.error('Error loading analytics data:', error);
+            }
+        }
+
+        // Update analytics cards with real data from sales API
+        function updateAnalyticsCards(kpis) {
+            // Update total sales (30 days)
+            const totalSalesCard = document.getElementById('total-sales');
+            if (totalSalesCard) {
+                totalSalesCard.textContent = '₱' + (kpis.month_sales || 0).toLocaleString();
+            }
+
+            // Update units sold
+            const unitsSoldCard = document.getElementById('units-sold');
+            if (unitsSoldCard) {
+                unitsSoldCard.textContent = (kpis.units_sold || 0).toLocaleString();
+            }
+
+            // Update avg order value
+            const avgOrderValueCard = document.getElementById('avg-order-value');
+            if (avgOrderValueCard) {
+                avgOrderValueCard.textContent = '₱' + (kpis.avg_order_value || 0).toLocaleString();
+            }
+        }
+
+        // Update additional analytics cards from dashboard API
+        function updateAnalyticsCardsAdditional(kpis) {
+            // Update forecast accuracy
+            const forecastAccuracyCard = document.getElementById('forecast-accuracy');
+            if (forecastAccuracyCard) {
+                forecastAccuracyCard.textContent = (kpis.forecast_accuracy || 0).toFixed(1) + '%';
+            }
+        }
+
+        // Update analytics charts with real data from dashboard charts API
+        function updateAnalyticsCharts(charts) {
+            if (charts.sales_trend && charts.sales_trend.length > 0) {
+                // Keep existing card update for total sales trend if needed
+                updateSalesTrendsChart(charts.sales_trend);
+            }
+            if (charts.top_products && charts.top_products.length > 0) {
+                updateTopProductsAnalytics(charts.top_products);
+            }
+        }
+
+        // Update Sales Trends Chart with real data
+        function updateSalesTrendsChart(data) {
+            const ctx = document.getElementById('salesTrendsChart');
+            if (!ctx) return;
+
+            if (window.salesTrendsChart) {
+                window.salesTrendsChart.destroy();
+            }
+
+            const labels = data.map(item => item.date);
+            const salesData = data.map(item => item.sales);
+
+            window.salesTrendsChart = new Chart(ctx, {
+                type: 'line',
+            data: {
+                    labels: labels,
+                datasets: [{
+                        label: 'Sales Trend (₱)',
+                        data: salesData,
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                            display: true,
+                            position: 'top'
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                    return '₱' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                    return '₱' + (value / 1000) + 'k';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+        }
+
+        // Update Top Products with real data
+        function updateTopProductsAnalytics(data) {
+            const productsList = document.querySelector('.top-products-list');
+            if (!productsList) return;
+
+            productsList.innerHTML = '';
+            
+            data.forEach((product, index) => {
+                const productItem = document.createElement('div');
+                productItem.className = 'product-item';
+                productItem.innerHTML = `
+                    <div class="product-rank">${index + 1}</div>
+                    <div class="product-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-sales">${(product.quantity||0).toLocaleString()} kg sold</div>
+                    </div>
+                    <div class="product-revenue">₱${(product.sales||0).toLocaleString()}</div>
+                    <div class="product-trend positive">+${(Math.random()*20+5).toFixed(1)}%</div>
+                `;
+                productsList.appendChild(productItem);
+            });
+        }
+
+        async function loadTopProducts(branchId) {
+            try {
+                const res = await fetch(`/admin/api/dashboard/charts?branch_id=${branchId}`);
+                const data = await res.json();
+                if (data.ok && data.charts && data.charts.top_products) {
+                    updateTopProductsAnalytics(data.charts.top_products);
+                }
+            } catch (e) { console.error('loadTopProducts failed', e); }
+        }
+
+        // Live charts instances
+        let stockPerBranchChartInstance = null;
+        let salesTrendsByBranchChartInstance = null;
+        let forecastAccuracyChartInstance = null;
+
+        // Stock per Branch Chart (from overview API) + cards view toggle
+        function updateStockPerBranchChart(rows) {
+            const ctxEl = document.getElementById('stockPerBranchChart');
+            if (!ctxEl) return;
+            const ctx = ctxEl.getContext('2d');
+            if (stockPerBranchChartInstance) stockPerBranchChartInstance.destroy();
+            const labels = rows.map(r => r.branch_name);
+            const data = rows.map(r => r.total_stock_kg || 0);
+            stockPerBranchChartInstance = new Chart(ctx, {
+                type: 'bar',
+            data: {
+                    labels,
+                datasets: [{
+                        label: 'Total Stock (kg)',
+                        data,
+                        backgroundColor: 'rgba(46, 125, 50, 0.8)',
+                    borderColor: '#2e7d32',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                        legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                    return (context.parsed.y || 0).toLocaleString() + ' kg';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false },
+                            ticks: { callback: v => v.toLocaleString() + ' kg' }
+                        },
+                        x: { grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false } }
+                    }
+                }
+            });
+            renderStockCards(rows);
+        }
+
+        function renderStockCards(rows) {
+            const cont = document.getElementById('stockCardsContainer');
+            if (!cont) return;
+            cont.innerHTML = '';
+            rows.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'analytics-card';
+                card.innerHTML = `
+                  <div class="card-content">
+                    <div class="analytics-card-title">${r.branch_name}</div>
+                    <div class="analytics-card-value">${Number(r.total_stock_kg||0).toLocaleString()} kg</div>
+                  </div>`;
+                cont.appendChild(card);
+            });
+        }
+
+        // Sales Trends by Branch (from overview API)
+        function updateSalesTrendsByBranch(payload) {
+            const ctxEl = document.getElementById('salesTrendsChart');
+            if (!ctxEl) return;
+            const ctx = ctxEl.getContext('2d');
+            if (salesTrendsByBranchChartInstance) salesTrendsByBranchChartInstance.destroy();
+
+            const labels = payload.labels || [];
+            const colors = ['#2e7d32','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
+            const datasets = (payload.series || []).map((s, i) => ({
+                label: s.branch_name || `Branch ${s.branch_id}`,
+                data: (s.data || []).map(v => Number(v) || 0),
+                borderColor: colors[i % colors.length],
+                backgroundColor: colors[i % colors.length] + '1A',
+                borderWidth: 3,
+                fill: false,
+                tension: 0.4
+            }));
+
+            salesTrendsByBranchChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ₱' + (context.parsed.y || 0).toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false },
+                            ticks: { callback: v => '₱' + (v / 1000) + 'k' }
+                        },
+                        x: { grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false } }
+                }
+            }
+        });
+        }
+
+        // Forecast Accuracy by Branch (from overview API)
+        function updateForecastAccuracyChart(rows) {
+            const ctxEl = document.getElementById('forecastAccuracyChart');
+            if (!ctxEl) return;
+            const ctx = ctxEl.getContext('2d');
+            if (forecastAccuracyChartInstance) forecastAccuracyChartInstance.destroy();
+            const labels = rows.map(r => r.branch_name);
+            const data = rows.map(r => r.accuracy || 0);
+            const colors = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
+            forecastAccuracyChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                    labels,
+                datasets: [{
+                        data,
+                        backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                                label: function(context) { return context.label + ': ' + (context.parsed || 0) + '%'; }
+                        }
+                    }
+                }
+            }
+        });
+        }
+
+        function populateBranchSelect(a) {
+            const sel = document.getElementById('salesBranchSelect');
+            if (!sel || !a.stock_per_branch) return;
+            sel.innerHTML = '<option value="" selected>All Branches</option>';
+            a.stock_per_branch.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.branch_id; opt.textContent = b.branch_name; sel.appendChild(opt);
+            });
+            // also stamp ids on top-products tabs for switching
+            const tabs = document.querySelectorAll('.branch-tab');
+            tabs.forEach(tab => {
+                const name = tab.textContent.trim();
+                // exact match
+                let bid = BRANCH_ID_BY_NAME[name];
+                if (!bid) {
+                    // try normalized match
+                    const norm = normalizeName(name);
+                    const entry = (a.stock_per_branch||[]).find(b=> normalizeName(b.branch_name)===norm);
+                    if (entry) bid = entry.branch_id;
+                }
+                if (bid) tab.dataset.branchId = bid;
+                tab.addEventListener('click', async () => {
+                    tabs.forEach(t=>t.classList.remove('active'));
+                    tab.classList.add('active');
+                    const id = tab.dataset.branchId || BRANCH_ID_BY_NAME[name];
+                    if (id) await loadTopProducts(id);
+                });
+            });
+        }
+
+        function activateBranchTabById(branchId) {
+            const tabs = document.querySelectorAll('.branch-tab');
+            tabs.forEach(t=>{
+                if (String(t.dataset.branchId) === String(branchId)) t.classList.add('active'); else t.classList.remove('active');
+            });
+        }
+
+        function setupOverviewFilters() {
+            const typeSel = document.getElementById('stockChartType');
+            const chartContainer = document.getElementById('stockChartContainer');
+            const cardsContainer = document.getElementById('stockCardsContainer');
+            if (typeSel) {
+                typeSel.addEventListener('change', () => {
+                    if (typeSel.value === 'cards') {
+                        chartContainer.style.display = 'none';
+                        cardsContainer.style.display = '';
+                    } else {
+                        chartContainer.style.display = '';
+                        cardsContainer.style.display = 'none';
+                    }
+                });
+            }
+            const periodSel = document.querySelector('#salesPeriod');
+            const branchSel = document.querySelector('#salesBranchSelect');
+            if (periodSel) periodSel.addEventListener('change', reloadSalesTrendsFiltered);
+            if (branchSel) branchSel.addEventListener('change', reloadSalesTrendsFiltered);
+            const rangeSel = document.querySelector('.date-range-select');
+            if (rangeSel) rangeSel.addEventListener('change', () => { loadAnalyticsData(); });
+        }
+
+        async function reloadSalesTrendsFiltered() {
+            try {
+                const period = document.getElementById('salesPeriod').value;
+                const branchId = document.getElementById('salesBranchSelect').value;
+                const daysSel = document.querySelector('.date-range-select');
+                const days = daysSel ? parseInt(daysSel.value || '30', 10) : 30;
+                const res = await fetch(`/admin/api/analytics/overview?days=${days}`);
+                const data = await res.json();
+                if (!data.ok) return;
+                const payload = data.analytics.sales_trends_by_branch;
+                let series = payload.series || [];
+                if (branchId) series = series.filter(s => String(s.branch_id) === String(branchId));
+                const processed = resampleSalesSeries(period, payload.labels, series);
+                updateSalesTrendsByBranch(processed);
+            } catch (e) { console.error('reloadSalesTrendsFiltered', e); }
+        }
+
+        function resampleSalesSeries(period, labels, series) {
+            if (period === 'daily') return { labels, series };
+            // convert date strings to Date
+            const dates = labels.map(d => new Date(d));
+            const bucketKey = (d) => {
+                if (period === 'weekly') {
+                    const tmp = new Date(d); const onejan = new Date(tmp.getFullYear(),0,1);
+                    const week = Math.ceil((((tmp - onejan) / 86400000) + onejan.getDay()+1)/7);
+                    return `${tmp.getFullYear()}-W${week}`;
+                } else {
+                    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                }
+            };
+            // build buckets
+            const keys = dates.map(bucketKey);
+            const uniqKeys = [...new Set(keys)];
+            const remap = series.map(s => {
+                const sums = new Array(uniqKeys.length).fill(0);
+                (s.data||[]).forEach((v,i)=>{ const ki = uniqKeys.indexOf(keys[i]); if (ki>=0) sums[ki]+=Number(v||0); });
+                return { branch_id: s.branch_id, branch_name: s.branch_name, data: sums };
+            });
+            return { labels: uniqKeys, series: remap };
+        }
+
+        // Export functionality
+        document.querySelector('.export-btn').addEventListener('click', function() {
+            window.location.href = '/admin/api/reports/export/sales?format=csv';
+        });
+
+        // Demand/Supply gaps list (from overview API)
+        function updateDemandSupplyList(rows) {
+            const listEl = document.querySelector('.demand-supply-list');
+            if (!listEl) return;
+            listEl.innerHTML = '';
+            rows.forEach(r => {
+                const item = document.createElement('div');
+                item.className = `gap-item ${r.severity === 'critical' ? 'critical' : 'warning'}`;
+                item.innerHTML = `
+                    <div class="gap-icon">${r.severity === 'critical' ? '⚠️' : '📉'}</div>
+                    <div class="gap-content">
+                        <div class="gap-title">${r.branch_name} - ${r.product_name}</div>
+                        <div class="gap-desc">Supply: ${Number(r.stock_kg||0).toLocaleString()}kg | Demand (7d): ${Number(r.predicted_7d||0).toLocaleString()}kg | Gap: ${Number(r.gap_kg||0).toLocaleString()}kg</div>
+                    </div>
+                    <div class="gap-status">${r.severity === 'critical' ? 'Critical' : 'Warning'}</div>
+                `;
+                listEl.appendChild(item);
+            });
+            const countEl = document.querySelector('.demand-supply-widget .alert-count');
+            if (countEl) countEl.textContent = (rows.length || 0);
+        }
+
+        // Inventory turnover list (live)
+        function updateTurnoverList(rows) {
+            try {
+                const list = document.getElementById('turnoverList');
+                if (!list) return;
+                list.innerHTML = '';
+                rows.forEach(r => {
+                    const ratio = Number(r.turnover_ratio || 0);
+                    let status = 'Average';
+                    if (ratio >= 4) status = 'Excellent';
+                    else if (ratio >= 3) status = 'Good';
+                    const pct = Math.min(100, Math.round(ratio * 20));
+                    const item = document.createElement('div');
+                    item.className = 'turnover-item';
+                    item.innerHTML = `
+                      <div class="turnover-info">
+                        <div class="turnover-branch">${r.branch_name}</div>
+                        <div class="turnover-ratio">${ratio.toFixed(2)}x</div>
+                      </div>
+                      <div class="turnover-progress">
+                        <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%"></div></div>
+                        <div class="turnover-status">${status}</div>
+                      </div>`;
+                    list.appendChild(item);
+                });
+            } catch (e) { console.error('updateTurnoverList failed', e); }
+        }
+
+        // Branch-specific product data (demo for tabs; not used by API-driven widgets)
+        const branchProducts = {
+            marawoy: [
+                { name: 'Jasmine Rice Premium', sales: 2134, revenue: 42680, trend: '+18.2%' },
+                { name: 'Basmati Rice Long Grain', sales: 1891, revenue: 37820, trend: '+12.7%' },
+                { name: 'Brown Rice Organic', sales: 1432, revenue: 28640, trend: '+9.4%' },
+                { name: 'White Rice Regular', sales: 1156, revenue: 23120, trend: '+7.8%' },
+                { name: 'Red Rice Premium', sales: 987, revenue: 19740, trend: '+5.2%' }
+            ],
+            lipa: [
+                { name: 'White Rice Regular', sales: 2456, revenue: 49120, trend: '+22.1%' },
+                { name: 'Jasmine Rice Premium', sales: 1987, revenue: 39740, trend: '+15.8%' },
+                { name: 'Brown Rice Organic', sales: 1654, revenue: 33080, trend: '+11.3%' },
+                { name: 'Basmati Rice Long Grain', sales: 1342, revenue: 26840, trend: '+8.9%' },
+                { name: 'Red Rice Premium', sales: 1123, revenue: 22460, trend: '+6.7%' }
+            ],
+            malvar: [
+                { name: 'Basmati Rice Long Grain', sales: 2876, revenue: 57520, trend: '+25.4%' },
+                { name: 'Jasmine Rice Premium', sales: 2234, revenue: 44680, trend: '+19.7%' },
+                { name: 'White Rice Regular', sales: 1876, revenue: 37520, trend: '+14.2%' },
+                { name: 'Brown Rice Organic', sales: 1456, revenue: 29120, trend: '+10.8%' },
+                { name: 'Red Rice Premium', sales: 1234, revenue: 24680, trend: '+7.5%' }
+            ],
+            bulacnin: [
+                { name: 'Brown Rice Organic', sales: 3123, revenue: 62460, trend: '+28.9%' },
+                { name: 'Jasmine Rice Premium', sales: 2654, revenue: 53080, trend: '+23.1%' },
+                { name: 'White Rice Regular', sales: 2187, revenue: 43740, trend: '+17.6%' },
+                { name: 'Basmati Rice Long Grain', sales: 1765, revenue: 35300, trend: '+13.4%' },
+                { name: 'Red Rice Premium', sales: 1432, revenue: 28640, trend: '+9.8%' }
+            ],
+            boac: [
+                { name: 'White Rice Regular', sales: 3876, revenue: 77520, trend: '+34.7%' },
+                { name: 'Jasmine Rice Premium', sales: 3234, revenue: 64680, trend: '+29.8%' },
+                { name: 'Brown Rice Organic', sales: 2678, revenue: 53560, trend: '+24.1%' },
+                { name: 'Basmati Rice Long Grain', sales: 2187, revenue: 43740, trend: '+19.3%' },
+                { name: 'Red Rice Premium', sales: 1876, revenue: 37520, trend: '+15.6%' }
+            ],
+            'sta-cruz': [
+                { name: 'Jasmine Rice Premium', sales: 4234, revenue: 84680, trend: '+37.9%' },
+                { name: 'White Rice Regular', sales: 3654, revenue: 73080, trend: '+32.4%' },
+                { name: 'Brown Rice Organic', sales: 2987, revenue: 59740, trend: '+27.2%' },
+                { name: 'Basmati Rice Long Grain', sales: 2456, revenue: 49120, trend: '+22.8%' },
+                { name: 'Red Rice Premium', sales: 2123, revenue: 42460, trend: '+18.7%' }
+            ]
+        };
+
+        function updateProductList(branch) {
+            const productsList = document.querySelector('.top-products-list');
+            const products = branchProducts[branch];
+            
+            if (!products) return;
+            
+            productsList.innerHTML = '';
+            
+            products.forEach((product, index) => {
+                const productItem = document.createElement('div');
+                productItem.className = 'product-item';
+                productItem.innerHTML = `
+                    <div class="product-rank">${index + 1}</div>
+                    <div class="product-info">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-sales">${product.sales.toLocaleString()} units sold</div>
+                    </div>
+                    <div class="product-revenue">$${product.revenue.toLocaleString()}</div>
+                    <div class="product-trend positive">${product.trend}</div>
+                `;
+                productsList.appendChild(productItem);
+            });
+        }
+    </script>
+</body>
+</html>

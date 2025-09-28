@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Forecast - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager static assets -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/forecast.css') }}">
+  <style>
+    .branch-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: 1px solid #c8e6c9;
+      margin-left: 1rem;
+    }
+    
+    .branch-pill i {
+      font-size: 0.75rem;
+    }
+    
+    .forecast-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .forecast-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .btn.primary {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .btn.primary:hover {
+      background: #27642a;
+    }
+    
+    .btn.secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .btn.secondary:hover {
+      background: #e9ecef;
+    }
+    
+    
+    .risk-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .risk-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    
+    .forecast-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    /* Risk styling */
+    .risk-type {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .risk-type.shortage {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .risk-type.overstock {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .risk-type.balanced {
+      background: #d1fae5;
+      color: #059669;
+    }
+    
+    .risk-badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .risk-badge.critical {
+      background: #fecaca;
+      color: #b91c1c;
+    }
+    
+    .risk-badge.moderate {
+      background: #fed7aa;
+      color: #c2410c;
+    }
+    
+    .risk-badge.low {
+      background: #bbf7d0;
+      color: #166534;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}" class="active"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="forecast-container">
+        <div class="forecast-header">
+          <h2><i class="fas fa-chart-line"></i> <span id="pageTitle">Forecast</span></h2>
+        </div>
+
+        <div class="forecast-tabs">
+          <button class="tab-btn active" data-tab="demand">
+            <i class="fas fa-chart-bar"></i> Demand Forecast
+          </button>
+          <button class="tab-btn" data-tab="price">
+            <i class="fas fa-tag"></i> Price Forecast
+          </button>
+          <button class="tab-btn" data-tab="risk">
+            <i class="fas fa-exclamation-triangle"></i> Stock Risk
+          </button>
+        </div>
+
+        <!-- Demand Forecast Tab -->
+        <div class="tab-content active" id="demand-forecast">
+          <div class="forecast-filters">
+            <div class="filter-group">
+              <select id="productFilter">
+                <option value="">All Products</option>
+                <!-- Products will be populated from inventory -->
+              </select>
+              <select id="categoryFilter">
+                <option value="">All Categories</option>
+                <option value="white">White Rice</option>
+                <option value="premium">Premium Rice</option>
+                <option value="regular">Regular Rice</option>
+                <option value="special">Special Varieties</option>
+              </select>
+            </div>
+            <div class="date-range">
+              <select id="timeRange">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Next Month</option>
+              </select>
+            </div>
+            <div class="forecast-actions">
+              <button class="btn primary" onclick="generateForecast()">
+                <i class="fas fa-magic"></i> Generate Demand Forecast
+              </button>
+              <button class="btn secondary" onclick="exportForecast()">
+                <i class="fas fa-download"></i> Export Report
+              </button>
+            </div>
+          </div>
+
+          <div class="forecast-grid">
+            <div class="forecast-chart">
+              <h3><i class="fas fa-chart-line"></i> Demand Forecast</h3>
+              <canvas id="demandChart"></canvas>
+            </div>
+
+            <div class="forecast-summary">
+              <h3><i class="fas fa-info-circle"></i> Forecast Summary</h3>
+              <div class="summary-cards">
+                <div class="summary-card">
+                  <h4>Average Demand</h4>
+                  <p class="number">1,234</p>
+                  <p class="trend positive">
+                    <i class="fas fa-arrow-up"></i>
+                    +5.2% from last period
+                  </p>
+                </div>
+                <div class="summary-card">
+                  <h4>Peak Day</h4>
+                  <p class="date">March 15, 2024</p>
+                  <p class="quantity">2,500 kg</p>
+                </div>
+                <div class="summary-card">
+                  <h4>Suggested Reorder</h4>
+                  <p class="number">500</p>
+                  <p class="trend">Based on forecast</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="forecast-table-container">
+            <h3><i class="fas fa-table"></i> Forecast Details</h3>
+            <table class="forecast-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Projected Quantity</th>
+                  <th>Confidence</th>
+                  <th>Trend</th>
+                </tr>
+              </thead>
+              <tbody id="forecastTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Price Forecast Tab -->
+        <div class="tab-content" id="price-forecast">
+          <div class="forecast-filters">
+            <div class="filter-group">
+              <select id="priceProductFilter">
+                <option value="">All Products</option>
+                <!-- Products will be populated from inventory -->
+              </select>
+              <select id="priceTimeRange">
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 3 Months</option>
+                <option value="180">Last 6 Months</option>
+              </select>
+            </div>
+            <div class="forecast-actions">
+              <button class="btn primary" onclick="generatePriceForecast()">
+                <i class="fas fa-chart-line"></i> Generate Price Forecast
+              </button>
+            </div>
+          </div>
+
+          <div class="forecast-grid">
+            <div class="forecast-chart">
+              <h3><i class="fas fa-chart-line"></i> Price Movement</h3>
+              <canvas id="priceChart"></canvas>
+            </div>
+            <div class="price-insights">
+              <h3><i class="fas fa-lightbulb"></i> Price Insights</h3>
+              <div class="insight-cards">
+                <div class="insight-card">
+                  <h4>Current Price</h4>
+                  <p class="price">₱99.99/kg</p>
+                  <p class="trend positive">
+                    <i class="fas fa-arrow-up"></i>
+                    +4% from last month
+                  </p>
+                </div>
+                <div class="insight-card">
+                  <h4>Predicted Change</h4>
+                  <p class="prediction">+4%</p>
+                  <p class="reason">Due to upcoming holiday</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stock Risk Tab -->
+        <div class="tab-content" id="risk-forecast">
+          <div class="forecast-filters">
+            <div class="filter-group">
+              <select id="riskProductFilter">
+                <option value="">All Products</option>
+                <!-- Products will be populated from inventory -->
+              </select>
+              <select id="riskCategoryFilter">
+                <option value="">All Categories</option>
+                <option value="shortage">Shortage</option>
+                <option value="overstock">Overstock</option>
+              </select>
+              <select id="riskSeverityFilter">
+                <option value="">All Severity Levels</option>
+                <option value="critical">Critical</option>
+                <option value="moderate">Moderate</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="date-range">
+              <select id="riskDateRange">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 3 Months</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="risk-overview">
+            <div class="risk-card critical">
+              <h4><i class="fas fa-exclamation-circle"></i> Critical Risk</h4>
+              <p class="number">5</p>
+              <p class="description">Items requiring immediate attention</p>
+            </div>
+            <div class="risk-card moderate">
+              <h4><i class="fas fa-exclamation-triangle"></i> Moderate Risk</h4>
+              <p class="number">12</p>
+              <p class="description">Items to monitor closely</p>
+            </div>
+            <div class="risk-card low">
+              <h4><i class="fas fa-check-circle"></i> Low Risk</h4>
+              <p class="number">45</p>
+              <p class="description">Items in good standing</p>
+            </div>
+          </div>
+
+          <div class="risk-table-container">
+            <div class="risk-table-header">
+              <h3><i class="fas fa-table"></i> Risk Analysis</h3>
+              <div class="risk-actions">
+                <button class="btn primary" onclick="generateRiskAnalysis()">
+                  <i class="fas fa-exclamation-triangle"></i> Analyze Risks
+                </button>
+              <button class="btn secondary" onclick="exportRiskReport()">
+                <i class="fas fa-download"></i> Export Report
+              </button>
+              </div>
+            </div>
+            <table class="risk-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Risk Type</th>
+                  <th>Severity Level</th>
+                  <th>Current Stock</th>
+                  <th>Threshold</th>
+                  <th>Suggested Action</th>
+                </tr>
+              </thead>
+              <tbody id="riskTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+  <script>
+    // Manager branch scoping
+    let MANAGER_BRANCH_ID = null;
+    let MANAGER_BRANCH_NAME = null;
+    let demandChart, priceChart;
+    
+    // Forecast control
+    let filtersDirty = false;
+    let activeForecastController = null;
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeManagerForecast();
+      initCharts(); // Initialize charts
+      
+      // Ensure chart is ready
+      setTimeout(() => {
+        console.log('Chart initialization check:', {
+          demandChart: !!demandChart,
+          chartElement: !!document.getElementById('demandChart')
+        });
+        
+      }, 1000);
+    });
+
+    async function initializeManagerForecast() {
+      try {
+        // Get manager's branch from URL or session
+        const urlParams = new URLSearchParams(window.location.search);
+        MANAGER_BRANCH_ID = urlParams.get('branch') || null;
+        MANAGER_BRANCH_NAME = urlParams.get('branch_name') || null;
+        
+        // If no branch in URL, get from manager API
+        if (!MANAGER_BRANCH_ID) {
+          await loadManagerBranch();
+        }
+        
+        setupTabs();
+        updateHeaderTitle('demand'); // Set initial title for demand tab
+        await loadManagerData();
+      setupRiskFilters();
+        updateBranchDisplay();
+        
+        // Clear price insights on initial load
+        clearPriceInsights();
+      } catch (error) {
+        console.error('Error initializing manager forecast:', error);
+        showToast('Error loading forecast data', 'error');
+      }
+    }
+
+    async function loadManagerBranch() {
+      try {
+        const response = await fetch('/manager/api/branches');
+        const data = await response.json();
+        if (data.ok && data.branches && data.branches.length > 0) {
+          MANAGER_BRANCH_ID = data.branches[0].id;
+          MANAGER_BRANCH_NAME = data.branches[0].name;
+        }
+      } catch (error) {
+        console.error('Error loading manager branch:', error);
+      }
+    }
+
+    function updateBranchDisplay() {
+      if (MANAGER_BRANCH_NAME) {
+        const branchPill = document.createElement('div');
+        branchPill.className = 'branch-pill';
+        branchPill.innerHTML = `<i class="fas fa-map-marker-alt"></i> You're viewing: ${MANAGER_BRANCH_NAME}`;
+        
+        const forecastHeader = document.querySelector('.forecast-header');
+        if (forecastHeader) {
+          forecastHeader.appendChild(branchPill);
+        }
+      }
+    }
+
+    // Tabs
+    function setupTabs() {
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tabId = btn.getAttribute('data-tab');
+
+          tabBtns.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+
+          btn.classList.add('active');
+          const target = document.getElementById(`${tabId}-forecast`);
+          if (target) target.classList.add('active');
+
+          // Update header title based on active tab
+          updateHeaderTitle(tabId);
+
+          if (tabId === 'risk') {
+            loadRiskData();
+          } else if (tabId === 'price') {
+            // Clear price insights when switching to price tab
+            clearPriceInsights();
+          }
+        });
+      });
+    }
+
+    // Update header title based on active tab
+    function updateHeaderTitle(tabId) {
+      const pageTitle = document.getElementById('pageTitle');
+      if (!pageTitle) return;
+
+      // Just use "Forecast" for all tabs
+      pageTitle.textContent = 'Forecast';
+    }
+
+    // Initialize charts with manager data
+    function initCharts() {
+      // Demand Chart
+      const dCtx = document.getElementById('demandChart');
+      if (dCtx) {
+        demandChart = new Chart(dCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+          datasets: [{
+            label: 'Actual Demand',
+              data: [],
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            tension: 0.4,
+            fill: true
+            }, {
+              label: 'Forecast',
+              data: [],
+              borderColor: '#e53e3e',
+              backgroundColor: 'rgba(229, 62, 62, 0.1)',
+              borderDash: [5, 5],
+              tension: 0.4,
+              fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+            plugins: { 
+              title: { display: true, text: 'Demand Forecast' },
+              legend: { 
+                position: 'top',
+                onClick: (e, item, legend) => Chart.defaults.plugins.legend.onClick(e, item, legend)
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Quantity (kg)' }
+              },
+              x: {
+                title: { display: true, text: 'Date' }
+              }
+            }
+          }
+        });
+      }
+
+      // Price Chart
+      const pCtx = document.getElementById('priceChart');
+      if (pCtx) {
+        priceChart = new Chart(pCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+          datasets: [{
+            label: 'Price per Unit',
+              data: [],
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+            plugins: { 
+              title: { display: true, text: 'Price Movement' },
+              legend: { position: 'top' }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Price (₱)' }
+              },
+              x: {
+                title: { display: true, text: 'Date' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Apply forecast data to chart and UI components
+    function applyForecast({ forecast, summary, details }) {
+      console.log('Applying forecast data:', { forecast, summary, details });
+      
+      if (demandChart && forecast) {
+        // Check if we have valid data
+        const hasLabels = forecast.labels && forecast.labels.length > 0;
+        const hasForecast = forecast.forecast && forecast.forecast.length > 0;
+        const hasActual = forecast.actual && forecast.actual.length > 0;
+        
+        if (hasLabels && (hasForecast || hasActual)) {
+          // Replace arrays wholesale - never mutate partially
+          demandChart.data.labels = forecast.labels || [];
+          demandChart.data.datasets[0].data = forecast.actual || [];
+          demandChart.data.datasets[1].data = forecast.forecast || [];
+          
+          demandChart.update();
+          console.log('Chart updated successfully');
+          
+          // Only update summary if we have valid data
+          if (summary && summary.avg_demand > 0) {
+            updateForecastSummary(summary);
+          } else {
+            console.log('Invalid summary data - keeping existing values');
+          }
+          
+          if (details) {
+            renderForecastTable(details);
+          }
+        } else {
+          console.warn('Invalid forecast data - generating sample data');
+          generateSampleForecastData();
+        }
+      } else {
+        console.error('Chart or forecast data missing:', { 
+          demandChart: !!demandChart, 
+          forecast: !!forecast 
+        });
+      }
+      
+      filtersDirty = false;
+    }
+
+    // Generate sample forecast data for testing
+    function generateSampleForecastData() {
+      console.log('Generating sample forecast data...');
+      
+      if (!demandChart) return;
+      
+      const days = 7;
+      const labels = [];
+      const actualData = [];
+      const forecastData = [];
+      
+      const today = new Date();
+      for (let i = 0; i < days; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        labels.push(date.toISOString().split('T')[0]);
+        
+        // Generate sample data
+        actualData.push(Math.floor(Math.random() * 100) + 50);
+        forecastData.push(Math.floor(Math.random() * 120) + 60);
+      }
+      
+      demandChart.data.labels = labels;
+      demandChart.data.datasets[0].data = actualData;
+      demandChart.data.datasets[1].data = forecastData;
+      demandChart.update();
+      
+      // Update summary with sample data
+      const avgDemand = Math.round(forecastData.reduce((a, b) => a + b, 0) / forecastData.length);
+      const peakIndex = forecastData.indexOf(Math.max(...forecastData));
+      const peakDate = labels[peakIndex];
+      const peakQty = Math.max(...forecastData);
+      
+      
+      updateForecastSummary({
+        avg_demand: avgDemand,
+        peak_date: peakDate,
+        peak_quantity: peakQty,
+        suggested_reorder: Math.round(avgDemand * 0.1),
+        confidence: 85.0
+      });
+      
+      console.log('Sample forecast data generated');
+    }
+
+    function updateForecastCharts(forecastData) {
+      console.log('Updating forecast charts with data:', forecastData);
+      if (demandChart && forecastData) {
+        console.log('Chart exists, updating with labels:', forecastData.labels);
+        demandChart.data.labels = forecastData.labels || [];
+        demandChart.data.datasets[0].data = forecastData.actual || [];
+        demandChart.data.datasets[1].data = forecastData.forecast || [];
+        demandChart.update();
+        console.log('Chart updated successfully');
+      } else {
+        console.log('Chart or data missing:', { demandChart: !!demandChart, forecastData: !!forecastData });
+      }
+    }
+
+    function updateForecastSummary(summary) {
+      if (summary) {
+        const avgDemandEl = document.querySelector('.summary-card:nth-child(1) .number');
+        const peakDayEl = document.querySelector('.summary-card:nth-child(2) .date');
+        const peakQtyEl = document.querySelector('.summary-card:nth-child(2) .quantity');
+        const reorderEl = document.querySelector('.summary-card:nth-child(3) .number');
+        
+        if (avgDemandEl) avgDemandEl.textContent = (summary.avg_demand || 0).toLocaleString();
+        if (peakDayEl) peakDayEl.textContent = summary.peak_date || 'N/A';
+        if (peakQtyEl) peakQtyEl.textContent = (summary.peak_quantity || 0).toLocaleString() + ' kg';
+        if (reorderEl) reorderEl.textContent = (summary.suggested_reorder || 0).toLocaleString();
+      }
+    }
+
+    // Load manager-specific data
+    async function loadManagerData() {
+      await Promise.all([
+        loadBranchProducts(),
+        // Don't auto-load forecast data - let user generate it
+        loadRiskData()
+      ]);
+    }
+
+    async function loadBranchProducts() {
+      try {
+        // Use the same inventory API as manager_inventory.html
+        const response = await fetch('/manager/api/inventory');
+        const data = await response.json();
+        if (data.ok && data.items) {
+          populateProductFilters(data.items);
+        }
+      } catch (error) {
+        console.error('Error loading branch products:', error);
+      }
+    }
+
+    function populateProductFilters(products) {
+      const filters = ['productFilter', 'priceProductFilter', 'riskProductFilter'];
+      filters.forEach(filterId => {
+        const select = document.getElementById(filterId);
+        if (select) {
+          select.innerHTML = '<option value="">All Products</option>';
+          products.forEach(product => {
+            const option = document.createElement('option');
+            option.value = product.id;
+            option.textContent = product.product_name || product.name || 'Unknown Product';
+            select.appendChild(option);
+          });
+        }
+      });
+    }
+
+    // Load forecast data from manager API
+    async function loadForecastData() {
+      try {
+        console.log('Loading forecast data...');
+        const response = await fetch('/manager/api/forecast/data');
+        console.log('Forecast data response status:', response.status);
+        const data = await response.json();
+        console.log('Forecast data received:', data);
+        
+        if (data.ok) {
+          console.log('Applying forecast data to UI');
+          applyForecast({
+            forecast: data.forecast,
+            summary: data.summary,
+            details: data.details || []
+          });
+        } else {
+          console.error('Error in forecast data response:', data.error);
+          showToast('Error loading forecast data: ' + data.error, 'error');
+        }
+      } catch (error) {
+        console.error('Error loading forecast data:', error);
+        showToast('Error loading forecast data', 'error');
+      }
+    }
+
+    function renderForecastTable(data) {
+      const tbody = document.getElementById('forecastTableBody');
+      tbody.innerHTML = '';
+      data.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatDate(item.date)}</td>
+          <td>${item.projected} kg</td>
+          <td>${item.confidence}</td>
+          <td>${item.trend}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Load risk data from manager API
+    async function loadRiskData() {
+      try {
+        const response = await fetch('/manager/api/analytics');
+        const data = await response.json();
+        if (data.ok && data.branch_risks) {
+          updateRiskOverview(data.branch_risks);
+          renderRiskTable(data.branch_risks);
+        } else {
+          // Show empty state if no data
+          updateRiskOverview([]);
+          renderRiskTable([]);
+        }
+      } catch (error) {
+        console.error('Error loading risk data:', error);
+        // Show empty state on error
+        updateRiskOverview([]);
+        renderRiskTable([]);
+      }
+    }
+
+    // Generate demand forecast with proper abort control and debouncing
+    let generateForecastTimeout = null;
+    async function generateForecast() {
+      if (generateForecastTimeout) {
+        clearTimeout(generateForecastTimeout);
+      }
+      
+      generateForecastTimeout = setTimeout(async () => {
+        // Abort any in-flight request
+        if (activeForecastController) {
+          activeForecastController.abort();
+        }
+        activeForecastController = new AbortController();
+        
+        const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+        const originalText = generateBtn?.textContent || '';
+        
+        try {
+          console.log('Starting demand forecast generation...');
+          showToast('Generating ARIMA demand forecast...', 'info');
+          
+          // Set loading state
+          if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+          }
+          
+          const productId = document.getElementById('productFilter')?.value || '';
+          const category = document.getElementById('categoryFilter')?.value || '';
+          const timeRange = document.getElementById('timeRange')?.value || '30';
+          
+          console.log('Forecast parameters:', { productId, category, timeRange });
+          
+          const response = await fetch('/manager/api/forecast', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              product_id: productId,
+              category: category,
+              days: parseInt(timeRange),
+              model_type: 'arima'
+            }),
+            signal: activeForecastController.signal
+          });
+          
+          console.log('API Response status:', response.status);
+          const data = await response.json();
+          console.log('API Response data:', data);
+          
+          if (data.ok) {
+            showToast('ARIMA demand forecast generated successfully', 'success');
+            console.log('Forecast data received:', data.forecast);
+            
+            // Apply the forecast data directly from the API response
+            applyForecast({
+              forecast: data.forecast,
+              summary: data.summary,
+              details: data.details || []
+            });
+            filtersDirty = false;
+          } else {
+            console.error('API Error:', data.error);
+            showToast('Error generating forecast: ' + (data.error || 'Unknown error'), 'error');
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            console.log('Forecast request aborted');
+            return;
+          }
+          console.error('Error generating forecast:', error);
+          showToast('Error generating forecast', 'error');
+        } finally {
+          // Restore button state
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalText;
+          }
+          activeForecastController = null;
+        }
+      }, 500); // 500ms debounce
+    }
+
+    // Generate price forecast (Holt-Winters model)
+    let generatePriceForecastTimeout = null;
+    async function generatePriceForecast() {
+      if (generatePriceForecastTimeout) {
+        clearTimeout(generatePriceForecastTimeout);
+      }
+      
+      generatePriceForecastTimeout = setTimeout(async () => {
+        const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+        const originalText = generateBtn?.textContent || '';
+        
+        try {
+          console.log('Starting price forecast generation...');
+          showToast('Generating Holt-Winters price forecast...', 'info');
+          
+          // Set loading state
+          if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+          }
+          
+          const productId = document.getElementById('priceProductFilter')?.value || '';
+          const timeRange = document.getElementById('priceTimeRange')?.value || '30';
+          
+          console.log('Price forecast parameters:', { productId, timeRange });
+          
+          const response = await fetch('/manager/api/forecast/price', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              product_id: productId,
+              days: parseInt(timeRange),
+              model_type: 'holt_winters'  // Always use Holt-Winters for price forecast
+            })
+          });
+          
+          console.log('Price forecast API Response status:', response.status);
+          const data = await response.json();
+          console.log('Price forecast API Response data:', data);
+          
+          if (data.ok) {
+            showToast('Holt-Winters price forecast generated successfully', 'success');
+            console.log('Price forecast data received:', data);
+            
+            // Update chart and insights with the returned data
+            if (data.price_forecast) {
+              updatePriceChart(data.price_forecast);
+            }
+            if (data.price_insights || data.summary) {
+              updatePriceInsights(data.price_insights || data.summary);
+            }
+          } else {
+            console.error('Price forecast API Error:', data.error);
+            showToast('Error generating price forecast: ' + (data.error || 'Unknown error'), 'error');
+          }
+        } catch (error) {
+          console.error('Error generating price forecast:', error);
+          showToast('Error generating price forecast', 'error');
+        } finally {
+          // Restore button state
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalText;
+          }
+        }
+      }, 500); // 500ms debounce
+    }
+
+    // Generate risk analysis with proper loading states
+    async function generateRiskAnalysis() {
+      const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+      const originalText = analyzeBtn?.textContent || '';
+      
+      try {
+        showToast('Analyzing stock risks...', 'info');
+        
+        // Set loading state
+        if (analyzeBtn) {
+          analyzeBtn.disabled = true;
+          analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        }
+        
+        // Get filter values
+        const productId = document.getElementById('riskProductFilter')?.value || '';
+        const category = document.getElementById('riskCategoryFilter')?.value || '';
+        const severity = document.getElementById('riskSeverityFilter')?.value || '';
+        const days = document.getElementById('riskDateRange')?.value || '30';
+        
+        console.log('Risk analysis parameters:', { productId, category, severity, days });
+        
+        const response = await fetch('/manager/api/forecast/risk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            product_id: productId,
+            category: category,
+            severity: severity,
+            days: parseInt(days)
+          })
+        });
+        
+        const data = await response.json();
+        if (data.ok) {
+          showToast(`Risk analysis completed - ${data.summary.total_analyzed} products analyzed`, 'success');
+          updateRiskAnalysis(data.risk_analysis, data.summary);
+        } else {
+          showToast('Error generating risk analysis: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        console.error('Error generating risk analysis:', error);
+        showToast('Error generating risk analysis', 'error');
+      } finally {
+        // Restore button state
+        if (analyzeBtn) {
+          analyzeBtn.disabled = false;
+          analyzeBtn.innerHTML = originalText;
+        }
+      }
+    }
+
+    // Update price chart with forecast data
+    function updatePriceChart(priceData) {
+      console.log('Updating price chart with data:', priceData);
+      if (priceChart && priceData && Array.isArray(priceData)) {
+        const labels = priceData.map(item => {
+          // Handle different date formats
+          if (item.date) {
+            return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          }
+          return item.label || 'Unknown';
+        });
+        const prices = priceData.map(item => {
+          // Handle different price field names
+          return item.predicted_price || item.price || item.value || 0;
+        });
+        
+        console.log('Price chart labels:', labels);
+        console.log('Price chart data:', prices);
+        
+        // Replace arrays wholesale - never mutate partially
+        priceChart.data.labels = labels;
+        priceChart.data.datasets[0].data = prices;
+        priceChart.update();
+        console.log('Price chart updated successfully');
+      } else {
+        console.log('Price chart or data missing:', { priceChart: !!priceChart, priceData: !!priceData });
+      }
+    }
+
+    // Clear price insights when filters change
+    function clearPriceInsights() {
+      console.log('Clearing price insights...');
+      
+      // Reset current price
+      const currentPriceEl = document.querySelector('.insight-card:nth-child(1) .price');
+      if (currentPriceEl) {
+        currentPriceEl.textContent = '₱0.00/kg';
+      }
+      
+      // Reset price trend
+      const trendEl = document.querySelector('.insight-card:nth-child(1) .trend');
+      if (trendEl) {
+        trendEl.className = 'trend';
+        trendEl.innerHTML = '<i class="fas fa-minus"></i> No data';
+      }
+      
+      // Reset predicted change
+      const predictionEl = document.querySelector('.insight-card:nth-child(2) .prediction');
+      if (predictionEl) {
+        predictionEl.textContent = '0%';
+      }
+      
+      // Reset reason
+      const reasonEl = document.querySelector('.insight-card:nth-child(2) .reason');
+      if (reasonEl) {
+        reasonEl.textContent = 'Generate forecast to see insights';
+      }
+      
+      console.log('Price insights cleared');
+    }
+
+    // Update price insights with forecast data
+    function updatePriceInsights(insights) {
+      if (!insights) return;
+      
+      // Update current price (first insight card)
+      const currentPriceEl = document.querySelector('.insight-card:nth-child(1) .price');
+      if (currentPriceEl) {
+        const currentPrice = insights.current_price || insights.currentPrice || 0;
+        currentPriceEl.textContent = `₱${currentPrice.toFixed(2)}/kg`;
+      }
+      
+      // Update price trend (first insight card)
+      const trendEl = document.querySelector('.insight-card:nth-child(1) .trend');
+      if (trendEl) {
+        const changePercent = insights.price_change_percent || insights.priceChangePercent || insights.trend_percent || 0;
+        const isPositive = changePercent >= 0;
+        const icon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
+        const className = isPositive ? 'positive' : 'negative';
+        
+        trendEl.className = `trend ${className}`;
+        trendEl.innerHTML = `
+          <i class="fas ${icon}"></i>
+          ${isPositive ? '+' : ''}${changePercent.toFixed(1)}% from last period
+        `;
+      }
+      
+      // Update predicted change (second insight card)
+      const predictionEl = document.querySelector('.insight-card:nth-child(2) .prediction');
+      if (predictionEl) {
+        const predictedChange = insights.predicted_change_percent || insights.predictedChangePercent || insights.predicted_change || 0;
+        predictionEl.textContent = `${predictedChange >= 0 ? '+' : ''}${predictedChange.toFixed(1)}%`;
+      }
+      
+      // Update reason (second insight card)
+      const reasonEl = document.querySelector('.insight-card:nth-child(2) .reason');
+      if (reasonEl) {
+        const reason = insights.reason || insights.explanation || insights.factor || 'Based on market trends';
+        reasonEl.textContent = reason;
+      }
+    }
+
+    // Update risk analysis with new data
+    function updateRiskAnalysis(riskData, summary) {
+      // Update risk overview cards
+      const criticalEl = document.querySelector('.risk-card.critical .number');
+      const moderateEl = document.querySelector('.risk-card.moderate .number');
+      const lowEl = document.querySelector('.risk-card.low .number');
+      
+      if (criticalEl) criticalEl.textContent = summary.critical_risks;
+      if (moderateEl) moderateEl.textContent = summary.moderate_risks;
+      if (lowEl) lowEl.textContent = summary.low_risks;
+      
+      // Update risk table
+      renderRiskTable(riskData);
+    }
+
+    function updateRiskOverview(data) {
+      if (!data || data.length === 0) {
+        // Show empty state in overview cards
+        const cEl = document.querySelector('.risk-card.critical .number');
+        const mEl = document.querySelector('.risk-card.moderate .number');
+        const lEl = document.querySelector('.risk-card.low .number');
+        if (cEl) cEl.textContent = '0';
+        if (mEl) mEl.textContent = '0';
+        if (lEl) lEl.textContent = '0';
+        return;
+      }
+      
+      const critical = data.filter(i => i.severity === 'critical').length;
+      const moderate = data.filter(i => i.severity === 'moderate').length;
+      const low = data.filter(i => i.severity === 'low').length;
+
+      const cEl = document.querySelector('.risk-card.critical .number');
+      const mEl = document.querySelector('.risk-card.moderate .number');
+      const lEl = document.querySelector('.risk-card.low .number');
+      if (cEl) cEl.textContent = critical;
+      if (mEl) mEl.textContent = moderate;
+      if (lEl) lEl.textContent = low;
+    }
+
+    function renderRiskTable(data) {
+      const tbody = document.getElementById('riskTableBody');
+      if (!tbody) return;
+      
+      // Clear existing content
+      tbody.innerHTML = '';
+      
+      // Show empty state if no data
+      if (!data || data.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td colspan="6" class="empty-state">
+            <div style="text-align: center; padding: 2rem; color: #666;">
+              <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <p>No risk data found for the selected filters.</p>
+              <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try adjusting your filters or click "Analyze Risks" to generate new analysis.</p>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      data.forEach(item => {
+        const tr = document.createElement('tr');
+        
+        // Use new field names from the API
+        const riskType = item.risk_type || 'Balanced';
+        const severity = item.severity || 'low';
+        const currentStock = item.current_stock || 0;
+        const threshold = item.threshold || item.warn_level || 0;
+        const suggestedAction = item.suggested_action || 'Monitor';
+        const daysOfCoverage = item.days_of_coverage || 0;
+        const avgDailyDemand = item.avg_daily_demand || 0;
+        
+        tr.innerHTML = `
+          <td>${item.product_name || 'Unknown Product'}</td>
+          <td><span class="risk-type ${riskType.toLowerCase()}">${riskType}</span></td>
+          <td><span class="risk-badge ${severity.toLowerCase()}">${severity}</span></td>
+          <td>${currentStock.toLocaleString()} kg</td>
+          <td>${threshold.toLocaleString()} kg</td>
+          <td>${suggestedAction}</td>
+        `;
+        
+        // Add tooltip with additional info
+        tr.title = `Days of Coverage: ${daysOfCoverage} days | Avg Daily Demand: ${avgDailyDemand.toFixed(2)} kg`;
+        
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Setup filters with manager-specific functionality
+    function setupRiskFilters() {
+      // Risk filters - make them passive (don't auto-trigger analysis)
+      ['riskProductFilter','riskCategoryFilter','riskSeverityFilter','riskDateRange']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', () => {
+            showToast('Filters changed — click "Analyze Risks" to refresh', 'info');
+            // Enable the analyze button
+            const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+            if (analyzeBtn) {
+              analyzeBtn.disabled = false;
+              analyzeBtn.style.opacity = '1';
+            }
+          });
+        });
+
+      // Forecast filters - mark as dirty but don't auto-generate
+      ['productFilter', 'categoryFilter', 'timeRange']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', () => {
+            filtersDirty = true;
+            showToast('Filters changed — click Generate to refresh', 'info');
+            // Enable the generate button
+            const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+            if (generateBtn) {
+              generateBtn.disabled = false;
+              generateBtn.style.opacity = '1';
+            }
+          });
+        });
+
+      // Price filters - mark as dirty but don't auto-generate
+      ['priceProductFilter', 'priceTimeRange']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', () => {
+            showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+            // Clear current price insights when filters change
+            clearPriceInsights();
+            // Enable the generate button
+            const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+            if (generateBtn) {
+              generateBtn.disabled = false;
+              generateBtn.style.opacity = '1';
+            }
+          });
+        });
+    }
+
+    // Helpers
+    function formatDate(str) {
+      const opts = { year: 'numeric', month: 'short', day: 'numeric' };
+      return new Date(str).toLocaleDateString('en-US', opts);
+    }
+
+    function showToast(message, type='info') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    // Export functions with branch-specific filenames
+    async function exportForecast() {
+      try {
+        const branchName = MANAGER_BRANCH_NAME || 'branch';
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `forecast_${branchName.toLowerCase().replace(/\s+/g, '_')}_${date}.csv`;
+        
+        const response = await fetch('/manager/api/forecast/export?format=csv');
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          showToast('Forecast exported successfully', 'success');
+        } else {
+          showToast('Error exporting forecast', 'error');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        showToast('Error exporting forecast', 'error');
+      }
+    }
+
+    async function exportRiskReport() {
+      try {
+        const branchName = MANAGER_BRANCH_NAME || 'branch';
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `risk_report_${branchName.toLowerCase().replace(/\s+/g, '_')}_${date}.csv`;
+        
+        const response = await fetch('/manager/api/analytics/export?format=csv&type=risk');
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          showToast('Risk report exported successfully', 'success');
+        } else {
+          showToast('Error exporting risk report', 'error');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        showToast('Error exporting risk report', 'error');
+      }
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchName = urlParams.get('branch_name');
+      const branchId = urlParams.get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Forecast - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+</body>
+</html>

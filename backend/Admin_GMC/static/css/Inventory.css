@@ -1,0 +1,473 @@
+body {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  font-family: 'Inter', sans-serif;
+  color: #1e293b;
+}
+.main-content {
+  margin-left: 250px; /* Adjust if sidebar width changes */
+  padding: 32px;
+}
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 32px;
+  margin-bottom: 32px;
+}
+.inventory-header h2 {
+  font-size: 2.3rem;
+  font-weight: 800;
+  color: #2e7d32;
+  margin: 0 0 8px 0;
+}
+.inventory-header p {
+  font-size: 1.08rem;
+  color: #64748b;
+  margin: 0;
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.panel-header h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2e7d32;
+  margin: 0;
+}
+.panel-actions {
+  display: flex;
+  gap: 16px;
+}
+.action-btn {
+  background: linear-gradient(90deg, #2e7d32 0%, #388e3c 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
+}
+.branch-table, .inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.branch-table th, .inventory-table th {
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 700;
+  padding: 14px 18px;
+  text-align: left;
+}
+.branch-table td, .inventory-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e0e0e0;
+}
+.status-ok { color: #2e7d32; font-weight: 600; }
+.status-warning { color: #f59e0b; font-weight: 600; }
+.status-danger { color: #e53935; font-weight: 600; }
+.table-action-btn {
+  background: none;
+  border: 1px solid #2e7d32;
+  color: #2e7d32;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: all 0.2s;
+}
+.table-action-btn:hover {
+  background: #2e7d32;
+  color: white;
+}
+.table-action-btn.delete-btn {
+  border-color: #e53935;
+  color: #e53935;
+}
+.table-action-btn.delete-btn:hover {
+  background: #e53935;
+  color: white;
+}
+
+/* Modal Styles */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+  position: relative;
+  margin: 5% auto;
+  padding: 32px;
+  width: 80%;
+  max-width: 1200px;
+}
+.close-btn, .close-confirm-btn {
+  position: absolute;
+  top: 16px;
+  right: 24px;
+  color: #aaa;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.modal-header h3 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #2e7d32;
+  margin: 0;
+}
+.modal-filters {
+  display: flex;
+  gap: 16px;
+}
+.modal-filters input, .modal-filters select {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.delete-modal-content {
+  width: 400px;
+  text-align: center;
+}
+.delete-modal-content h4 {
+  font-size: 1.5rem;
+  color: #e53935;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+.cancel-btn {
+  background: #ccc;
+  color: #333;
+}
+.cancel-btn:hover {
+  background: #bbb;
+}
+
+.modal-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  /* reserve space so close button never overlaps */
+  padding-right: 72px;
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-right: auto; /* push tabs to the left */
+}
+
+.tab-switch {
+  appearance: none;
+  background: #ffffff;
+  color: #2e7d32;
+  border: 1.5px solid #2e7d32;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font: 600 14px/1 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.tab-switch:hover {
+  background: #eaf5ec;
+}
+
+.tab-switch.active {
+  background: #2e7d32;
+  color: #ffffff;
+}
+
+/* ---------- Close button (right, green circle) ---------- */
+.modal-close {
+  position: absolute;
+  right: 16px;
+  top: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: #2e7d32;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 36px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(46,125,50,0.25);
+  z-index: 2;               /* sits above everything */
+  transition: transform .15s ease, background .15s ease;
+}
+
+.modal-close:hover {
+  background: #1b5e20;
+  transform: translateY(-1px);
+}
+
+/* keep your existing .close-btn styles untouched if used elsewhere */
+
+/* ---------- Responsive: stack header nicely ---------- */
+@media (max-width: 640px) {
+  .modal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding-right: 56px; /* still keep room for the close btn */
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+}
+
+.product-modal {
+  --pm-green-700: #2e7d32;
+  --pm-green-600: #2f8a37;
+  --pm-green-500: #43a047;
+  --pm-green-100: #e8f5e9;
+  --pm-green-050: #f1fbf2;
+  --pm-text: #1f2937;           /* slate-800 */
+  --pm-muted: #6b7280;          /* gray-500 */
+  --pm-border: #dbe1e6;         /* cool gray */
+  --pm-input-bg: #fff;
+  --pm-shadow: 0 20px 40px rgba(0,0,0,.12);
+}
+
+/* Modal shell (reuse your existing .modal/.glass-card) */
+.product-modal .modal-content.glass-card {
+  background: var(--pm-green-050);
+  border: 1px solid rgba(46, 125, 50, .15);
+  box-shadow: var(--pm-shadow);
+  border-radius: 18px;
+  padding: 28px;
+}
+
+/* Header/title row */
+.product-modal .pm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.product-modal .pm-title {
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 800;
+  color: var(--pm-green-700);
+  letter-spacing: .2px;
+  margin: 0;
+}
+
+/* Compact chip buttons on the right (+ Add Custom Field | Bulk Upload) */
+.product-modal .pm-chipbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.product-modal .pm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(46,125,50,.25);
+  background: #ffffff;
+  color: var(--pm-green-700);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: box-shadow .15s ease, transform .15s ease, background .15s ease;
+  user-select: none;
+}
+.product-modal .pm-chip svg { pointer-events: none; }
+
+.product-modal .pm-chip:hover {
+  box-shadow: 0 6px 18px rgba(46,125,50,.18);
+  transform: translateY(-1px);
+}
+.product-modal .pm-chip:active { transform: translateY(0); }
+
+/* Close (X) button – green, circular, top-right */
+.product-modal .pm-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(46,125,50,.25);
+  background: var(--pm-green-600);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 36px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(46,125,50,.25);
+  transition: background .15s ease, transform .1s ease, box-shadow .15s ease;
+  z-index: 5; /* keeps clear of tab buttons etc. */
+}
+.product-modal .pm-close:hover {
+  background: var(--pm-green-700);
+  transform: translateY(-1px);
+}
+.product-modal .pm-close:active { transform: translateY(0); }
+
+/* Form grid */
+.product-modal .pm-form {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 18px 20px;
+  margin-top: 8px;
+}
+
+/* Each field spans 6 cols on desktop, 12 on small */
+.product-modal .pm-field {
+  grid-column: span 6;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (max-width: 880px) {
+  .product-modal .pm-field { grid-column: span 12; }
+}
+
+/* Labels */
+.product-modal .pm-label {
+  font-weight: 700;
+  color: var(--pm-green-700);
+  font-size: 15px;
+}
+.product-modal .pm-label .optional {
+  font-weight: 500;
+  color: var(--pm-muted);
+  margin-left: 6px;
+  font-size: 13px;
+}
+
+/* Inputs / textareas */
+.product-modal .pm-input,
+.product-modal .pm-textarea {
+  background: var(--pm-input-bg);
+  border: 1px solid var(--pm-border);
+  border-radius: 10px;
+  padding: 14px 14px;
+  font-size: 16px;
+  color: var(--pm-text);
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.product-modal .pm-input::placeholder,
+.product-modal .pm-textarea::placeholder { color: #9aa4af; }
+
+.product-modal .pm-input:focus,
+.product-modal .pm-textarea:focus {
+  border-color: var(--pm-green-500);
+  box-shadow: 0 0 0 3px rgba(46,125,50,.15);
+}
+
+.product-modal .pm-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+/* Submit button – full width green bar */
+.product-modal .pm-submit {
+  margin-top: 14px;
+  width: 100%;
+  padding: 18px 20px;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: clamp(18px, 2vw, 22px);
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(90deg, var(--pm-green-600), var(--pm-green-700));
+  box-shadow: 0 12px 28px rgba(46,125,50,.28);
+  transition: transform .1s ease, box-shadow .15s ease, filter .15s ease;
+}
+.product-modal .pm-submit:hover {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+}
+.product-modal .pm-submit:active { transform: translateY(0); }
+
+/* Small helper – space below header row */
+.product-modal .pm-header + .pm-form { margin-top: 6px; }
+
+/* Grid layout for product forms */
+.grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.grid-2col .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid-2col .col-span-2 {
+  grid-column: span 2;
+}
+
+/* Inputs & Textareas styling */
+.form-group label {
+  font-weight: 600;
+  color: #2e7d32;
+  margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group textarea {
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+/* Modal background */
+#addProductModal .modal-content {
+  background: #e8f5e9;  /* light green like your screenshot */
+}

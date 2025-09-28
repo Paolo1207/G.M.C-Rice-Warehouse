@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Settings - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager-scoped static assets -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/settings.css') }}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+           <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+<li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+<li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+<li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+<li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+          <ul>
+           <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+<li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+         <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+<li><a href="{{ url_for('manager.settings') }}" class="active"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="settings-container">
+        <div class="settings-header">
+          <h2>Account Settings</h2>
+        </div>
+
+        <!-- Profile Information -->
+        <div class="settings-section">
+          <h3><i class="fas fa-user-circle"></i> Profile Information</h3>
+          <form id="profileForm" class="settings-form">
+            <div class="form-group">
+              <label for="fullName">Full Name</label>
+              <input type="text" id="fullName" name="fullName" value="John Doe" required>
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" value="john.doe@example.com" required>
+            </div>
+            <div class="form-group">
+              <label for="branch">Assigned Branch</label>
+              <input type="text" id="branch" name="branch" value="Main Branch" readonly>
+            </div>
+            <div class="form-group">
+              <label for="role">Role</label>
+              <input type="text" id="role" name="role" value="Branch Manager" readonly>
+            </div>
+            <button type="submit" class="btn primary">Save Changes</button>
+          </form>
+        </div>
+
+        <!-- Change Password -->
+        <div class="settings-section">
+          <h3><i class="fas fa-key"></i> Change Password</h3>
+          <form id="passwordForm" class="settings-form">
+            <div class="form-group">
+              <label for="currentPassword">Current Password</label>
+              <div class="password-input">
+                <input type="password" id="currentPassword" name="currentPassword" required>
+                <button type="button" class="btn-icon" onclick="togglePassword('currentPassword')">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="newPassword">New Password</label>
+              <div class="password-input">
+                <input type="password" id="newPassword" name="newPassword" required>
+                <button type="button" class="btn-icon" onclick="togglePassword('newPassword')">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div class="password-strength">
+                <div class="strength-meter"><div class="strength-bar"></div></div>
+                <span class="strength-text">Password strength: <span id="strengthValue">None</span></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="confirmPassword">Confirm New Password</label>
+              <div class="password-input">
+                <input type="password" id="confirmPassword" name="confirmPassword" required>
+                <button type="button" class="btn-icon" onclick="togglePassword('confirmPassword')">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+            </div>
+            <button type="submit" class="btn primary">Change Password</button>
+          </form>
+        </div>
+
+        <!-- Forgot Password -->
+        <div class="settings-section">
+          <h3><i class="fas fa-question-circle"></i> Forgot Password</h3>
+          <p>If you've forgotten your password, we can send a reset link to your email address.</p>
+          <form id="forgotPasswordForm" class="settings-form">
+            <div class="form-group">
+              <label for="resetEmail">Email Address</label>
+              <input type="email" id="resetEmail" name="resetEmail" required>
+            </div>
+            <button type="submit" class="btn secondary">Send Reset Link</button>
+          </form>
+        </div>
+
+        <!-- Logout -->
+        <div class="settings-section">
+          <h3><i class="fas fa-sign-out-alt"></i> Logout</h3>
+          <p>Click the button below to securely log out of your account.</p>
+          <button onclick="confirmLogout()" class="btn danger">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Prefer manager-scoped JS; falls back gracefully -->
+
+  <script>
+    // Fallback toaster if main.js isn't present or doesn't define showNotification
+    if (typeof window.showNotification !== 'function') {
+      window.showNotification = function(message, type = 'info') {
+        const n = document.createElement('div');
+        n.className = `notification ${type}`;
+        n.innerHTML = `<i class="fas ${
+          type === 'success' ? 'fa-check-circle' :
+          type === 'error'   ? 'fa-exclamation-circle' :
+          type === 'warning' ? 'fa-triangle-exclamation' : 'fa-info-circle'
+        }"></i><span>${message}</span>`;
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 2500);
+      };
+    }
+
+    // ---------- Init ----------
+    document.addEventListener('DOMContentLoaded', () => {
+      initSettings();
+    });
+
+    function initSettings() {
+      document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+      document.getElementById('passwordForm').addEventListener('submit', handlePasswordChange);
+      document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPassword);
+      document.getElementById('newPassword').addEventListener('input', checkPasswordStrength);
+    }
+
+    // ---------- Handlers ----------
+    function handleProfileUpdate(e) {
+      e.preventDefault();
+      try {
+        // TODO: POST to /manager/api/profile
+        showNotification('Profile updated successfully', 'success');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error updating profile', 'error');
+      }
+    }
+
+    function handlePasswordChange(e) {
+      e.preventDefault();
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (newPassword !== confirmPassword) {
+        showNotification('New passwords do not match', 'error');
+        return;
+      }
+
+      try {
+        // TODO: POST to /manager/api/change_password
+        showNotification('Password changed successfully', 'success');
+        e.target.reset();
+        document.querySelector('.strength-bar').style.width = '0%';
+        document.getElementById('strengthValue').textContent = 'None';
+      } catch (err) {
+        console.error(err);
+        showNotification('Error changing password', 'error');
+      }
+    }
+
+    function handleForgotPassword(e) {
+      e.preventDefault();
+      const email = document.getElementById('resetEmail').value;
+      try {
+        // TODO: POST to /manager/api/forgot_password
+        showNotification('Password reset link sent to your email', 'success');
+        e.target.reset();
+      } catch (err) {
+        console.error(err);
+        showNotification('Error sending reset link', 'error');
+      }
+    }
+
+    // ---------- UI helpers ----------
+    function togglePassword(inputId) {
+      const input = document.getElementById(inputId);
+      const icon = input.nextElementSibling.querySelector('i');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+      }
+    }
+
+    function checkPasswordStrength(e) {
+      const password = e.target.value;
+      const strengthBar = document.querySelector('.strength-bar');
+      const strengthValue = document.getElementById('strengthValue');
+
+      let strength = 0;
+      if (password.length >= 8) strength++;
+      if (/[a-z]/.test(password)) strength++;
+      if (/[A-Z]/.test(password)) strength++;
+      if (/[0-9]/.test(password)) strength++;
+      if (/[^a-zA-Z0-9]/.test(password)) strength++;
+
+      const percent = (strength / 5) * 100;
+      strengthBar.style.width = `${percent}%`;
+
+      const texts  = ['None', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+      const colors = ['var(--text-light)', 'var(--accent-red)', '#ffbb33', 'var(--accent-yellow)', 'var(--accent-green)', 'var(--primary-blue)'];
+      strengthValue.textContent = texts[strength];
+      strengthBar.style.backgroundColor = colors[strength];
+      strengthValue.style.color = colors[strength];
+    }
+
+    async function confirmLogout() {
+      if (!confirm('Are you sure you want to log out?')) return;
+      try {
+        await fetch('/logout', { method: 'POST' });
+      } catch (err) {
+        console.warn(err);
+      }
+      window.location.href = '/login';
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchName = urlParams.get('branch_name');
+      const branchId = urlParams.get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Settings - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+      <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+</body>
+</html>

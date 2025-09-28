@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - GMC Admin</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sales.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="../js/sales.js"></script>
+</head>
+<body>
+  <!-- Sidebar directly embedded -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-brand">
+    <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <nav class="sidebar-menu" id="sidebarMenu">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Main</div>
+        <ul>
+         <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li  title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+
+          <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+        </ul>
+      </div>
+      <div class="sidebar-section-divider"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Operations</div>
+        <ul>
+          <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+          <li class="active" title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+
+          
+           <li title="Purchase">
+  <a href="{{ url_for('admin.purchase') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Purchase</span>
+  </a>
+</li>
+        </ul>
+      </div>
+      <div class="sidebar-section-divider"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Management</div>
+        <ul>
+         <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+
+           <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+           <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+
+        </ul>
+      </div>
+    </nav>
+    <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+      <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+        <div class="sidebar-profile-name sidebar-label" style="margin: 0 auto;">Admin</div>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <ul>
+          <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+      </ul>
+    </div>
+  </aside>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content sales-module">
+        <div class="sales-header">
+            <h2>📦 Sales Module</h2>
+            <div class="sales-filters">
+                <label>Date Range:
+                    <select id="salesDays">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                    </select>
+                </label>
+                <label>Rice Variant:
+                    <select id="salesProduct"></select>
+                </label>
+                <label>Branch:
+                    <select id="salesBranch"></select>
+                </label>
+            </div>
+        </div>
+        <div class="sales-indicators-row">
+            <div class="sales-indicator-card">
+                <div class="indicator-title">Total Sales</div>
+                <div class="indicator-value" id="kpiSales">₱0</div>
+                <div class="indicator-change positive">Live</div>
+            </div>
+            <div class="sales-indicator-card">
+                <div class="indicator-title">Units Sold</div>
+                <div class="indicator-value" id="kpiUnits">0</div>
+                <div class="indicator-change positive">Live</div>
+            </div>
+            <div class="sales-indicator-card">
+                <div class="indicator-title">Avg Order Value</div>
+                <div class="indicator-value" id="kpiAov">₱0</div>
+                <div class="indicator-change positive">Live</div>
+            </div>
+        </div>
+        <div class="sales-widgets-row">
+            <div class="sales-widget sales-trend-widget">
+                <div class="widget-header">
+                    <h3>📈 Daily Sales Trend</h3>
+                </div>
+                <div class="chart-container">
+                    <canvas id="dailySalesChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+            <div class="sales-widget product-performance-widget">
+                <div class="widget-header">
+                    <h3>🏅 Product Performance</h3>
+                </div>
+                <table class="performance-table">
+                    <thead>
+                        <tr><th>Rank</th><th>Rice Variant</th><th>Qty (kg)</th><th>Sales (₱)</th></tr>
+                    </thead>
+                    <tbody id="topProductsBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="sales-log-section">
+            <div class="sales-log-header">
+                <h3>📝 Sales Log</h3>
+                <div class="export-buttons">
+                    <button id="expCsv">Export CSV</button>
+                    <button id="expXlsx">Export Excel</button>
+                    <button id="expPdf">Export PDF</button>
+                </div>
+            </div>
+            <table class="sales-log-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Rice Variant</th>
+                        <th>Quantity Sold</th>
+                        <th>Branch</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>2024-06-01</td><td>Sinandomeng</td><td>120</td><td>Main Branch</td><td>₱18,000</td></tr>
+                    <tr><td>2024-06-01</td><td>Dinorado</td><td>95</td><td>Malvar</td><td>₱14,250</td></tr>
+                    <tr><td>2024-06-01</td><td>Jasmine</td><td>80</td><td>Boac</td><td>₱12,000</td></tr>
+                    <tr><td>2024-06-01</td><td>Premium</td><td>60</td><td>Main Branch</td><td>₱9,600</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+      const daysSel = document.getElementById('salesDays');
+      const prodSel = document.getElementById('salesProduct');
+      const brSel = document.getElementById('salesBranch');
+      let dailyChart;
+
+      document.addEventListener('DOMContentLoaded', init);
+      async function init(){
+        await hydrateFilters();
+        bindFilters();
+        await refreshAll();
+        wireExports();
+      }
+
+      function bindFilters(){
+        [daysSel, prodSel, brSel].forEach(el=> el && el.addEventListener('change', refreshAll));
+      }
+
+      async function hydrateFilters(){
+        // branches
+        try{
+          const rb = await fetch('/admin/api/branches').then(r=>r.json());
+          brSel.innerHTML = '<option value="">All Branches</option>' + (rb.branches||[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+        }catch{}
+        // products via inventory presence
+        try{
+          const rp = await fetch('/admin/api/products').then(r=>r.json());
+          const names = (rp.products||[]).map(p=>({id:p.id,name:p.name}));
+          prodSel.innerHTML = '<option value="">All Products</option>' + names.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+        }catch{}
+      }
+
+      async function refreshAll(){
+        await Promise.all([loadKPIs(), loadTrend(), loadTopProducts(), loadTable()]);
+      }
+
+      function params(){
+        const q = new URLSearchParams();
+        if (daysSel && daysSel.value) q.set('days', daysSel.value);
+        if (prodSel && prodSel.value) q.set('product_id', prodSel.value);
+        if (brSel && brSel.value) q.set('branch_id', brSel.value);
+        return q.toString();
+      }
+
+      async function loadKPIs(){
+        const j = await fetch('/admin/api/sales/kpis?'+params()).then(r=>r.json());
+        if (!j.ok) return;
+        document.getElementById('kpiSales').textContent = '₱'+Number(j.kpis.month_sales||0).toLocaleString();
+        document.getElementById('kpiUnits').textContent = Number(j.kpis.units_sold||0).toLocaleString();
+        document.getElementById('kpiAov').textContent   = '₱'+Number(j.kpis.avg_order_value||0).toLocaleString();
+      }
+
+      async function loadTrend(){
+        const j = await fetch('/admin/api/sales/trend?granularity=daily&'+params()).then(r=>r.json());
+        const el = document.getElementById('dailySalesChart');
+        if (!el || !j.ok) return;
+        if (dailyChart) dailyChart.destroy();
+        dailyChart = new Chart(el.getContext('2d'), {
+          type:'line',
+          data:{ labels:j.labels||[], datasets:(j.series||[]).map((s,i)=>({ label:s.branch_name||('Branch '+s.branch_id), data:s.data||[], borderColor:['#2e7d32','#3b82f6','#f59e0b','#dc2626'][i%4], fill:false, tension:0.3 })) },
+          options:{ responsive:true, plugins:{ legend:{position:'top'} } }
+        });
+      }
+
+      async function loadTopProducts(){
+        const j = await fetch('/admin/api/sales/top_products?'+params()).then(r=>r.json());
+        const tb = document.getElementById('topProductsBody');
+        if (!tb || !j.ok) return;
+        tb.innerHTML = '';
+        (j.rows||[]).forEach((r,idx)=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${idx+1}</td><td>${r.name}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>₱${Number(r.sales||0).toLocaleString()}</td>`;
+          tb.appendChild(tr);
+        });
+      }
+
+      async function loadTable(){
+        const j = await fetch('/admin/api/sales?'+params()).then(r=>r.json());
+        const tb = document.querySelector('.sales-log-table tbody');
+        if (!tb || !j.ok) return;
+        tb.innerHTML = '';
+        (j.rows||[]).forEach(r=>{
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${r.date}</td><td>${r.product_name}</td><td>${Number(r.qty).toLocaleString()}</td><td>${r.branch_name}</td><td>₱${Number(r.amount).toLocaleString()}</td>`;
+          tb.appendChild(tr);
+        });
+      }
+
+      function wireExports(){
+        const go = async (fmt)=>{ window.location.href = '/admin/api/sales/export?'+params()+`&format=${fmt}`; };
+        document.getElementById('expCsv')?.addEventListener('click', ()=>go('csv'));
+        document.getElementById('expXlsx')?.addEventListener('click', ()=>go('xlsx'));
+        document.getElementById('expPdf')?.addEventListener('click', ()=>go('pdf'));
+      }
+    </script>
+</body>
+</html>
