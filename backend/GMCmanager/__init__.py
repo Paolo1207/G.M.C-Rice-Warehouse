@@ -340,15 +340,16 @@ def mgr_inventory_restock_general():
     print(f"DEBUG: Restock data received: {data}")
     
     try:
-        product_id = data.get("product_id")
+        # The frontend sends inventory_item_id, not product_id
+        inventory_item_id = data.get("product_id")  # This is actually the inventory item ID from the dropdown
         quantity = _to_float(data.get("quantity")) or 0.0
         supplier = (data.get("supplier") or "").strip()
         note = (data.get("note") or "").strip()
         
-        print(f"DEBUG: Parsed values - product_id: {product_id}, quantity: {quantity}, supplier: '{supplier}', note: '{note}'")
+        print(f"DEBUG: Parsed values - inventory_item_id: {inventory_item_id}, quantity: {quantity}, supplier: '{supplier}', note: '{note}'")
         
-        if not product_id:
-            return jsonify({"ok": False, "error": "Product ID is required"}), 400
+        if not inventory_item_id:
+            return jsonify({"ok": False, "error": "Product selection is required"}), 400
         
         if quantity <= 0:
             return jsonify({"ok": False, "error": "Quantity must be positive"}), 400
@@ -356,14 +357,20 @@ def mgr_inventory_restock_general():
         if not supplier:
             return jsonify({"ok": False, "error": "Supplier is required"}), 400
         
-        # Find or create inventory item for this product in manager's branch
+        # Find the inventory item directly by ID and verify it belongs to manager's branch
         inventory_item = InventoryItem.query.filter_by(
-            branch_id=branch_id,
-            product_id=product_id
+            id=inventory_item_id,
+            branch_id=branch_id
         ).first()
         
+        print(f"DEBUG: Looking for inventory_item_id={inventory_item_id} in branch_id={branch_id}")
+        print(f"DEBUG: Found inventory_item: {inventory_item}")
+        
         if not inventory_item:
-            return jsonify({"ok": False, "error": "Product not found in your branch inventory"}), 404
+            # Let's check what inventory items actually exist in this branch
+            all_items = InventoryItem.query.filter_by(branch_id=branch_id).all()
+            print(f"DEBUG: All items in branch {branch_id}: {[(item.id, item.product.name if item.product else 'No Product') for item in all_items]}")
+            return jsonify({"ok": False, "error": f"Inventory item not found in your branch. Item ID: {inventory_item_id}, Branch ID: {branch_id}"}), 404
         
         # Update stock
         inventory_item.stock_kg = (inventory_item.stock_kg or 0.0) + quantity

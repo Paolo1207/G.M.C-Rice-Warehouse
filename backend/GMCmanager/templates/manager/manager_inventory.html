@@ -669,14 +669,17 @@
                 const json = await res.json();
                 if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load products');
                 
+                console.log('DEBUG: Loaded products for restock:', json.items);
+                
                 const select = document.getElementById('restockProduct');
                 select.innerHTML = '<option value="">Choose a product...</option>';
                 
                 (json.items || []).forEach(item => {
                     const option = document.createElement('option');
-                    option.value = item.id;
+                    option.value = item.id;  // This is the inventory item ID, not product ID
                     option.textContent = `${item.product_name} (${item.stock || 0} kg)`;
                     select.appendChild(option);
+                    console.log('DEBUG: Added option:', item.id, item.product_name);
                 });
             } catch (e) {
                 console.error(e);
