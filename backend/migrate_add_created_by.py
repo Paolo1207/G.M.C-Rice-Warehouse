@@ -21,18 +21,22 @@ def migrate_restock_logs():
     with app.app_context():
         try:
             # Add the created_by column with default value
-            db.engine.execute("""
-                ALTER TABLE restock_logs 
-                ADD COLUMN created_by VARCHAR(50) DEFAULT 'Admin'
-            """)
+            with db.engine.connect() as conn:
+                conn.execute(db.text("""
+                    ALTER TABLE restock_logs 
+                    ADD COLUMN created_by VARCHAR(50) DEFAULT 'Admin'
+                """))
+                conn.commit()
             print("✅ Added created_by column to restock_logs table")
             
             # Update existing records to have 'Admin' as created_by
-            db.engine.execute("""
-                UPDATE restock_logs 
-                SET created_by = 'Admin' 
-                WHERE created_by IS NULL
-            """)
+            with db.engine.connect() as conn:
+                conn.execute(db.text("""
+                    UPDATE restock_logs 
+                    SET created_by = 'Admin' 
+                    WHERE created_by IS NULL
+                """))
+                conn.commit()
             print("✅ Updated existing records with created_by = 'Admin'")
             
             print("🎉 Migration completed successfully!")
