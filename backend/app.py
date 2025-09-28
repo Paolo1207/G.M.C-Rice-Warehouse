@@ -22,14 +22,14 @@ def create_app() -> Flask:
     database_url = os.getenv("DATABASE_URL")
     print(f"DEBUG: DATABASE_URL = {database_url}")
     
-    if database_url:
+    if database_url and not database_url.startswith("postgresql://localhost"):
         # Production database (Render PostgreSQL)
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print(f"DEBUG: Using production database: {database_url[:50]}...")
     else:
-        # Development database (local PostgreSQL)
-        app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:postgres@localhost:5432/gmcdb"
-        print("DEBUG: Using development database: localhost:5432")
+        # Development database (local SQLite for development)
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///instance/gmc.db"
+        print("DEBUG: Using development database: SQLite")
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
