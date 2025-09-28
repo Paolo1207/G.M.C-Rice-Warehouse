@@ -691,8 +691,8 @@
                 const payload = {
                     product_id: fd.get('product_id'),
                     quantity: Number(fd.get('quantity')),
-                    supplier: fd.get('supplier').trim(),
-                    note: fd.get('note').trim() || null
+                    supplier: (fd.get('supplier') || '').trim(),
+                    note: (fd.get('note') || '').trim() || null
                 };
 
                 if (!payload.product_id || !payload.quantity || !payload.supplier) {

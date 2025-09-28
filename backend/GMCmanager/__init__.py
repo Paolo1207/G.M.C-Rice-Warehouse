@@ -337,11 +337,15 @@ def mgr_inventory_restock_general():
     data = request.get_json(silent=True) or {}
     branch_id = _current_manager_branch_id()
     
+    print(f"DEBUG: Restock data received: {data}")
+    
     try:
         product_id = data.get("product_id")
         quantity = _to_float(data.get("quantity")) or 0.0
-        supplier = data.get("supplier", "").strip()
-        note = data.get("note", "").strip()
+        supplier = (data.get("supplier") or "").strip()
+        note = (data.get("note") or "").strip()
+        
+        print(f"DEBUG: Parsed values - product_id: {product_id}, quantity: {quantity}, supplier: '{supplier}', note: '{note}'")
         
         if not product_id:
             return jsonify({"ok": False, "error": "Product ID is required"}), 400
