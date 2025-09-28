@@ -117,6 +117,7 @@ class RestockLog(db.Model):
             "note": self.note,
             "created_by": self.created_by,
             "date": self.created_at.strftime("%Y-%m-%d"),
+            "datetime": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),  # Full timestamp for sorting
             "variant": self.inventory_item.product.name,
         }
 class User(db.Model):

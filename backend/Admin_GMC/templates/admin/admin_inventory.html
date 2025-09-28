@@ -722,6 +722,7 @@ async function hydrateLogsForBranch(branch_name){
       if (!j.ok) return [];
       return (j.logs || []).map(l => ({
         date: l.date,
+        datetime: l.datetime || l.date,  // Use full timestamp for sorting
         qty: Number(l.qty_kg ?? l.qty ?? 0),
         supplier: l.supplier || "N/A",  // Keep supplier separate
         created_by: l.created_by || l.by || "Admin",  // Use created_by for "By" column
@@ -732,7 +733,23 @@ async function hydrateLogsForBranch(branch_name){
 
   const logsByItem = await Promise.all(promises);
   const merged = logsByItem.flat();
-  merged.sort((a,b) => String(b.date).localeCompare(String(a.date)));
+  
+  // Sort by datetime (newest first) - proper datetime comparison
+  console.log("DEBUG: Before sorting, merged logs:", merged.length);
+  merged.forEach((log, i) => {
+    console.log(`  ${i+1}. ${log.datetime || log.date} - ${log.created_by} - ${log.variant}`);
+  });
+  
+  merged.sort((a,b) => {
+    const dateA = new Date(a.datetime || a.date);
+    const dateB = new Date(b.datetime || b.date);
+    return dateB - dateA; // Newest first
+  });
+  
+  console.log("DEBUG: After sorting, merged logs:");
+  merged.forEach((log, i) => {
+    console.log(`  ${i+1}. ${log.datetime || log.date} - ${log.created_by} - ${log.variant}`);
+  });
 
   BRANCH_DATA[branch_name].logs = merged;
 }
@@ -781,6 +798,11 @@ function renderLog(onlyVariant=null){
   if (!br) return;
 
   const rows = onlyVariant ? br.logs.filter(l => l.variant === onlyVariant) : br.logs;
+  
+  console.log("DEBUG: renderLog - rows to render:", rows.length);
+  rows.forEach((log, i) => {
+    console.log(`  ${i+1}. ${log.datetime || log.date} - ${log.created_by} - ${log.variant}`);
+  });
 
   logTableBody.innerHTML = rows.length
     ? ""
