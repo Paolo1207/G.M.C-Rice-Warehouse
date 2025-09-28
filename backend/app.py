@@ -221,6 +221,50 @@ document.getElementById('btnWho').onclick = async () => {
     def ping():
         return jsonify({"message": "pong"})
 
+    @app.route("/seed-database")
+    def seed_database():
+        """Seed the database with default users and sample data"""
+        try:
+            from models import User
+            from werkzeug.security import generate_password_hash
+            
+            # Create default users
+            admin_user = User.query.filter_by(username="admin").first()
+            if not admin_user:
+                admin_user = User(
+                    username="admin",
+                    password_hash=generate_password_hash("admin123"),
+                    role="admin",
+                    email="admin@gmc.com"
+                )
+                db.session.add(admin_user)
+            
+            manager_user = User.query.filter_by(username="manager1").first()
+            if not manager_user:
+                manager_user = User(
+                    username="manager1", 
+                    password_hash=generate_password_hash("manager123"),
+                    role="manager",
+                    email="manager1@gmc.com"
+                )
+                db.session.add(manager_user)
+            
+            db.session.commit()
+            
+            return """
+            <h1>Database Seeded Successfully! 🎉</h1>
+            <h2>Default Login Credentials:</h2>
+            <h3>Admin:</h3>
+            <p>Username: admin<br>Password: admin123</p>
+            <h3>Manager:</h3>
+            <p>Username: manager1<br>Password: manager123</p>
+            <br>
+            <a href="/login">Go to Login Page</a>
+            """
+            
+        except Exception as e:
+            return f"<h1>Error seeding database:</h1><p>{str(e)}</p><a href='/login'>Go to Login Page</a>"
+
     @app.errorhandler(404)
     def not_found(_e):
         return jsonify({"error": "Not found"}), 404
