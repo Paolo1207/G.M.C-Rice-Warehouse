@@ -694,6 +694,11 @@ async function openInventoryModal(branch){
 
   tabInvBtn.click();     // default tab
   showModal(invModal);
+  
+  // Force refresh logs when modal opens to ensure latest data
+  console.log("DEBUG: Modal opened, refreshing logs for latest data");
+  await hydrateLogsForBranch(branch).catch(() => {});
+  renderLog();
 }
 
 /* Pull items from your Flask API into BRANCH_DATA */
@@ -741,9 +746,19 @@ async function hydrateLogsForBranch(branch_name){
   });
   
   merged.sort((a,b) => {
-    const dateA = new Date(a.datetime || a.date);
-    const dateB = new Date(b.datetime || b.date);
-    return dateB - dateA; // Newest first
+    // Get the datetime string (prefer datetime, fallback to date)
+    const dateStrA = a.datetime || a.date;
+    const dateStrB = b.datetime || b.date;
+    
+    // Convert to Date objects
+    const dateA = new Date(dateStrA);
+    const dateB = new Date(dateStrB);
+    
+    // Debug the comparison
+    console.log(`Comparing: ${dateStrA} (${dateA.getTime()}) vs ${dateStrB} (${dateB.getTime()})`);
+    
+    // Return newest first (dateB - dateA)
+    return dateB.getTime() - dateA.getTime();
   });
   
   console.log("DEBUG: After sorting, merged logs:");
@@ -909,6 +924,10 @@ async function refreshInventoryFromAPI(branch_name){
     BRANCH_DATA[branch_name].items = items;
 
     renderInventory();
+    
+    // Also refresh the logs to show the latest restock entries
+    await hydrateLogsForBranch(branch_name);
+    renderLog();
   } catch (e) {
     console.warn("refreshInventoryFromAPI failed:", e);
   }
