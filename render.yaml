@@ -20,3 +20,4 @@ databases:
   - name: gmc-database
     databaseName: gmc_warehouse
     user: gmc_user
+    plan: free
