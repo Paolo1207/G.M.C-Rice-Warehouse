@@ -27,10 +27,9 @@ def create_app() -> Flask:
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print(f"DEBUG: Using production database: {database_url[:50]}...")
     else:
-        # Development database (local SQLite for development)
-        # Use a path that works on both local and Render
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///gmc.db"
-        print("DEBUG: Using development database: SQLite at gmc.db")
+        # Development database (local PostgreSQL)
+        app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:postgres@localhost:5432/gmcdb"
+        print("DEBUG: Using development database: PostgreSQL")
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
@@ -80,8 +79,9 @@ def create_app() -> Flask:
         if not user:
             return jsonify(ok=False, error="Invalid email or password"), 401
             
-        # Simple password check (in production, use proper hashing)
-        if user.password_hash != password:
+        # Proper password verification using werkzeug
+        from werkzeug.security import check_password_hash
+        if not check_password_hash(user.password_hash, password):
             return jsonify(ok=False, error="Invalid email or password"), 401
 
         # Create session user
@@ -220,6 +220,203 @@ document.getElementById('btnWho').onclick = async () => {
     @app.get("/api/ping")
     def ping():
         return jsonify({"message": "pong"})
+
+    @app.route("/add-inventory")
+    def add_inventory():
+        """Add inventory data to the database"""
+        try:
+            from models import InventoryItem, Product, Branch
+            
+            # Get all products and branches
+            products = Product.query.all()
+            branches = Branch.query.all()
+            
+            if not products or not branches:
+                return "<h1>Error: No products or branches found. Run seed script first.</h1>"
+            
+            # Create inventory items for each product in each branch
+            created_items = []
+            for product in products:
+                for branch in branches:
+                    # Check if inventory item already exists
+                    existing = InventoryItem.query.filter_by(
+                        product_id=product.id, 
+                        branch_id=branch.id
+                    ).first()
+                    
+                    if not existing:
+                        # Generate random stock quantity (100-1000 kg)
+                        import random
+                        stock_quantity = random.randint(100, 1000)
+                        
+                        inventory_item = InventoryItem(
+                            product_id=product.id,
+                            branch_id=branch.id,
+                            stock_kg=stock_quantity,
+                            unit_price=product.price if hasattr(product, 'price') else 45.0
+                        )
+                        db.session.add(inventory_item)
+                        created_items.append(f"{product.name} in {branch.name}: {stock_quantity}kg")
+            
+            db.session.commit()
+            
+            # Create HTML response
+            items_html = ""
+            for item in created_items:
+                items_html += f"<p>✅ {item}</p>"
+            
+            return f"""
+            <h1>Inventory Added Successfully! 🎉</h1>
+            <h2>Created Items:</h2>
+            {items_html}
+            <br>
+            <a href="/show-inventory">View All Inventory</a> | 
+            <a href="/login">Go to Login</a>
+            """
+            
+        except Exception as e:
+            return f"<h1>Error adding inventory:</h1><p>{str(e)}</p>"
+
+    @app.route("/add-users")
+    def add_users():
+        """Add users without deleting existing data"""
+        try:
+            from models import User, Branch
+            from werkzeug.security import generate_password_hash
+            
+            # Create branches if they don't exist
+            branches_data = ["Marawoy", "Lipa", "Malvar", "Bulacnin", "Boac", "Sta. Cruz"]
+            for branch_name in branches_data:
+                existing_branch = Branch.query.filter_by(name=branch_name).first()
+                if not existing_branch:
+                    branch = Branch(name=branch_name, status="operational")
+                    db.session.add(branch)
+            
+            db.session.commit()
+            
+            # Get all branches
+            branches = Branch.query.all()
+            
+            # Create admin user if doesn't exist
+            admin = User.query.filter_by(email="admin@gmc.com").first()
+            if not admin:
+                admin = User(
+                    email="admin@gmc.com",
+                    password_hash=generate_password_hash("adminpass"),
+                    role="admin",
+                    branch_id=None
+                )
+                db.session.add(admin)
+            
+            # Create manager users if they don't exist
+            managers_created = []
+            for branch in branches:
+                email = f"manager_{branch.name.lower().replace(' ', '').replace('.', '')}@gmc.com"
+                existing_manager = User.query.filter_by(email=email).first()
+                if not existing_manager:
+                    manager = User(
+                        email=email,
+                        password_hash=generate_password_hash("managerpass"),
+                        role="manager",
+                        branch_id=branch.id
+                    )
+                    db.session.add(manager)
+                    managers_created.append(f"{branch.name}: {email}")
+            
+            db.session.commit()
+            
+            # Create HTML response
+            managers_html = ""
+            for manager in managers_created:
+                managers_html += f"<p><strong>{manager}</strong><br>Password: managerpass</p>"
+            
+            return f"""
+            <h1>Users Added Successfully! 🎉</h1>
+            <h2>Login Credentials:</h2>
+            
+            <h3>👨‍💼 ADMIN:</h3>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            
+            <h3>👨‍💼 MANAGERS:</h3>
+            {managers_html}
+            
+            <br>
+            <a href="/login">Go to Login Page</a>
+            """
+            
+        except Exception as e:
+            return f"<h1>Error adding users:</h1><p>{str(e)}</p><a href='/login'>Go to Login Page</a>"
+
+    @app.route("/show-inventory")
+    def show_inventory():
+        """Show all inventory items in the database"""
+        try:
+            from models import InventoryItem, Product, Branch
+            
+            items = InventoryItem.query.all()
+            html = "<h1>Inventory Items in Database:</h1>"
+            
+            for item in items:
+                product = Product.query.get(item.product_id)
+                branch = Branch.query.get(item.branch_id)
+                html += f"<p><strong>Product:</strong> {product.name if product else 'Unknown'} | <strong>Branch:</strong> {branch.name if branch else 'Unknown'} | <strong>Stock:</strong> {item.stock_kg}kg</p>"
+            
+            return html
+            
+        except Exception as e:
+            return f"<h1>Error:</h1><p>{str(e)}</p>"
+
+    @app.route("/show-users")
+    def show_users():
+        """Show all users in the database"""
+        try:
+            from models import User
+            
+            users = User.query.all()
+            html = "<h1>Users in Database:</h1>"
+            
+            for user in users:
+                html += f"<p><strong>{user.role.upper()}:</strong> {user.email} (Password hash: {user.password_hash[:20]}...)</p>"
+            
+            return html
+            
+        except Exception as e:
+            return f"<h1>Error:</h1><p>{str(e)}</p>"
+
+    @app.route("/fix-passwords")
+    def fix_passwords():
+        """Fix password hashing for existing users"""
+        try:
+            from models import User
+            from werkzeug.security import generate_password_hash
+            
+            # Update admin password
+            admin = User.query.filter_by(email='admin@gmc.com').first()
+            if admin:
+                admin.password_hash = generate_password_hash('adminpass')
+                print('Updated admin password')
+            
+            # Update manager passwords
+            managers = User.query.filter_by(role='manager').all()
+            for manager in managers:
+                manager.password_hash = generate_password_hash('managerpass')
+                print(f'Updated manager password: {manager.email}')
+            
+            db.session.commit()
+            
+            return """
+            <h1>Passwords Fixed Successfully! 🎉</h1>
+            <h2>Login Credentials:</h2>
+            <h3>👨‍💼 ADMIN:</h3>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            <h3>👨‍💼 MANAGERS:</h3>
+            <p>Use any manager email with password: <strong>managerpass</strong></p>
+            <br>
+            <a href="/login">Go to Login Page</a>
+            """
+            
+        except Exception as e:
+            return f"<h1>Error fixing passwords:</h1><p>{str(e)}</p><a href='/login'>Go to Login Page</a>"
 
     @app.route("/seed-database")
     def seed_database():
