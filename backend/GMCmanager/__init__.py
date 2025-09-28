@@ -321,6 +321,70 @@ def mgr_inventory_restock(item_id: int):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+# RESTOCK: general restock endpoint using product_id
+@manager_bp.route("/api/inventory/restock", methods=["POST"])
+@manager_required
+def mgr_inventory_restock_general():
+    """
+    JSON body:
+    {
+        "product_id": 1,
+        "quantity": 50.0,
+        "supplier": "ABC Supplier",
+        "note": "Fresh delivery"
+    }
+    """
+    data = request.get_json(silent=True) or {}
+    branch_id = _current_manager_branch_id()
+    
+    try:
+        product_id = data.get("product_id")
+        quantity = _to_float(data.get("quantity")) or 0.0
+        supplier = data.get("supplier", "").strip()
+        note = data.get("note", "").strip()
+        
+        if not product_id:
+            return jsonify({"ok": False, "error": "Product ID is required"}), 400
+        
+        if quantity <= 0:
+            return jsonify({"ok": False, "error": "Quantity must be positive"}), 400
+        
+        if not supplier:
+            return jsonify({"ok": False, "error": "Supplier is required"}), 400
+        
+        # Find or create inventory item for this product in manager's branch
+        inventory_item = InventoryItem.query.filter_by(
+            branch_id=branch_id,
+            product_id=product_id
+        ).first()
+        
+        if not inventory_item:
+            return jsonify({"ok": False, "error": "Product not found in your branch inventory"}), 404
+        
+        # Update stock
+        inventory_item.stock_kg = (inventory_item.stock_kg or 0.0) + quantity
+        
+        # Create restock log
+        log = RestockLog(
+            inventory_item=inventory_item,
+            qty_kg=quantity,
+            supplier=supplier,
+            note=note or None
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True, 
+            "message": f"Restocked {quantity}kg of {inventory_item.product.name}",
+            "item": item_to_dict(inventory_item)
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # LIST RESTOCK LOGS FOR AN ITEM
 @manager_bp.route("/api/inventory/<int:item_id>/logs", methods=["GET"])
 @manager_required

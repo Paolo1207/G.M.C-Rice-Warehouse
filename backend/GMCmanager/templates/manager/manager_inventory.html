@@ -52,14 +52,17 @@
             <div class="inventory-container">
                 <div class="inventory-header">
                     <h2><i class="fas fa-box"></i> Inventory Management</h2>
-                    <div class="inventory-actions">
-                        <button class="btn primary" onclick="showAddStockModal()">
-                            <i class="fas fa-plus"></i> Add Stock
-                        </button>
-                        <button class="btn secondary" onclick="exportInventory()">
-                            <i class="fas fa-download"></i> Export
-                        </button>
-                    </div>
+                <div class="inventory-actions">
+                    <button class="btn primary" onclick="showAddStockModal()">
+                        <i class="fas fa-plus"></i> Add Stock
+                    </button>
+                    <button class="btn success" onclick="showRestockModal()">
+                        <i class="fas fa-boxes"></i> Restock
+                    </button>
+                    <button class="btn secondary" onclick="exportInventory()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
                 </div>
 
                 <div class="inventory-filters">
@@ -269,9 +272,69 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Restock Modal (manager theme) -->
+                <div id="restockModal" class="modal">
+                    <div class="modal-content" style="border-top:4px solid #1a365d">
+                        <div class="modal-header">
+                            <h3 style="color:#1a365d"><i class="fas fa-boxes"></i> Restock Product</h3>
+                            <button class="close-btn" onclick="closeRestockModal()">&times;</button>
+                        </div>
+                        <form id="restockForm" onsubmit="handleRestockSubmit(event)">
+                            <div class="form-group">
+                                <label for="restockProduct">Select Product</label>
+                                <select id="restockProduct" name="product_id" required>
+                                    <option value="">Choose a product...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="restockQuantity">Quantity (kg)</label>
+                                <input type="number" id="restockQuantity" name="quantity" placeholder="Enter quantity in kg" min="0.1" step="0.1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="restockSupplier">Supplier</label>
+                                <input type="text" id="restockSupplier" name="supplier" placeholder="Enter supplier name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="restockNote">Notes</label>
+                                <textarea id="restockNote" name="note" rows="3" placeholder="Additional notes about this restock..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Record Restock</button>
+                                <button type="button" class="btn secondary" onclick="closeRestockModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
+
+    <style>
+        .btn.success {
+            background: linear-gradient(135deg, #1a365d, #2d5a87);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn.success:hover {
+            background: linear-gradient(135deg, #2d5a87, #1a365d);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+        }
+        
+        .btn.success i {
+            font-size: 0.9rem;
+        }
+    </style>
 
     <script>
         // Initialize inventory page
@@ -588,6 +651,72 @@
         }
 
         function closeViewModal() { document.getElementById('viewItemModal').style.display = 'none'; }
+
+        // Restock functionality
+        function showRestockModal() {
+            loadRestockProducts();
+            document.getElementById('restockModal').style.display = 'block';
+        }
+
+        function closeRestockModal() {
+            document.getElementById('restockModal').style.display = 'none';
+            document.getElementById('restockForm').reset();
+        }
+
+        async function loadRestockProducts() {
+            try {
+                const res = await fetch('/manager/api/inventory');
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load products');
+                
+                const select = document.getElementById('restockProduct');
+                select.innerHTML = '<option value="">Choose a product...</option>';
+                
+                (json.items || []).forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = `${item.product_name} (${item.stock || 0} kg)`;
+                    select.appendChild(option);
+                });
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        async function handleRestockSubmit(event) {
+            event.preventDefault();
+            try {
+                const fd = new FormData(event.target);
+                const payload = {
+                    product_id: fd.get('product_id'),
+                    quantity: Number(fd.get('quantity')),
+                    supplier: fd.get('supplier').trim(),
+                    note: fd.get('note').trim() || null
+                };
+
+                if (!payload.product_id || !payload.quantity || !payload.supplier) {
+                    showToast('Please fill all required fields', 'error');
+                    return;
+                }
+
+                const res = await fetch('/manager/api/inventory/restock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || 'Restock failed');
+
+                closeRestockModal();
+                showToast('Restock recorded successfully', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Restock failed', 'error');
+            }
+        }
 
         // Export inventory (client-side CSV of current table)
         function exportInventory() {
