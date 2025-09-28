@@ -2,7 +2,6 @@ services:
   - type: web
     name: gmc-rice-warehouse
     env: python
-    pythonVersion: 3.11.10
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
