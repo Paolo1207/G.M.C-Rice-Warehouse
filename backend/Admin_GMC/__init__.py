@@ -49,9 +49,6 @@ def inventory():
 def notifications():
     return render_template("admin_notifications.html")
 
-@admin_bp.route("/purchase", endpoint="purchase")
-def purchase():
-    return render_template("admin_purchase.html")
 
 @admin_bp.route("/regional", endpoint="regional")
 @admin_required
