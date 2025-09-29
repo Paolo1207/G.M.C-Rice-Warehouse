@@ -611,6 +611,91 @@ document.getElementById('btnWho').onclick = async () => {
             })
         except Exception as e:
             return jsonify({"error": str(e), "type": type(e).__name__})
+    
+    @app.get("/seed-render-database")
+    def seed_render_database():
+        """Seed the Render database with users and data"""
+        try:
+            from werkzeug.security import generate_password_hash
+            
+            # Create branches if they don't exist
+            branches_data = [
+                {"name": "Marawoy", "location": "Marawoy, Lipa City"},
+                {"name": "Lipa", "location": "Lipa, Batangas"},
+                {"name": "Malvar", "location": "Malvar, Batangas"},
+                {"name": "Bulacnin", "location": "Bulacnin, Lipa City"},
+                {"name": "Boac", "location": "Boac, Marinduque"},
+                {"name": "Sta. Cruz", "location": "Sta. Cruz, Laguna"}
+            ]
+            
+            created_branches = []
+            for branch_data in branches_data:
+                existing = Branch.query.filter_by(name=branch_data["name"]).first()
+                if not existing:
+                    branch = Branch(name=branch_data["name"], location=branch_data["location"], status="operational")
+                    db.session.add(branch)
+                    created_branches.append(branch_data["name"])
+            
+            db.session.commit()
+            
+            # Get all branches
+            branches = Branch.query.all()
+            
+            # Create admin user
+            admin = User.query.filter_by(email="admin@gmc.com").first()
+            if not admin:
+                admin = User(
+                    email="admin@gmc.com",
+                    password_hash=generate_password_hash("adminpass"),
+                    role="admin",
+                    branch_id=None
+                )
+                db.session.add(admin)
+            
+            # Create manager users
+            created_managers = []
+            for branch in branches:
+                email = f"manager_{branch.name.lower().replace(' ', '').replace('.', '')}@gmc.com"
+                existing_manager = User.query.filter_by(email=email).first()
+                if not existing_manager:
+                    manager = User(
+                        email=email,
+                        password_hash=generate_password_hash("managerpass"),
+                        role="manager",
+                        branch_id=branch.id
+                    )
+                    db.session.add(manager)
+                    created_managers.append(f"{branch.name}: {email}")
+            
+            db.session.commit()
+            
+            return f"""
+            <h1>Render Database Seeded Successfully! 🎉</h1>
+            <h2>Created Branches:</h2>
+            <p>{', '.join(created_branches) if created_branches else 'All branches already existed'}</p>
+            
+            <h2>Login Credentials:</h2>
+            <h3>👨‍💼 ADMIN:</h3>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            
+            <h3>👨‍💼 MANAGERS:</h3>
+            <p>Use any of these:</p>
+            <ul>
+                <li>manager_marawoy@gmc.com - Password: managerpass</li>
+                <li>manager_lipa@gmc.com - Password: managerpass</li>
+                <li>manager_malvar@gmc.com - Password: managerpass</li>
+                <li>manager_bulacnin@gmc.com - Password: managerpass</li>
+                <li>manager_boac@gmc.com - Password: managerpass</li>
+                <li>manager_stacruz@gmc.com - Password: managerpass</li>
+            </ul>
+            
+            <br>
+            <a href="/debug-passwords">Check Users</a> | 
+            <a href="/login">Go to Login</a>
+            """
+            
+        except Exception as e:
+            return f"<h1>Error seeding database:</h1><p>{str(e)}</p><a href='/debug-database'>Check Database</a>"
 
     return app
 
