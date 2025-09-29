@@ -22,7 +22,7 @@ def create_app() -> Flask:
     database_url = os.getenv("DATABASE_URL")
     print(f"DEBUG: DATABASE_URL = {database_url}")
     
-    if database_url and not database_url.startswith("postgresql://localhost"):
+    if database_url:
         # Production database (Render PostgreSQL)
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print(f"DEBUG: Using production database: {database_url[:50]}...")
