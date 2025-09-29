@@ -694,6 +694,57 @@ document.getElementById('btnWho').onclick = async () => {
         except Exception as e:
             return jsonify({"error": str(e), "type": type(e).__name__})
     
+    @app.get("/fix-password-hashes")
+    def fix_password_hashes():
+        """Fix malformed password hashes in the database"""
+        try:
+            from werkzeug.security import generate_password_hash
+            
+            # Generate proper hashes
+            admin_hash = generate_password_hash("adminpass")
+            manager_hash = generate_password_hash("managerpass")
+            
+            # Update admin user
+            admin_updated = db.session.execute(db.text("""
+                UPDATE users SET password_hash = :hash WHERE email = 'admin@gmc.com'
+            """), {"hash": admin_hash})
+            
+            # Update manager users
+            managers_updated = db.session.execute(db.text("""
+                UPDATE users SET password_hash = :hash WHERE role = 'manager'
+            """), {"hash": manager_hash})
+            
+            db.session.commit()
+            
+            # Verify the fix
+            users = db.session.execute(db.text("""
+                SELECT email, role, password_hash FROM users ORDER BY role, email
+            """)).fetchall()
+            
+            users_html = ""
+            for user in users:
+                users_html += f"<p><strong>{user[1].upper()}:</strong> {user[0]}<br>Hash: {user[2][:50]}...</p>"
+            
+            return f"""
+            <h1>Password Hashes Fixed Successfully! 🎉</h1>
+            <h2>Updated Users:</h2>
+            {users_html}
+            
+            <h2>Login Credentials:</h2>
+            <h3>👨‍💼 ADMIN:</h3>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            
+            <h3>👨‍💼 MANAGERS:</h3>
+            <p>Use any manager email with password: <strong>managerpass</strong></p>
+            
+            <br>
+            <a href="/debug-login?email=admin@gmc.com&password=adminpass">Test Admin Login</a> | 
+            <a href="/login">Go to Login Page</a>
+            """
+            
+        except Exception as e:
+            return f"<h1>Error fixing password hashes:</h1><p>{str(e)}</p><a href='/debug-database'>Check Database</a>"
+
     @app.get("/seed-render-database")
     def seed_render_database():
         """Seed the Render database with users and data"""
