@@ -515,21 +515,25 @@ document.getElementById('btnWho').onclick = async () => {
     @app.get("/debug-passwords")
     def debug_passwords():
         """Debug endpoint to show all users and their password hashes"""
-        users = User.query.all()
-        result = []
-        for user in users:
-            result.append({
-                "id": user.id,
-                "email": user.email,
-                "role": user.role,
-                "branch_id": user.branch_id,
-                "password_hash": user.password_hash,
-                "password_length": len(user.password_hash) if user.password_hash else 0
+        try:
+            users = User.query.all()
+            result = []
+            for user in users:
+                result.append({
+                    "id": user.id,
+                    "email": user.email,
+                    "role": user.role,
+                    "branch_id": user.branch_id,
+                    "password_hash": user.password_hash,
+                    "password_length": len(user.password_hash) if user.password_hash else 0
+                })
+            return jsonify({
+                "total_users": len(result),
+                "users": result,
+                "database_url": app.config["SQLALCHEMY_DATABASE_URI"][:50] + "..." if len(app.config["SQLALCHEMY_DATABASE_URI"]) > 50 else app.config["SQLALCHEMY_DATABASE_URI"]
             })
-        return jsonify({
-            "total_users": len(result),
-            "users": result
-        })
+        except Exception as e:
+            return jsonify({"error": str(e), "type": type(e).__name__})
     
     @app.get("/debug-login")
     def debug_login():
@@ -537,21 +541,76 @@ document.getElementById('btnWho').onclick = async () => {
         email = request.args.get('email', 'admin@gmc.com')
         password = request.args.get('password', 'adminpass')
         
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            return jsonify({"error": "User not found", "email": email})
-        
-        from werkzeug.security import check_password_hash
-        is_valid = check_password_hash(user.password_hash, password)
-        
-        return jsonify({
-            "email": email,
-            "password": password,
-            "user_found": True,
-            "password_valid": is_valid,
-            "stored_hash": user.password_hash,
-            "hash_length": len(user.password_hash) if user.password_hash else 0
-        })
+        try:
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                return jsonify({"error": "User not found", "email": email})
+            
+            from werkzeug.security import check_password_hash
+            is_valid = check_password_hash(user.password_hash, password)
+            
+            return jsonify({
+                "email": email,
+                "password": password,
+                "user_found": True,
+                "password_valid": is_valid,
+                "stored_hash": user.password_hash,
+                "hash_length": len(user.password_hash) if user.password_hash else 0,
+                "hash_type": user.password_hash.split(':')[0] if user.password_hash and ':' in user.password_hash else "unknown"
+            })
+        except Exception as e:
+            return jsonify({"error": str(e), "type": type(e).__name__})
+    
+    @app.get("/debug-database")
+    def debug_database():
+        """Debug endpoint to check database connection and basic queries"""
+        try:
+            # Test basic connection
+            db.session.execute("SELECT 1")
+            
+            # Check table counts
+            branches_count = db.session.execute("SELECT COUNT(*) FROM branches").scalar()
+            users_count = db.session.execute("SELECT COUNT(*) FROM users").scalar()
+            products_count = db.session.execute("SELECT COUNT(*) FROM products").scalar()
+            
+            return jsonify({
+                "database_connected": True,
+                "branches_count": branches_count,
+                "users_count": users_count,
+                "products_count": products_count,
+                "database_url": app.config["SQLALCHEMY_DATABASE_URI"][:50] + "..." if len(app.config["SQLALCHEMY_DATABASE_URI"]) > 50 else app.config["SQLALCHEMY_DATABASE_URI"]
+            })
+        except Exception as e:
+            return jsonify({
+                "database_connected": False,
+                "error": str(e),
+                "type": type(e).__name__,
+                "database_url": app.config["SQLALCHEMY_DATABASE_URI"][:50] + "..." if len(app.config["SQLALCHEMY_DATABASE_URI"]) > 50 else app.config["SQLALCHEMY_DATABASE_URI"]
+            })
+    
+    @app.get("/debug-users-detail")
+    def debug_users_detail():
+        """Debug endpoint to show detailed user information"""
+        try:
+            users = User.query.all()
+            result = []
+            for user in users:
+                result.append({
+                    "id": user.id,
+                    "email": user.email,
+                    "role": user.role,
+                    "branch_id": user.branch_id,
+                    "password_hash": user.password_hash,
+                    "password_length": len(user.password_hash) if user.password_hash else 0,
+                    "hash_type": user.password_hash.split(':')[0] if user.password_hash and ':' in user.password_hash else "unknown",
+                    "created_at": str(user.created_at) if hasattr(user, 'created_at') else "N/A"
+                })
+            return jsonify({
+                "total_users": len(result),
+                "users": result
+            })
+        except Exception as e:
+            return jsonify({"error": str(e), "type": type(e).__name__})
 
     return app
 

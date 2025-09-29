@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""
+Ultimate Password Fix - Generate exact hashes that match your app
+Run this locally and copy the output to pgAdmin 4
+"""
+
+from werkzeug.security import generate_password_hash
+
+# Generate the exact hashes your app expects
+admin_hash = generate_password_hash('adminpass')
+manager_hash = generate_password_hash('managerpass')
+
+print("-- Copy these SQL commands to pgAdmin 4:")
+print()
+print("DELETE FROM users;")
+print()
+print("-- Admin user")
+print(f"INSERT INTO users (email, password_hash, role, branch_id) VALUES")
+print(f"  ('admin@gmc.com', '{admin_hash}', 'admin', NULL);")
+print()
+print("-- Manager users")
+print(f"INSERT INTO users (email, password_hash, role, branch_id) VALUES")
+print(f"  ('manager_marawoy@gmc.com', '{manager_hash}', 'manager', 1),")
+print(f"  ('manager_lipa@gmc.com', '{manager_hash}', 'manager', 2),")
+print(f"  ('manager_malvar@gmc.com', '{manager_hash}', 'manager', 3),")
+print(f"  ('manager_bulacnin@gmc.com', '{manager_hash}', 'manager', 4),")
+print(f"  ('manager_boac@gmc.com', '{manager_hash}', 'manager', 5),")
+print(f"  ('manager_stacruz@gmc.com', '{manager_hash}', 'manager', 6);")
+print()
+print("-- Check results")
+print("SELECT id, email, role, password_hash FROM users;")
