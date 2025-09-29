@@ -70,19 +70,26 @@ def create_app() -> Flask:
         email = (data.get("email") or "").strip().lower()
         password = (data.get("password") or "").strip()
         
+        print(f"DEBUG LOGIN: email={email}, password_length={len(password)}")
+        
         if not email or not password:
+            print("DEBUG LOGIN: Missing email or password")
             return jsonify(ok=False, error="Email and password are required"), 400
 
         # Try SQLAlchemy ORM first
         user = User.query.filter_by(email=email).first()
+        print(f"DEBUG LOGIN: ORM user found: {user is not None}")
         
         # If ORM fails, try raw SQL
         if not user:
             try:
+                print("DEBUG LOGIN: Trying raw SQL query")
                 raw_user = db.session.execute(db.text("""
                     SELECT id, email, role, branch_id, password_hash 
                     FROM users WHERE email = :email
                 """), {"email": email}).fetchone()
+                
+                print(f"DEBUG LOGIN: Raw SQL result: {raw_user is not None}")
                 
                 if raw_user:
                     # Create a mock user object for compatibility
@@ -95,16 +102,25 @@ def create_app() -> Flask:
                             self.password_hash = row[4]
                     
                     user = MockUser(raw_user)
+                    print(f"DEBUG LOGIN: MockUser created with hash length: {len(user.password_hash)}")
             except Exception as e:
-                print(f"Raw SQL query failed: {e}")
+                print(f"DEBUG LOGIN: Raw SQL query failed: {e}")
                 return jsonify(ok=False, error="Database error"), 500
         
         if not user:
+            print("DEBUG LOGIN: No user found")
             return jsonify(ok=False, error="Invalid email or password"), 401
             
+        print(f"DEBUG LOGIN: User found - email: {user.email}, role: {user.role}")
+        print(f"DEBUG LOGIN: Password hash: {user.password_hash[:50]}...")
+        
         # Proper password verification using werkzeug
         from werkzeug.security import check_password_hash
-        if not check_password_hash(user.password_hash, password):
+        password_valid = check_password_hash(user.password_hash, password)
+        print(f"DEBUG LOGIN: Password valid: {password_valid}")
+        
+        if not password_valid:
+            print("DEBUG LOGIN: Password verification failed")
             return jsonify(ok=False, error="Invalid email or password"), 401
 
         # Create session user
@@ -115,6 +131,7 @@ def create_app() -> Flask:
             "branch_id": user.branch_id
         }
         
+        print(f"DEBUG LOGIN: Login successful for {user.email}")
         session["user"] = session_user
         return jsonify(ok=True, user=session_user)
 
@@ -581,9 +598,34 @@ document.getElementById('btnWho').onclick = async () => {
         password = request.args.get('password', 'adminpass')
         
         try:
+            # Try ORM first
             user = User.query.filter_by(email=email).first()
+            method = "ORM"
+            
+            # If ORM fails, try raw SQL
             if not user:
-                return jsonify({"error": "User not found", "email": email})
+                try:
+                    raw_user = db.session.execute(db.text("""
+                        SELECT id, email, role, branch_id, password_hash 
+                        FROM users WHERE email = :email
+                    """), {"email": email}).fetchone()
+                    
+                    if raw_user:
+                        class MockUser:
+                            def __init__(self, row):
+                                self.id = row[0]
+                                self.email = row[1]
+                                self.role = row[2]
+                                self.branch_id = row[3]
+                                self.password_hash = row[4]
+                        
+                        user = MockUser(raw_user)
+                        method = "Raw SQL"
+                except Exception as sql_error:
+                    return jsonify({"error": f"Both ORM and Raw SQL failed: {sql_error}", "type": type(sql_error).__name__})
+            
+            if not user:
+                return jsonify({"error": "User not found", "email": email, "method": method})
             
             from werkzeug.security import check_password_hash
             is_valid = check_password_hash(user.password_hash, password)
@@ -595,7 +637,8 @@ document.getElementById('btnWho').onclick = async () => {
                 "password_valid": is_valid,
                 "stored_hash": user.password_hash,
                 "hash_length": len(user.password_hash) if user.password_hash else 0,
-                "hash_type": user.password_hash.split(':')[0] if user.password_hash and ':' in user.password_hash else "unknown"
+                "hash_type": user.password_hash.split(':')[0] if user.password_hash and ':' in user.password_hash else "unknown",
+                "method": method
             })
         except Exception as e:
             return jsonify({"error": str(e), "type": type(e).__name__})
