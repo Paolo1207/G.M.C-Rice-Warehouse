@@ -63,8 +63,8 @@ def create_app() -> Flask:
     def login():
         """
         Body (JSON):
-          { "email": "admin@gmc.com", "password": "admin123" }
-          { "email": "marawoy.manager@gmc.com", "password": "manager123" }
+          { "email": "admin@gmc.com", "password": "adminpass" }
+          { "email": "manager_marawoy@gmc.com", "password": "managerpass" }
         """
         data = request.get_json(silent=True) or {}
         email = (data.get("email") or "").strip().lower()
@@ -73,8 +73,31 @@ def create_app() -> Flask:
         if not email or not password:
             return jsonify(ok=False, error="Email and password are required"), 400
 
-        # Find user in database
+        # Try SQLAlchemy ORM first
         user = User.query.filter_by(email=email).first()
+        
+        # If ORM fails, try raw SQL
+        if not user:
+            try:
+                raw_user = db.session.execute(db.text("""
+                    SELECT id, email, role, branch_id, password_hash 
+                    FROM users WHERE email = :email
+                """), {"email": email}).fetchone()
+                
+                if raw_user:
+                    # Create a mock user object for compatibility
+                    class MockUser:
+                        def __init__(self, row):
+                            self.id = row[0]
+                            self.email = row[1]
+                            self.role = row[2]
+                            self.branch_id = row[3]
+                            self.password_hash = row[4]
+                    
+                    user = MockUser(raw_user)
+            except Exception as e:
+                print(f"Raw SQL query failed: {e}")
+                return jsonify(ok=False, error="Database error"), 500
         
         if not user:
             return jsonify(ok=False, error="Invalid email or password"), 401
