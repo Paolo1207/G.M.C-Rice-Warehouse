@@ -511,6 +511,48 @@ document.getElementById('btnWho').onclick = async () => {
                 db.session.add(Branch(name=name, status="operational"))
         db.session.commit()
 
+    # --- Debug endpoints for password troubleshooting ---
+    @app.get("/debug-passwords")
+    def debug_passwords():
+        """Debug endpoint to show all users and their password hashes"""
+        users = User.query.all()
+        result = []
+        for user in users:
+            result.append({
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "branch_id": user.branch_id,
+                "password_hash": user.password_hash,
+                "password_length": len(user.password_hash) if user.password_hash else 0
+            })
+        return jsonify({
+            "total_users": len(result),
+            "users": result
+        })
+    
+    @app.get("/debug-login")
+    def debug_login():
+        """Debug endpoint to test login with any password"""
+        email = request.args.get('email', 'admin@gmc.com')
+        password = request.args.get('password', 'adminpass')
+        
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            return jsonify({"error": "User not found", "email": email})
+        
+        from werkzeug.security import check_password_hash
+        is_valid = check_password_hash(user.password_hash, password)
+        
+        return jsonify({
+            "email": email,
+            "password": password,
+            "user_found": True,
+            "password_valid": is_valid,
+            "stored_hash": user.password_hash,
+            "hash_length": len(user.password_hash) if user.password_hash else 0
+        })
+
     return app
 
 
