@@ -516,6 +516,7 @@ document.getElementById('btnWho').onclick = async () => {
     def debug_passwords():
         """Debug endpoint to show all users and their password hashes"""
         try:
+            # Try SQLAlchemy ORM first
             users = User.query.all()
             result = []
             for user in users:
@@ -527,10 +528,25 @@ document.getElementById('btnWho').onclick = async () => {
                     "password_hash": user.password_hash,
                     "password_length": len(user.password_hash) if user.password_hash else 0
                 })
+            
+            # If no users found with ORM, try raw SQL
+            if len(result) == 0:
+                raw_users = db.session.execute(db.text("SELECT id, email, role, branch_id, password_hash FROM users")).fetchall()
+                for row in raw_users:
+                    result.append({
+                        "id": row[0],
+                        "email": row[1],
+                        "role": row[2],
+                        "branch_id": row[3],
+                        "password_hash": row[4],
+                        "password_length": len(row[4]) if row[4] else 0
+                    })
+            
             return jsonify({
                 "total_users": len(result),
                 "users": result,
-                "database_url": app.config["SQLALCHEMY_DATABASE_URI"][:50] + "..." if len(app.config["SQLALCHEMY_DATABASE_URI"]) > 50 else app.config["SQLALCHEMY_DATABASE_URI"]
+                "database_url": app.config["SQLALCHEMY_DATABASE_URI"][:50] + "..." if len(app.config["SQLALCHEMY_DATABASE_URI"]) > 50 else app.config["SQLALCHEMY_DATABASE_URI"],
+                "query_method": "ORM" if len(User.query.all()) > 0 else "Raw SQL"
             })
         except Exception as e:
             return jsonify({"error": str(e), "type": type(e).__name__})
@@ -618,7 +634,17 @@ document.getElementById('btnWho').onclick = async () => {
         try:
             from werkzeug.security import generate_password_hash
             
-            # Create branches if they don't exist
+            # Check if users already exist using raw SQL
+            existing_users = db.session.execute(db.text("SELECT COUNT(*) FROM users")).scalar()
+            
+            if existing_users > 0:
+                return f"""
+                <h1>Database Already Has Users! 🎉</h1>
+                <p>Found {existing_users} users in the database.</p>
+                <p><a href="/debug-passwords">Check Users</a> | <a href="/login">Go to Login</a></p>
+                """
+            
+            # Create branches if they don't exist using raw SQL
             branches_data = [
                 {"name": "Marawoy", "location": "Marawoy, Lipa City"},
                 {"name": "Lipa", "location": "Lipa, Batangas"},
@@ -630,42 +656,50 @@ document.getElementById('btnWho').onclick = async () => {
             
             created_branches = []
             for branch_data in branches_data:
-                existing = Branch.query.filter_by(name=branch_data["name"]).first()
-                if not existing:
-                    branch = Branch(name=branch_data["name"], location=branch_data["location"], status="operational")
-                    db.session.add(branch)
+                # Check if branch exists using raw SQL
+                existing = db.session.execute(db.text("SELECT COUNT(*) FROM branches WHERE name = :name"), 
+                                            {"name": branch_data["name"]}).scalar()
+                if existing == 0:
+                    db.session.execute(db.text("""
+                        INSERT INTO branches (name, location, status) 
+                        VALUES (:name, :location, 'operational')
+                    """), {
+                        "name": branch_data["name"],
+                        "location": branch_data["location"]
+                    })
                     created_branches.append(branch_data["name"])
             
             db.session.commit()
             
-            # Get all branches
-            branches = Branch.query.all()
+            # Get all branches using raw SQL
+            branches = db.session.execute(db.text("SELECT id, name FROM branches")).fetchall()
             
-            # Create admin user
-            admin = User.query.filter_by(email="admin@gmc.com").first()
-            if not admin:
-                admin = User(
-                    email="admin@gmc.com",
-                    password_hash=generate_password_hash("adminpass"),
-                    role="admin",
-                    branch_id=None
-                )
-                db.session.add(admin)
+            # Create admin user using raw SQL
+            admin_exists = db.session.execute(db.text("SELECT COUNT(*) FROM users WHERE email = 'admin@gmc.com'")).scalar()
+            if admin_exists == 0:
+                admin_hash = generate_password_hash("adminpass")
+                db.session.execute(db.text("""
+                    INSERT INTO users (email, password_hash, role, branch_id) 
+                    VALUES ('admin@gmc.com', :hash, 'admin', NULL)
+                """), {"hash": admin_hash})
             
-            # Create manager users
+            # Create manager users using raw SQL
             created_managers = []
             for branch in branches:
-                email = f"manager_{branch.name.lower().replace(' ', '').replace('.', '')}@gmc.com"
-                existing_manager = User.query.filter_by(email=email).first()
-                if not existing_manager:
-                    manager = User(
-                        email=email,
-                        password_hash=generate_password_hash("managerpass"),
-                        role="manager",
-                        branch_id=branch.id
-                    )
-                    db.session.add(manager)
-                    created_managers.append(f"{branch.name}: {email}")
+                email = f"manager_{branch[1].lower().replace(' ', '').replace('.', '')}@gmc.com"
+                manager_exists = db.session.execute(db.text("SELECT COUNT(*) FROM users WHERE email = :email"), 
+                                                  {"email": email}).scalar()
+                if manager_exists == 0:
+                    manager_hash = generate_password_hash("managerpass")
+                    db.session.execute(db.text("""
+                        INSERT INTO users (email, password_hash, role, branch_id) 
+                        VALUES (:email, :hash, 'manager', :branch_id)
+                    """), {
+                        "email": email,
+                        "hash": manager_hash,
+                        "branch_id": branch[0]
+                    })
+                    created_managers.append(f"{branch[1]}: {email}")
             
             db.session.commit()
             
