@@ -566,12 +566,12 @@ document.getElementById('btnWho').onclick = async () => {
         """Debug endpoint to check database connection and basic queries"""
         try:
             # Test basic connection
-            db.session.execute("SELECT 1")
+            db.session.execute(db.text("SELECT 1"))
             
             # Check table counts
-            branches_count = db.session.execute("SELECT COUNT(*) FROM branches").scalar()
-            users_count = db.session.execute("SELECT COUNT(*) FROM users").scalar()
-            products_count = db.session.execute("SELECT COUNT(*) FROM products").scalar()
+            branches_count = db.session.execute(db.text("SELECT COUNT(*) FROM branches")).scalar()
+            users_count = db.session.execute(db.text("SELECT COUNT(*) FROM users")).scalar()
+            products_count = db.session.execute(db.text("SELECT COUNT(*) FROM products")).scalar()
             
             return jsonify({
                 "database_connected": True,
