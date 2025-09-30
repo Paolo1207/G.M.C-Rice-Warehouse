@@ -235,6 +235,9 @@
     function initReports() {
       updateBranchTitle();
       loadSales();
+      loadInventory();
+      loadForecast();
+      setupReportFilters();
     }
 
     // --------- Data / Rendering ----------
@@ -251,14 +254,93 @@
       data.rows.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>Sales</td>
-          <td>Branch</td>
+          <td>Sales Report</td>
+          <td>Manager</td>
           <td>${r.date}</td>
           <td>CSV</td>
-          <td><span class="status completed">Loaded</span></td>
+          <td><span class="status completed">Completed</span></td>
+          <td>
+            <button class="btn small" onclick="downloadReport('sales', ${r.id})">
+              <i class="fas fa-download"></i> Download
+            </button>
+          </td>
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    // Load inventory data
+    async function loadInventory() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchId = urlParams.get('branch') || urlParams.get('branch_id');
+      const params = new URLSearchParams();
+      if (branchId) params.set('branch_id', branchId);
+      
+      const res = await fetch(`/manager/api/reports/inventory?${params.toString()}`);
+      const data = await res.json();
+      if (!data.ok) {
+        console.error('Error loading inventory:', data.error);
+        return;
+      }
+      
+      // Populate category filter
+      const categorySelect = document.getElementById('inventoryCategory');
+      if (categorySelect && data.rows) {
+        const categories = [...new Set(data.rows.map(item => item.category))];
+        categorySelect.innerHTML = '<option value="">All Categories</option>';
+        categories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat;
+          option.textContent = cat;
+          categorySelect.appendChild(option);
+        });
+      }
+    }
+
+    // Load forecast data
+    async function loadForecast() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchId = urlParams.get('branch') || urlParams.get('branch_id');
+      const params = new URLSearchParams();
+      if (branchId) params.set('branch_id', branchId);
+      
+      // Load demand forecast
+      const demandRes = await fetch(`/manager/api/reports/forecast?type=demand&${params.toString()}`);
+      const demandData = await demandRes.json();
+      
+      if (demandData.ok && demandData.rows) {
+        // Populate product filter for demand
+        const productSelect = document.getElementById('demandProduct');
+        if (productSelect) {
+          const products = [...new Set(demandData.rows.map(item => item.product_name))];
+          productSelect.innerHTML = '<option value="">All Products</option>';
+          products.forEach(prod => {
+            const option = document.createElement('option');
+            option.value = prod;
+            option.textContent = prod;
+            productSelect.appendChild(option);
+          });
+        }
+      }
+      
+      // Load price forecast
+      const priceRes = await fetch(`/manager/api/reports/forecast?type=price&${params.toString()}`);
+      const priceData = await priceRes.json();
+      
+      if (priceData.ok && priceData.rows) {
+        // Populate category filter for price
+        const categorySelect = document.getElementById('priceCategory');
+        if (categorySelect) {
+          const categories = [...new Set(priceData.rows.map(item => item.product_name))];
+          categorySelect.innerHTML = '<option value="">All Categories</option>';
+          categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            categorySelect.appendChild(option);
+          });
+        }
+      }
     }
 
     // --------- Filters ----------
@@ -270,6 +352,30 @@
           console.log(`Date range changed for ${sel.id}: ${sel.value}`);
         });
       });
+
+      // Setup category filters
+      const categoryFilters = document.querySelectorAll('select[id$="Category"]');
+      categoryFilters.forEach(sel => {
+        sel.addEventListener('change', () => {
+          console.log(`Category changed for ${sel.id}: ${sel.value}`);
+        });
+      });
+
+      // Setup product filters
+      const productFilters = document.querySelectorAll('select[id$="Product"]');
+      productFilters.forEach(sel => {
+        sel.addEventListener('change', () => {
+          console.log(`Product changed for ${sel.id}: ${sel.value}`);
+        });
+      });
+
+      // Setup risk level filter
+      const riskLevelFilter = document.getElementById('riskLevel');
+      if (riskLevelFilter) {
+        riskLevelFilter.addEventListener('change', () => {
+          console.log(`Risk level changed: ${riskLevelFilter.value}`);
+        });
+      }
     }
 
     // --------- Actions ----------
@@ -278,13 +384,61 @@
       const branchId = urlParams.get('branch') || urlParams.get('branch_id');
       const params = new URLSearchParams({ format: 'csv' });
       if (branchId) params.set('branch_id', branchId);
-      window.location.href = `/admin/api/reports/export/sales?${params.toString()}`;
+      window.location.href = `/manager/api/reports/export/sales?${params.toString()}`;
     }
 
-    function downloadReport(reportName) {
+    function exportReport(reportType, format) {
       try {
-        showNotification(`Downloading ${reportName}...`, 'info');
-        // TODO: real download logic
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = urlParams.get('branch') || urlParams.get('branch_id');
+        
+        // Get date range from the appropriate filter
+        let dateRange = '';
+        if (reportType === 'demand') {
+          dateRange = document.getElementById('demandDateRange').value;
+        } else if (reportType === 'price') {
+          dateRange = document.getElementById('priceDateRange').value;
+        } else if (reportType === 'risk') {
+          dateRange = document.getElementById('riskDateRange').value;
+        } else if (reportType === 'inventory') {
+          dateRange = document.getElementById('inventoryDateRange').value;
+        } else if (reportType === 'sales') {
+          dateRange = document.getElementById('salesDateRange').value;
+        }
+        
+        // Calculate start and end dates based on range
+        const today = new Date();
+        const days = parseInt(dateRange) || 30;
+        const startDate = new Date(today.getTime() - (days * 24 * 60 * 60 * 1000));
+        
+        const params = new URLSearchParams({
+          format: format,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: today.toISOString().split('T')[0]
+        });
+        
+        if (branchId) params.set('branch_id', branchId);
+        
+        // Add forecast type for forecast reports
+        if (reportType === 'demand' || reportType === 'price' || reportType === 'risk') {
+          params.set('forecast_type', reportType);
+        }
+        
+        const url = `/manager/api/reports/export/${reportType}?${params.toString()}`;
+        window.location.href = url;
+        
+        showNotification(`Exporting ${reportType} report as ${format.toUpperCase()}...`, 'info');
+      } catch (err) {
+        console.error(err);
+        showNotification('Error exporting report', 'error');
+      }
+    }
+
+    function downloadReport(reportType, reportId) {
+      try {
+        showNotification(`Downloading ${reportType} report...`, 'info');
+        // For now, just trigger a new export
+        exportReport(reportType, 'csv');
       } catch (err) {
         console.error(err);
         showNotification('Error downloading report', 'error');

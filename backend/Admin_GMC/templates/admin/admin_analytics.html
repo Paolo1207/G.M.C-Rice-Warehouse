@@ -4,10 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics - GMC Admin</title>
-<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
 <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Analytics.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .custom-date-range {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .date-input {
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .apply-btn {
+            padding: 8px 16px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .apply-btn:hover {
+            background: #1b5e20;
+        }
+    </style>
 </head>
 <body>
     <!-- Sidebar directly embedded -->
@@ -170,12 +203,18 @@
             <div class="analytics-controls">
                 <div class="date-range-picker">
                     <label>Date Range:</label>
-                    <select class="date-range-select">
+                    <select class="date-range-select" id="dateRangeSelect">
                         <option value="7">Last 7 days</option>
                         <option value="30" selected>Last 30 days</option>
                         <option value="90">Last 90 days</option>
-                        <option value="365">Last year</option>
+                        <option value="custom">Custom range date</option>
                     </select>
+                    <div class="custom-date-range" id="customDateRange" style="display: none;">
+                        <input type="date" id="startDate" class="date-input">
+                        <span>to</span>
+                        <input type="date" id="endDate" class="date-input">
+                        <button id="applyCustomRange" class="apply-btn">Apply</button>
+                    </div>
                 </div>
                 <button class="export-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -479,7 +518,7 @@
         // Load analytics data from API
         async function loadAnalyticsData() {
             try {
-                const daysSel = document.querySelector('.date-range-select');
+                const daysSel = document.getElementById('dateRangeSelect');
                 const days = daysSel ? parseInt(daysSel.value || '30', 10) : 30;
                 
                 // Load KPI data from the working sales API (30 days default)
@@ -521,6 +560,53 @@
                 }
             } catch (error) {
                 console.error('Error loading analytics data:', error);
+            }
+        }
+
+        // Load analytics data with custom date range
+        async function loadAnalyticsDataCustom(startDate, endDate) {
+            try {
+                console.log('Loading analytics data for custom range:', startDate, 'to', endDate);
+                
+                // Load KPI data from the working sales API with custom date range
+                const kpiResponse = await fetch(`/admin/api/sales/kpis?start_date=${startDate}&end_date=${endDate}`);
+                const kpiData = await kpiResponse.json();
+                if (kpiData.ok) {
+                    updateAnalyticsCards(kpiData.kpis);
+                }
+                
+                // Also get low stock and forecast accuracy from dashboard API
+                const dashboardResponse = await fetch('/admin/api/dashboard/kpis');
+                const dashboardData = await dashboardResponse.json();
+                if (dashboardData.ok) {
+                    updateAnalyticsCardsAdditional(dashboardData.kpis);
+                }
+
+                // Load dashboard charts (top products etc.) as fallback for initial list
+                const chartResponse = await fetch('/admin/api/dashboard/charts');
+                const chartData = await chartResponse.json();
+                if (chartData.ok) updateAnalyticsCharts(chartData.charts);
+
+                // Load analytics overview with custom date range
+                const overviewResponse = await fetch(`/admin/api/analytics/overview?start_date=${startDate}&end_date=${endDate}`);
+                const overviewData = await overviewResponse.json();
+                if (overviewData.ok && overviewData.analytics) {
+                    const a = overviewData.analytics;
+                    // store branch maps from overview too (non-destructive)
+                    (a.stock_per_branch || []).forEach(b => { BRANCH_NAME_BY_ID[b.branch_id] = b.branch_name; BRANCH_ID_BY_NAME[b.branch_name] = b.branch_id; });
+                    populateBranchSelect(a);
+                    updateStockPerBranchChart(a.stock_per_branch || []);
+                    updateSalesTrendsByBranch(a.sales_trends_by_branch || { labels: [], series: [] });
+                    updateForecastAccuracyChart(a.forecast_accuracy_by_branch || []);
+                    updateDemandSupplyList(a.demand_supply_gaps || []);
+                    updateTurnoverList(a.inventory_turnover_by_branch || []);
+                    // initialize top products for the first branch if present
+                    const firstBranchId = (a.stock_per_branch && a.stock_per_branch[0] && a.stock_per_branch[0].branch_id)
+                        || (Object.keys(BRANCH_NAME_BY_ID)[0] ? Number(Object.keys(BRANCH_NAME_BY_ID)[0]) : null);
+                    if (firstBranchId) { await loadTopProducts(firstBranchId); activateBranchTabById(firstBranchId); }
+                }
+            } catch (error) {
+                console.error('Error loading custom analytics data:', error);
             }
         }
 
@@ -570,27 +656,29 @@
             const ctx = document.getElementById('salesTrendsChart');
             if (!ctx) return;
 
-            if (window.salesTrendsChart) {
+            if (window.salesTrendsChart && typeof window.salesTrendsChart.destroy === 'function') {
                 window.salesTrendsChart.destroy();
+                window.salesTrendsChart = null;
             }
 
             const labels = data.map(item => item.date);
             const salesData = data.map(item => item.sales);
 
-            window.salesTrendsChart = new Chart(ctx, {
-                type: 'line',
-            data: {
-                    labels: labels,
-                datasets: [{
-                        label: 'Sales Trend (₱)',
-                        data: salesData,
-                        borderColor: '#2e7d32',
-                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                }]
-            },
+            try {
+                window.salesTrendsChart = new Chart(ctx, {
+                    type: 'line',
+                data: {
+                        labels: labels,
+                    datasets: [{
+                            label: 'Sales Trend (₱)',
+                            data: salesData,
+                            borderColor: '#2e7d32',
+                            backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                    }]
+                },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -635,6 +723,9 @@
                 }
             }
         });
+        } catch (error) {
+            console.error('Error creating sales trends chart:', error);
+        }
         }
 
         // Update Top Products with real data
@@ -680,23 +771,27 @@
             const ctxEl = document.getElementById('stockPerBranchChart');
             if (!ctxEl) return;
             const ctx = ctxEl.getContext('2d');
-            if (stockPerBranchChartInstance) stockPerBranchChartInstance.destroy();
+            if (stockPerBranchChartInstance && typeof stockPerBranchChartInstance.destroy === 'function') {
+                stockPerBranchChartInstance.destroy();
+                stockPerBranchChartInstance = null;
+            }
             const labels = rows.map(r => r.branch_name);
             const data = rows.map(r => r.total_stock_kg || 0);
-            stockPerBranchChartInstance = new Chart(ctx, {
-                type: 'bar',
-            data: {
-                    labels,
-                datasets: [{
-                        label: 'Total Stock (kg)',
-                        data,
-                        backgroundColor: 'rgba(46, 125, 50, 0.8)',
-                    borderColor: '#2e7d32',
-                        borderWidth: 2,
-                        borderRadius: 8,
-                        borderSkipped: false
-                }]
-            },
+            try {
+                stockPerBranchChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                data: {
+                        labels,
+                    datasets: [{
+                            label: 'Total Stock (kg)',
+                            data,
+                            backgroundColor: 'rgba(46, 125, 50, 0.8)',
+                        borderColor: '#2e7d32',
+                            borderWidth: 2,
+                            borderRadius: 8,
+                            borderSkipped: false
+                    }]
+                },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -727,6 +822,9 @@
                 }
             });
             renderStockCards(rows);
+            } catch (error) {
+                console.error('Error creating stock per branch chart:', error);
+            }
         }
 
         function renderStockCards(rows) {
@@ -750,7 +848,10 @@
             const ctxEl = document.getElementById('salesTrendsChart');
             if (!ctxEl) return;
             const ctx = ctxEl.getContext('2d');
-            if (salesTrendsByBranchChartInstance) salesTrendsByBranchChartInstance.destroy();
+            if (salesTrendsByBranchChartInstance && typeof salesTrendsByBranchChartInstance.destroy === 'function') {
+                salesTrendsByBranchChartInstance.destroy();
+                salesTrendsByBranchChartInstance = null;
+            }
 
             const labels = payload.labels || [];
             const colors = ['#2e7d32','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
@@ -764,10 +865,11 @@
                 tension: 0.4
             }));
 
-            salesTrendsByBranchChartInstance = new Chart(ctx, {
-                type: 'line',
-                data: { labels, datasets },
-                options: {
+            try {
+                salesTrendsByBranchChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
@@ -796,6 +898,9 @@
                 }
             }
         });
+        } catch (error) {
+            console.error('Error creating sales trends by branch chart:', error);
+        }
         }
 
         // Forecast Accuracy by Branch (from overview API)
@@ -803,21 +908,25 @@
             const ctxEl = document.getElementById('forecastAccuracyChart');
             if (!ctxEl) return;
             const ctx = ctxEl.getContext('2d');
-            if (forecastAccuracyChartInstance) forecastAccuracyChartInstance.destroy();
+            if (forecastAccuracyChartInstance && typeof forecastAccuracyChartInstance.destroy === 'function') {
+                forecastAccuracyChartInstance.destroy();
+                forecastAccuracyChartInstance = null;
+            }
             const labels = rows.map(r => r.branch_name);
             const data = rows.map(r => r.accuracy || 0);
             const colors = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
-            forecastAccuracyChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                    labels,
-                datasets: [{
-                        data,
-                        backgroundColor: labels.map((_, i) => colors[i % colors.length]),
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
+            try {
+                forecastAccuracyChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                        labels,
+                    datasets: [{
+                            data,
+                            backgroundColor: labels.map((_, i) => colors[i % colors.length]),
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -837,6 +946,9 @@
                 }
             }
         });
+        } catch (error) {
+            console.error('Error creating forecast accuracy chart:', error);
+        }
         }
 
         function populateBranchSelect(a) {
@@ -895,17 +1007,62 @@
             const branchSel = document.querySelector('#salesBranchSelect');
             if (periodSel) periodSel.addEventListener('change', reloadSalesTrendsFiltered);
             if (branchSel) branchSel.addEventListener('change', reloadSalesTrendsFiltered);
-            const rangeSel = document.querySelector('.date-range-select');
-            if (rangeSel) rangeSel.addEventListener('change', () => { loadAnalyticsData(); });
+            
+            // Enhanced date range filter with custom date picker
+            const rangeSel = document.getElementById('dateRangeSelect');
+            const customDateRange = document.getElementById('customDateRange');
+            const startDate = document.getElementById('startDate');
+            const endDate = document.getElementById('endDate');
+            const applyBtn = document.getElementById('applyCustomRange');
+            
+            if (rangeSel) {
+                rangeSel.addEventListener('change', () => {
+                    if (rangeSel.value === 'custom') {
+                        customDateRange.style.display = 'flex';
+                        // Set default dates (last 30 days)
+                        const today = new Date();
+                        const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
+                        endDate.value = today.toISOString().split('T')[0];
+                        startDate.value = thirtyDaysAgo.toISOString().split('T')[0];
+                    } else {
+                        customDateRange.style.display = 'none';
+                        loadAnalyticsData();
+                    }
+                });
+            }
+            
+            if (applyBtn) {
+                applyBtn.addEventListener('click', () => {
+                    const start = startDate.value;
+                    const end = endDate.value;
+                    if (start && end) {
+                        loadAnalyticsDataCustom(start, end);
+                    } else {
+                        alert('Please select both start and end dates');
+                    }
+                });
+            }
         }
 
         async function reloadSalesTrendsFiltered() {
             try {
                 const period = document.getElementById('salesPeriod').value;
                 const branchId = document.getElementById('salesBranchSelect').value;
-                const daysSel = document.querySelector('.date-range-select');
+                const daysSel = document.getElementById('dateRangeSelect');
                 const days = daysSel ? parseInt(daysSel.value || '30', 10) : 30;
-                const res = await fetch(`/admin/api/analytics/overview?days=${days}`);
+                
+                let url = `/admin/api/analytics/overview?days=${days}`;
+                
+                // Check if custom date range is selected
+                if (daysSel && daysSel.value === 'custom') {
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+                    if (startDate && endDate) {
+                        url = `/admin/api/analytics/overview?start_date=${startDate}&end_date=${endDate}`;
+                    }
+                }
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 if (!data.ok) return;
                 const payload = data.analytics.sales_trends_by_branch;

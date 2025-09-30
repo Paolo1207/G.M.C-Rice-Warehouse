@@ -410,6 +410,196 @@ def mgr_inventory_logs(item_id: int):
 
 
 # ======================== ANALYTICS (BRANCH) ========================
+# ======================== MANAGER DASHBOARD API ========================
+@manager_bp.get("/api/dashboard/kpis")
+@manager_required
+def mgr_dashboard_kpis():
+    """Get KPI data for manager dashboard (branch-specific)"""
+    from datetime import datetime, date, timedelta
+    from sqlalchemy import func, and_, or_
+    
+    # Get manager's branch ID (use default for testing)
+    branch_id = _current_manager_branch_id() or request.args.get('branch_id', 1, type=int)
+    if not branch_id:
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    # Get current date and month
+    today = date.today()
+    current_month = today.month
+    current_year = today.year
+    
+    # Today's sales for this branch
+    today_sales = db.session.query(SalesTransaction).filter(
+        and_(
+            SalesTransaction.branch_id == branch_id,
+            func.date(SalesTransaction.transaction_date) == today
+        )
+    ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+    
+    # This month's sales for this branch
+    month_sales = db.session.query(SalesTransaction).filter(
+        and_(
+            SalesTransaction.branch_id == branch_id,
+            func.extract('month', SalesTransaction.transaction_date) == current_month,
+            func.extract('year', SalesTransaction.transaction_date) == current_year
+        )
+    ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+    
+    # Low stock count for this branch
+    # Check for items where stock is below warn_level (if set) or below 100kg (default threshold)
+    low_stock_count = db.session.query(InventoryItem).filter(
+        and_(
+            InventoryItem.branch_id == branch_id,
+            or_(
+                and_(InventoryItem.warn_level.isnot(None), InventoryItem.stock_kg < InventoryItem.warn_level),
+                and_(InventoryItem.warn_level.is_(None), InventoryItem.stock_kg < 100)
+            )
+        )
+    ).count()
+    
+    # Debug: Get all inventory items for this branch
+    all_items = db.session.query(InventoryItem).filter(InventoryItem.branch_id == branch_id).all()
+    print(f"DEBUG: Branch {branch_id} has {len(all_items)} inventory items")
+    for item in all_items:
+        print(f"  - Item {item.id}: stock={item.stock_kg}kg, warn_level={item.warn_level}")
+    
+    print(f"DEBUG: Low stock count for branch {branch_id}: {low_stock_count}")
+    
+    # Forecast accuracy for this branch
+    forecast_accuracy = db.session.query(func.avg(ForecastData.accuracy_score)).filter(
+        ForecastData.branch_id == branch_id
+    ).scalar() or 0
+    
+    return jsonify({
+        "ok": True,
+        "kpis": {
+            "today_sales": float(today_sales),
+            "month_sales": float(month_sales),
+            "low_stock_count": low_stock_count,
+            "forecast_accuracy": round(forecast_accuracy, 2)
+        }
+    })
+
+@manager_bp.get("/api/dashboard/charts")
+@manager_required
+def mgr_dashboard_charts():
+    """Get chart data for manager dashboard (branch-specific)"""
+    from datetime import datetime, date, timedelta
+    from sqlalchemy import func, and_, desc
+    
+    # Get manager's branch ID (use default for testing)
+    branch_id = _current_manager_branch_id() or request.args.get('branch_id', 1, type=int)
+    if not branch_id:
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    # Get query parameters
+    days = request.args.get('days', 30, type=int)
+    
+    # Date range
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days)
+    
+    # Sales trend data for this branch
+    sales_trend = db.session.query(SalesTransaction).filter(
+        and_(
+            SalesTransaction.branch_id == branch_id,
+            func.date(SalesTransaction.transaction_date) >= start_date
+        )
+    ).with_entities(
+        func.date(SalesTransaction.transaction_date).label('date'),
+        func.sum(SalesTransaction.total_amount).label('total_sales'),
+        func.sum(SalesTransaction.quantity_sold).label('total_quantity')
+    ).group_by(
+        func.date(SalesTransaction.transaction_date)
+    ).order_by('date').all()
+    
+    # Fill in missing dates with zero values
+    sales_trend_dict = {row.date: {'sales': float(row.total_sales), 'quantity': float(row.total_quantity)} for row in sales_trend}
+    sales_trend_filled = []
+    for i in range(days):
+        current_date = start_date + timedelta(days=i)
+        if current_date in sales_trend_dict:
+            sales_trend_filled.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'sales': sales_trend_dict[current_date]['sales'],
+                'quantity': sales_trend_dict[current_date]['quantity']
+            })
+        else:
+            sales_trend_filled.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'sales': 0.0,
+                'quantity': 0.0
+            })
+    
+    # Forecast vs Actual data for this branch
+    forecast_vs_actual = []
+    for i in range(days):
+        current_date = start_date + timedelta(days=i)
+        
+        # Get actual sales for this date
+        actual_sales = db.session.query(SalesTransaction).filter(
+            and_(
+                SalesTransaction.branch_id == branch_id,
+                func.date(SalesTransaction.transaction_date) == current_date
+            )
+        ).with_entities(
+            func.sum(SalesTransaction.quantity_sold)
+        ).scalar() or 0
+        
+        # Get forecast for this date
+        forecast_sales = db.session.query(ForecastData).filter(
+            and_(
+                ForecastData.branch_id == branch_id,
+                ForecastData.forecast_date == current_date
+            )
+        ).with_entities(
+            func.sum(ForecastData.predicted_demand)
+        ).scalar() or 0
+        
+        forecast_vs_actual.append({
+            'date': current_date.strftime('%Y-%m-%d'),
+            'actual': float(actual_sales),
+            'forecast': float(forecast_sales)
+        })
+    
+    # Top 5 products this month for this branch
+    current_month = date.today().month
+    current_year = date.today().year
+    
+    top_products = db.session.query(
+        Product.name,
+        func.sum(SalesTransaction.quantity_sold).label('total_quantity'),
+        func.sum(SalesTransaction.total_amount).label('total_sales')
+    ).join(
+        SalesTransaction, Product.id == SalesTransaction.product_id
+    ).filter(
+        and_(
+            SalesTransaction.branch_id == branch_id,
+            func.extract('month', SalesTransaction.transaction_date) == current_month,
+            func.extract('year', SalesTransaction.transaction_date) == current_year
+        )
+    ).group_by(
+        Product.id, Product.name
+    ).order_by(
+        desc('total_quantity')
+    ).limit(5).all()
+    
+    return jsonify({
+        "ok": True,
+        "charts": {
+            "sales_trend": sales_trend_filled,
+            "forecast_vs_actual": forecast_vs_actual,
+            "top_products": [
+                {
+                    'name': row.name,
+                    'quantity': float(row.total_quantity),
+                    'sales': float(row.total_sales)
+                }
+                for row in top_products
+            ]
+        }
+    })
+
 @manager_bp.get("/api/analytics")
 @manager_required
 def mgr_analytics_overview():
@@ -1976,3 +2166,249 @@ def mgr_sales_bulk():
         db.session.rollback()
         print(f"ERROR in bulk sales API: {str(e)}")
         return jsonify({"ok": False, "error": str(e)}), 500
+
+# ======================== MANAGER REPORTS API ========================
+
+
+
+
+@manager_bp.get("/api/reports/export/<report_type>")
+@manager_required
+def mgr_export_report(report_type):
+    """Export report data in various formats"""
+    try:
+        branch_id = _current_manager_branch_id()
+        if not branch_id:
+            return jsonify({"ok": False, "error": "Branch not found"}), 400
+        
+        format_type = request.args.get('format', 'csv')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # Get the appropriate data based on report type
+        if report_type == 'sales':
+            data = _get_sales_export_data(branch_id, start_date, end_date)
+            filename = f"sales_report_{branch_id}_{start_date or 'all'}.{format_type}"
+        elif report_type == 'inventory':
+            data = _get_inventory_export_data(branch_id, start_date, end_date)
+            filename = f"inventory_report_{branch_id}_{start_date or 'all'}.{format_type}"
+        elif report_type == 'forecast':
+            forecast_type = request.args.get('forecast_type', 'demand')
+            data = _get_forecast_export_data(branch_id, forecast_type, start_date, end_date)
+            filename = f"forecast_{forecast_type}_report_{branch_id}_{start_date or 'all'}.{format_type}"
+        else:
+            return jsonify({"ok": False, "error": "Invalid report type"}), 400
+        
+        # Generate the file based on format
+        if format_type == 'csv':
+            return _generate_csv_response(data, filename)
+        elif format_type == 'excel':
+            return _generate_excel_response(data, filename)
+        elif format_type == 'pdf':
+            return _generate_pdf_response(data, filename, report_type)
+        else:
+            return jsonify({"ok": False, "error": "Unsupported format"}), 400
+            
+    except Exception as e:
+        print(f"Error in mgr_export_report: {e}")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+def _get_sales_export_data(branch_id, start_date, end_date):
+    """Get sales data for export"""
+    query = SalesTransaction.query.filter(SalesTransaction.branch_id == branch_id)
+    
+    if start_date:
+        query = query.filter(SalesTransaction.transaction_date >= start_date)
+    if end_date:
+        query = query.filter(SalesTransaction.transaction_date <= end_date)
+    
+    sales = query.order_by(SalesTransaction.transaction_date.desc()).all()
+    
+    data = []
+    for sale in sales:
+        data.append({
+            'Transaction ID': sale.id,
+            'Date': sale.transaction_date.strftime('%Y-%m-%d'),
+            'Customer': sale.customer_name or 'Walk-in',
+            'Product': sale.product.name,
+            'Quantity': float(sale.quantity_sold),
+            'Unit Price': float(sale.unit_price),
+            'Total': float(sale.total_amount),
+            'Branch ID': branch_id
+        })
+    
+    return data
+
+def _get_inventory_export_data(branch_id, start_date, end_date):
+    """Get inventory data for export"""
+    inventory_items = InventoryItem.query.filter(InventoryItem.branch_id == branch_id).join(Product).all()
+    
+    data = []
+    for item in inventory_items:
+        data.append({
+            'Product Name': item.product.name,
+            'Category': item.product.category,
+            'Current Stock': float(item.stock_kg),
+            'Warning Level': float(item.warn_level) if item.warn_level else 100.0,
+            'Unit Price': float(item.unit_price),
+            'Total Value': float(item.stock_kg * item.unit_price),
+            'Status': 'Low Stock' if item.stock_kg <= (item.warn_level or 100) else 'Normal',
+            'Branch ID': branch_id
+        })
+    
+    return data
+
+def _get_forecast_export_data(branch_id, forecast_type, start_date, end_date):
+    """Get forecast data for export"""
+    query = ForecastData.query.filter(ForecastData.branch_id == branch_id)
+    
+    if start_date:
+        query = query.filter(ForecastData.forecast_date >= start_date)
+    if end_date:
+        query = query.filter(ForecastData.forecast_date <= end_date)
+    
+    forecasts = query.join(Product).all()
+    
+    data = []
+    for forecast in forecasts:
+        if forecast_type == 'demand':
+            data.append({
+                'Product Name': forecast.product.name,
+                'Forecast Date': forecast.forecast_date.strftime('%Y-%m-%d'),
+                'Predicted Demand': float(forecast.predicted_demand),
+                'Confidence Level': float(forecast.confidence_level) if forecast.confidence_level else 0.0,
+                'Model Used': forecast.model_type or 'ARIMA',
+                'Branch ID': branch_id
+            })
+        elif forecast_type == 'price':
+            data.append({
+                'Product Name': forecast.product.name,
+                'Forecast Date': forecast.forecast_date.strftime('%Y-%m-%d'),
+                'Predicted Price': float(forecast.predicted_price) if forecast.predicted_price else 0.0,
+                'Current Price': float(forecast.product.unit_price) if forecast.product.unit_price else 0.0,
+                'Price Change': float(forecast.predicted_price - forecast.product.unit_price) if forecast.predicted_price and forecast.product.unit_price else 0.0,
+                'Branch ID': branch_id
+            })
+        elif forecast_type == 'risk':
+            current_stock = InventoryItem.query.filter(
+                InventoryItem.branch_id == branch_id,
+                InventoryItem.product_id == forecast.product_id
+            ).first()
+            
+            risk_level = 'Low'
+            if current_stock and forecast.predicted_demand:
+                if forecast.predicted_demand > current_stock.stock_kg * 1.5:
+                    risk_level = 'High'
+                elif forecast.predicted_demand > current_stock.stock_kg:
+                    risk_level = 'Medium'
+            
+            data.append({
+                'Product Name': forecast.product.name,
+                'Forecast Date': forecast.forecast_date.strftime('%Y-%m-%d'),
+                'Predicted Demand': float(forecast.predicted_demand),
+                'Current Stock': float(current_stock.stock_kg) if current_stock else 0.0,
+                'Risk Level': risk_level,
+                'Shortage Risk': max(0, float(forecast.predicted_demand - current_stock.stock_kg)) if current_stock else 0.0,
+                'Branch ID': branch_id
+            })
+    
+    return data
+
+def _generate_csv_response(data, filename):
+    """Generate CSV response"""
+    import csv
+    import io
+    
+    if not data:
+        return jsonify({"ok": False, "error": "No data to export"}), 400
+    
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=data[0].keys())
+    writer.writeheader()
+    writer.writerows(data)
+    
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+def _generate_excel_response(data, filename):
+    """Generate Excel response"""
+    try:
+        import pandas as pd
+        import io
+        
+        if not data:
+            return jsonify({"ok": False, "error": "No data to export"}), 400
+        
+        df = pd.DataFrame(data)
+        output = io.BytesIO()
+        
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Report', index=False)
+        
+        output.seek(0)
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    except ImportError:
+        return jsonify({"ok": False, "error": "Excel export not available"}), 500
+
+def _generate_pdf_response(data, filename, report_type):
+    """Generate PDF response"""
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib import colors
+        import io
+        
+        if not data:
+            return jsonify({"ok": False, "error": "No data to export"}), 400
+        
+        output = io.BytesIO()
+        doc = SimpleDocTemplate(output, pagesize=letter)
+        styles = getSampleStyleSheet()
+        story = []
+        
+        # Title
+        title = Paragraph(f"{report_type.title()} Report", styles['Title'])
+        story.append(title)
+        story.append(Spacer(1, 12))
+        
+        # Create table
+        if data:
+            headers = list(data[0].keys())
+            table_data = [headers] + [[str(row[header]) for header in headers] for row in data]
+            
+            table = Table(table_data)
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 14),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(table)
+        
+        doc.build(story)
+        output.seek(0)
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename={filename}'}
+        )
+    except ImportError:
+        return jsonify({"ok": False, "error": "PDF export not available"}), 500

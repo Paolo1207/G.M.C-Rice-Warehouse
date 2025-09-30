@@ -45,6 +45,30 @@
       border-color: #1a365d;
       box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
     }
+    
+    /* Fix chart container styling */
+    .chart-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      min-height: 400px;
+    }
+    
+    .chart-container canvas {
+      max-height: 400px !important;
+      min-height: 300px !important;
+    }
+    
+    /* Ensure chart containers have proper dimensions */
+    #salesTrendChart,
+    #forecastVsActualChart,
+    #topProductsChart {
+      display: block !important;
+      width: 100% !important;
+      height: 400px !important;
+    }
   </style>
 </head>
 <body>
@@ -196,7 +220,7 @@
               <option value="90">Last 90 days</option>
             </select>
           </div>
-          <canvas id="salesTrendChart"></canvas>
+          <canvas id="salesTrendChart" style="height: 400px; width: 100%;"></canvas>
         </div>
 
         <!-- Forecast vs Actual Chart -->
@@ -209,13 +233,13 @@
               <option value="90">Last 90 days</option>
             </select>
           </div>
-          <canvas id="forecastVsActualChart"></canvas>
+          <canvas id="forecastVsActualChart" style="height: 400px; width: 100%;"></canvas>
         </div>
 
         <!-- Top Products Chart -->
         <div class="chart-container">
           <h3><i class="fas fa-chart-bar"></i> Top Products This Month</h3>
-          <canvas id="topProductsChart"></canvas>
+          <canvas id="topProductsChart" style="height: 400px; width: 100%;"></canvas>
         </div>
 
       </div>
@@ -228,9 +252,19 @@
   <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
 
   <script>
+    // Prevent multiple initializations
+    let dashboardInitialized = false;
+    let chartsInitialized = false;
+    
     document.addEventListener('DOMContentLoaded', function () { 
       updateBranchTitle();
-      initDashboard(); 
+      if (!dashboardInitialized) {
+        // Add delay to ensure DOM is fully ready
+        setTimeout(() => {
+          initDashboard();
+        }, 500);
+        dashboardInitialized = true;
+      }
     });
 
     // Load KPI data from API
@@ -239,7 +273,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const branchId = urlParams.get('branch');
         
-        let apiUrl = '/admin/api/dashboard/kpis';
+        // Use manager-specific API endpoint with branch_id
+        let apiUrl = '/manager/api/dashboard/kpis';
         if (branchId) {
           apiUrl += `?branch_id=${branchId}`;
         }
@@ -261,36 +296,108 @@
       }
     }
 
-    // Load chart data from API
+    // Load all chart data (initial load)
     async function loadChartData() {
+      if (chartsInitialized) {
+        console.log('Charts already initialized, skipping...');
+        return;
+      }
+      
+      console.log('Loading all chart data...');
+      chartsInitialized = true;
+      
+      // Load charts sequentially to prevent conflicts
+      await loadSalesTrendData();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await loadForecastData();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await loadTopProductsData();
+    }
+
+    // Load Sales Trend data with its own filters
+    async function loadSalesTrendData() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const branchId = urlParams.get('branch');
-        
-        // Get filter values
         const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
-        const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
-        
-        // Build query parameters
+
         const params = new URLSearchParams();
         if (branchId) params.append('branch_id', branchId);
         if (salesTrendPeriod) params.append('days', salesTrendPeriod);
-        
-        const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+
+        console.log('Loading Sales Trend with filters:', { salesTrendPeriod, branchId });
+
+        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`);
         const data = await response.json();
         
         if (data.ok) {
-          const charts = data.charts;
-          updateSalesTrendChart(charts.sales_trend);
-          updateForecastVsActualChart(charts.forecast_vs_actual);
-          updateTopProductsChart(charts.top_products);
+          updateSalesTrendChart(data.charts.sales_trend);
         }
       } catch (error) {
-        console.error('Error loading chart data:', error);
+        console.error('Error loading sales trend data:', error);
+      }
+    }
+
+    // Load Forecast data with its own filters
+    async function loadForecastData() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = urlParams.get('branch');
+        const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
+
+        const params = new URLSearchParams();
+        if (branchId) params.append('branch_id', branchId);
+        if (forecastPeriod) params.append('days', forecastPeriod);
+
+        console.log('Loading Forecast with filters:', { forecastPeriod, branchId });
+
+        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.ok) {
+          updateForecastVsActualChart(data.charts.forecast_vs_actual);
+        }
+      } catch (error) {
+        console.error('Error loading forecast data:', error);
+      }
+    }
+
+    // Load Top Products data with its own filters
+    async function loadTopProductsData() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = urlParams.get('branch');
+
+        const params = new URLSearchParams();
+        if (branchId) params.append('branch_id', branchId);
+
+        console.log('Loading Top Products with filters:', { branchId });
+
+        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.ok) {
+          updateTopProductsChart(data.charts.top_products);
+        }
+      } catch (error) {
+        console.error('Error loading top products data:', error);
       }
     }
 
     function initDashboard() {
+      // Check if chart canvases exist
+      const salesCanvas = document.getElementById('salesTrendChart');
+      const forecastCanvas = document.getElementById('forecastVsActualChart');
+      const topProductsCanvas = document.getElementById('topProductsChart');
+      
+      if (!salesCanvas || !forecastCanvas || !topProductsCanvas) {
+        console.error('Chart canvases not found, retrying in 1 second...');
+        setTimeout(initDashboard, 1000);
+        return;
+      }
+      
+      console.log('All chart canvases found, initializing dashboard...');
+      
       // Load real data
       loadKPIData();
       loadChartData();
@@ -308,21 +415,45 @@
     // Update Sales Trend Chart
     function updateSalesTrendChart(data) {
       const ctx = document.getElementById('salesTrendChart');
-      if (!ctx) return;
+      if (!ctx) {
+        console.error('Sales trend chart canvas not found');
+        return;
+      }
 
-      if (window.salesTrendChart) {
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Sales Trend Chart with data:', data);
+
+      // Only destroy if chart exists and is not already being updated
+      if (window.salesTrendChart && typeof window.salesTrendChart.destroy === 'function' && !window.salesTrendChart._updating) {
+        console.log('Destroying existing sales trend chart');
         window.salesTrendChart.destroy();
+        window.salesTrendChart = null;
       }
 
       // Handle empty data
       if (!data || data.length === 0) {
+        console.log('No sales trend data, using fallback');
         data = [{ date: 'No Data', sales: 0 }];
       }
 
       const labels = data.map(item => item.date);
       const salesData = data.map(item => item.sales);
 
-      window.salesTrendChart = new Chart(ctx, {
+      console.log('Sales trend labels:', labels);
+      console.log('Sales trend data:', salesData);
+
+      // Set updating flag to prevent multiple updates
+      if (window.salesTrendChart) {
+        window.salesTrendChart._updating = true;
+      }
+      
+      try {
+        window.salesTrendChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels,
@@ -343,7 +474,8 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
           plugins: {
             legend: {
               display: true,
@@ -398,19 +530,46 @@
           }
         }
       });
+      
+      // Mark chart as successfully created
+      if (window.salesTrendChart) {
+        window.salesTrendChart._updating = false;
+        console.log('Sales trend chart created successfully');
+      }
+      
+      } catch (error) {
+        console.error('Error creating sales trend chart:', error);
+        if (window.salesTrendChart) {
+          window.salesTrendChart._updating = false;
+        }
+      }
     }
 
     // Update Forecast vs Actual Chart
     function updateForecastVsActualChart(data) {
       const ctx = document.getElementById('forecastVsActualChart');
-      if (!ctx) return;
+      if (!ctx) {
+        console.error('Forecast vs Actual chart canvas not found');
+        return;
+      }
 
-      if (window.forecastVsActualChart) {
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Forecast vs Actual Chart with data:', data);
+
+      if (window.forecastVsActualChart && typeof window.forecastVsActualChart.destroy === 'function') {
+        console.log('Destroying existing forecast vs actual chart');
         window.forecastVsActualChart.destroy();
+        window.forecastVsActualChart = null;
       }
 
       // Handle empty data
       if (!data || data.length === 0) {
+        console.log('No forecast vs actual data, using fallback');
         data = [{ date: 'No Data', actual: 0, forecast: 0 }];
       }
 
@@ -453,7 +612,8 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
           plugins: {
             legend: { 
               display: true,
@@ -518,14 +678,28 @@
     // Update Top Products Chart
     function updateTopProductsChart(data) {
       const ctx = document.getElementById('topProductsChart');
-      if (!ctx) return;
+      if (!ctx) {
+        console.error('Top products chart canvas not found');
+        return;
+      }
 
-      if (window.topProductsChart) {
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Top Products Chart with data:', data);
+
+      if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
+        console.log('Destroying existing top products chart');
         window.topProductsChart.destroy();
+        window.topProductsChart = null;
       }
 
       // Handle empty data
       if (!data || data.length === 0) {
+        console.log('No top products data, using fallback');
         data = [{ name: 'No Data', quantity: 0 }];
       }
 
@@ -560,7 +734,8 @@
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
           plugins: {
             legend: { 
               display: false 
@@ -623,7 +798,8 @@
       const salesTrendPeriod = document.getElementById('salesTrendPeriod');
       if (salesTrendPeriod) {
         salesTrendPeriod.addEventListener('change', () => {
-          loadChartData();
+          console.log('Sales Trend Period changed to:', salesTrendPeriod.value);
+          loadSalesTrendData();
         });
       }
 
@@ -631,7 +807,8 @@
       const forecastPeriod = document.getElementById('forecastPeriod');
       if (forecastPeriod) {
         forecastPeriod.addEventListener('change', () => {
-          loadChartData();
+          console.log('Forecast Period changed to:', forecastPeriod.value);
+          loadForecastData();
         });
       }
     }
