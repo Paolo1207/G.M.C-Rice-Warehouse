@@ -2239,6 +2239,9 @@ def api_dashboard_kpis():
         )
     ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
     
+    # Total sales (all time)
+    total_sales = sales_query.with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+    
     # Low stock count - items where stock is below warning level
     low_stock_count = inventory_query.filter(
         and_(
@@ -2306,6 +2309,7 @@ def api_dashboard_kpis():
         "kpis": {
             "today_sales": float(today_sales),
             "month_sales": float(month_sales),
+            "total_sales": float(total_sales),
             "low_stock_count": int(low_stock_count),
             "forecast_accuracy": round(forecast_accuracy, 2)
         }

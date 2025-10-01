@@ -206,9 +206,9 @@
                     </svg>
                 </div>
                 <div class="card-content">
-                <div class="dashboard-card-title">This Month Sales</div>
+                <div class="dashboard-card-title">Total Sales</div>
                     <div class="dashboard-card-value" id="month-sales">₱0</div>
-                    <div class="dashboard-card-change">Current month total</div>
+                    <div class="dashboard-card-change">All-time total</div>
                 </div>
             </div>
         </div>
@@ -351,7 +351,7 @@
                 <div class="widget-header">
                     <h3>🏆 Top Products</h3>
                     <div class="chart-controls">
-                        <span class="chart-subtitle">This Month</span>
+                        <span class="chart-subtitle">Manager Sales</span>
                         <select class="branch-filter" id="topProductsBranch">
                             <option value="">All Branches</option>
                             <option value="1">Marawoy</option>
@@ -589,7 +589,7 @@
                     
                     // Update all KPI cards with data from dashboard API
                     document.getElementById('today-sales').textContent = '₱' + (kpis.today_sales || 0).toLocaleString();
-                    document.getElementById('month-sales').textContent = '₱' + (kpis.month_sales || 0).toLocaleString();
+                    document.getElementById('month-sales').textContent = '₱' + (kpis.total_sales || kpis.month_sales || 0).toLocaleString();
                     document.getElementById('low-stock-count').textContent = kpis.low_stock_count || 0;
                     document.getElementById('forecast-accuracy').textContent = (kpis.forecast_accuracy || 0).toFixed(1) + '%';
                 }
@@ -815,7 +815,7 @@
             const topProductsTitle = document.querySelector('#topProductsChart').closest('.chart-widget')?.querySelector('.chart-subtitle');
             if (topProductsTitle) {
                 const branchText = topProductsBranch ? ` - Branch ${topProductsBranch}` : ' - All Branches';
-                topProductsTitle.textContent = `Top 5 Products This Month${branchText}`;
+                topProductsTitle.textContent = `Manager Sales${branchText}`;
             }
         }
 
@@ -1081,7 +1081,7 @@
                         },
                         title: { 
                             display: true, 
-                            text: 'Top 5 Products This Month',
+                            text: 'Top 5 Products (Manager Sales)',
                             font: { size: 14, weight: 'bold' }
                         },
                         tooltip: {
