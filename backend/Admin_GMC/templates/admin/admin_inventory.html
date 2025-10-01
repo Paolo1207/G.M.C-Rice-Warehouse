@@ -499,7 +499,7 @@
     <!-- Delete Confirmation Modal -->
     <div id="delete-confirm-modal" class="modal">
         <div class="modal-content glass-card delete-modal-content">
-            <span class="close-confirm-btn">&times;</span>
+            <span class="close-confirm-btn" id="close-delete-modal">&times;</span>
             <h4>Confirm Deletion</h4>
             <p>Are you sure you want to delete this item? This action cannot be undone and will permanently remove the record from the system.</p>
             <div class="confirm-actions">
@@ -590,6 +590,16 @@ document.querySelectorAll(".close-btn[data-close]").forEach(btn=>{
   });
 });
 document.getElementById("invModalClose")?.addEventListener("click", ()=>closeModal(invModal));
+
+// Close delete modal handler
+document.getElementById("close-delete-modal")?.addEventListener("click", ()=>{
+  const deleteModal = document.getElementById('delete-confirm-modal');
+  if (deleteModal) {
+    deleteModal.style.display = 'none';
+    deleteModal.setAttribute('aria-hidden', 'true');
+  }
+});
+
 function showModal(el){ if(!el) return; el.style.display="block"; el.setAttribute("aria-hidden","false"); }
 function closeModal(el){ if(!el) return; el.style.display="none";  el.setAttribute("aria-hidden","true"); }
 
@@ -1038,21 +1048,71 @@ function onDeleteItem(e){
   const idx = +e.currentTarget.dataset.idx;
   const it  = BRANCH_DATA[currentBranch].items[idx];
 
-  if (!it?.id) { alert("Missing inventory id for this row."); return; }
-  if (!confirm(`Delete "${it.variant}" from ${currentBranch}? This cannot be undone.`)) return;
+  if (!it?.id) { 
+    alert("Missing inventory id for this row."); 
+    return; 
+  }
+  
+  // Use the existing delete confirmation modal
+  const deleteModal = document.getElementById('delete-confirm-modal');
+  const confirmBtn = document.getElementById('confirm-delete-btn');
+  const cancelBtn = document.getElementById('cancel-delete-btn');
+  
+  if (!deleteModal || !confirmBtn || !cancelBtn) {
+    // Fallback to simple confirm if modal doesn't exist
+    if (!confirm(`Delete "${it.variant}" from ${currentBranch}? This cannot be undone.`)) return;
+    performDelete(it.id);
+    return;
+  }
+  
+  // Show the confirmation modal
+  deleteModal.style.display = 'block';
+  deleteModal.setAttribute('aria-hidden', 'false');
+  
+  // Set up one-time event listeners
+  const handleConfirm = () => {
+    performDelete(it.id);
+    deleteModal.style.display = 'none';
+    deleteModal.setAttribute('aria-hidden', 'true');
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+  
+  const handleCancel = () => {
+    deleteModal.style.display = 'none';
+    deleteModal.setAttribute('aria-hidden', 'true');
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+  
+  confirmBtn.addEventListener('click', handleConfirm);
+  cancelBtn.addEventListener('click', handleCancel);
+}
 
-  fetch(`/admin/api/products/${encodeURIComponent(it.id)}`, { method: "DELETE" })
-    .then(res => res.json().then(j => ({ ok: res.ok, body: j })))
-    .then(async ({ ok, body }) => {
-      if (!ok || body.ok === false) throw new Error(body?.error || "Delete failed");
-      await refreshInventoryFromAPI(currentBranch);
-      await hydrateLogsForBranch(currentBranch);
-      renderLog();
-    })
-    .catch(err => {
-      console.error("Delete failed:", err);
-      alert("Delete failed: " + err.message);
+async function performDelete(inventoryId) {
+  try {
+    const res = await fetch(`/admin/api/products/${encodeURIComponent(inventoryId)}`, { 
+      method: "DELETE" 
     });
+    
+    const data = await res.json();
+    
+    if (!res.ok || data.ok === false) {
+      throw new Error(data?.error || "Delete failed");
+    }
+    
+    // Refresh the inventory data
+    await refreshInventoryFromAPI(currentBranch);
+    await hydrateLogsForBranch(currentBranch);
+    renderLog();
+    
+    // Show success message
+    alert("Product deleted successfully!");
+    
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Delete failed: " + err.message);
+  }
 }
 
 /* ---------- RESTOCK (server-backed) ---------- */
@@ -1182,6 +1242,69 @@ function exportCSV(){
 
 
 
+    <style>
+        /* Delete Modal Styling */
+        .delete-modal-content {
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        .delete-modal-content h4 {
+            color: #d32f2f;
+            margin-bottom: 16px;
+        }
+        
+        .delete-modal-content p {
+            margin-bottom: 24px;
+            color: #666;
+        }
+        
+        .confirm-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        
+        .confirm-actions .delete-btn {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .confirm-actions .delete-btn:hover {
+            background-color: #b71c1c;
+        }
+        
+        .confirm-actions .cancel-btn {
+            background-color: #757575;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .confirm-actions .cancel-btn:hover {
+            background-color: #616161;
+        }
+        
+        .close-confirm-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .close-confirm-btn:hover {
+            color: #333;
+        }
+    </style>
     <script src="../js/inventory.js"></script>
 </body>
 </html>

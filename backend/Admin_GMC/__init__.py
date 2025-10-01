@@ -2664,7 +2664,7 @@ def api_inventory_status():
         
         # Get low stock items
         low_stock_count = db.session.query(InventoryItem).filter(
-            InventoryItem.stock_kg < InventoryItem.warning_level
+            InventoryItem.stock_kg < InventoryItem.warn_level
         ).count()
         
         return jsonify({

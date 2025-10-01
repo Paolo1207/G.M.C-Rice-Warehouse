@@ -10,11 +10,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadDashboardStats() {
     try {
-        const response = await fetch('/api/dashboard/stats');
+        const response = await fetch('/admin/api/dashboard/kpis');
         const data = await response.json();
         
-        if (response.ok) {
-            updateDashboardCards(data);
+        if (data.ok) {
+            updateDashboardCards(data.kpis);
             updateSalesChart(data.recent_sales);
         } else {
             console.error('Failed to load dashboard stats:', data.error);
@@ -28,25 +28,25 @@ function updateDashboardCards(stats) {
     // Update Today's Sales
     const todaySalesElement = document.querySelector('.dashboard-card:nth-child(1) .card-value');
     if (todaySalesElement) {
-        todaySalesElement.textContent = `₱${stats.today_sales.toLocaleString()}`;
+        todaySalesElement.textContent = `₱${(stats.today_sales || 0).toLocaleString()}`;
     }
     
-    // Update Total Inventory Value
-    const inventoryValueElement = document.querySelector('.dashboard-card:nth-child(2) .card-value');
-    if (inventoryValueElement) {
-        inventoryValueElement.textContent = `₱${stats.total_inventory_value.toLocaleString()}`;
+    // Update This Month Sales
+    const monthSalesElement = document.querySelector('.dashboard-card:nth-child(2) .card-value');
+    if (monthSalesElement) {
+        monthSalesElement.textContent = `₱${(stats.month_sales || 0).toLocaleString()}`;
     }
     
     // Update Low Stock Items
     const lowStockElement = document.querySelector('.dashboard-card:nth-child(3) .card-value');
     if (lowStockElement) {
-        lowStockElement.textContent = stats.low_stock_count;
+        lowStockElement.textContent = stats.low_stock_count || 0;
     }
     
-    // Update Pending Deliveries
-    const pendingDeliveriesElement = document.querySelector('.dashboard-card:nth-child(4) .card-value');
-    if (pendingDeliveriesElement) {
-        pendingDeliveriesElement.textContent = stats.pending_deliveries;
+    // Update Forecast Accuracy
+    const forecastAccuracyElement = document.querySelector('.dashboard-card:nth-child(4) .card-value');
+    if (forecastAccuracyElement) {
+        forecastAccuracyElement.textContent = `${(stats.forecast_accuracy || 0).toFixed(1)}%`;
     }
 }
 
