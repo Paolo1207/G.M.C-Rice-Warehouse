@@ -201,21 +201,6 @@
                 <div class="analytics-subtitle">Visual insights into warehouse and sales performance across all branches</div>
             </div>
             <div class="analytics-controls">
-                <div class="date-range-picker">
-                    <label>Date Range:</label>
-                    <select class="date-range-select" id="dateRangeSelect">
-                        <option value="7">Last 7 days</option>
-                        <option value="30" selected>Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                        <option value="custom">Custom range date</option>
-                    </select>
-                    <div class="custom-date-range" id="customDateRange" style="display: none;">
-                        <input type="date" id="startDate" class="date-input">
-                        <span>to</span>
-                        <input type="date" id="endDate" class="date-input">
-                        <button id="applyCustomRange" class="apply-btn">Apply</button>
-                    </div>
-                </div>
                 <button class="export-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -405,55 +390,10 @@
                 </div>
                 
                 <!-- Enhanced Product List -->
-                <div class="top-products-list">
-                    <div class="product-item">
-                        <div class="product-rank">1</div>
-                        <div class="product-info">
-                            <div class="product-name">Jasmine Rice Premium</div>
-                            <div class="product-sales">2,134 units sold</div>
-                        </div>
-                        <div class="product-revenue">$42,680</div>
-                        <div class="product-trend positive">+18.2%</div>
-                    </div>
-                    
-                    <div class="product-item">
-                        <div class="product-rank">2</div>
-                        <div class="product-info">
-                            <div class="product-name">Basmati Rice Long Grain</div>
-                            <div class="product-sales">1,891 units sold</div>
-                        </div>
-                        <div class="product-revenue">$37,820</div>
-                        <div class="product-trend positive">+12.7%</div>
-                    </div>
-                    
-                    <div class="product-item">
-                        <div class="product-rank">3</div>
-                        <div class="product-info">
-                            <div class="product-name">Brown Rice Organic</div>
-                            <div class="product-sales">1,432 units sold</div>
-                        </div>
-                        <div class="product-revenue">$28,640</div>
-                        <div class="product-trend positive">+9.4%</div>
-                    </div>
-                    
-                    <div class="product-item">
-                        <div class="product-rank">4</div>
-                        <div class="product-info">
-                            <div class="product-name">White Rice Regular</div>
-                            <div class="product-sales">1,156 units sold</div>
-                        </div>
-                        <div class="product-revenue">$23,120</div>
-                        <div class="product-trend positive">+7.8%</div>
-                    </div>
-                    
-                    <div class="product-item">
-                        <div class="product-rank">5</div>
-                        <div class="product-info">
-                            <div class="product-name">Red Rice Premium</div>
-                            <div class="product-sales">987 units sold</div>
-                        </div>
-                        <div class="product-revenue">$19,740</div>
-                        <div class="product-trend positive">+5.2%</div>
+                <div class="top-products-list" id="topProductsList">
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">Loading top products...</div>
                     </div>
                 </div>
             </div>
@@ -474,7 +414,10 @@
             setupOverviewFilters();
             await hydrateBranchMaps();
             wireBranchTabs();
+            wireDaysFilter();
             loadAnalyticsData();
+            // Load initial top products for Marawoy branch (ID: 1)
+            loadTopProducts(1);
         });
 
         let BRANCH_ID_BY_NAME = {};
@@ -513,6 +456,20 @@
                     if (id) await loadTopProducts(id);
                 });
             });
+        }
+
+        // Add event listener for days filter
+        function wireDaysFilter() {
+            const daysSelect = document.querySelector('.chart-period');
+            if (daysSelect) {
+                daysSelect.addEventListener('change', async () => {
+                    const activeTab = document.querySelector('.branch-tab.active');
+                    const branchId = activeTab ? activeTab.dataset.branchId : 1;
+                    if (branchId) {
+                        await loadTopProducts(branchId);
+                    }
+                });
+            }
         }
 
         // Load analytics data from API
@@ -847,11 +804,28 @@
         function updateSalesTrendsByBranch(payload) {
             const ctxEl = document.getElementById('salesTrendsChart');
             if (!ctxEl) return;
-            const ctx = ctxEl.getContext('2d');
-            if (salesTrendsByBranchChartInstance && typeof salesTrendsByBranchChartInstance.destroy === 'function') {
-                salesTrendsByBranchChartInstance.destroy();
+            
+            // Destroy existing chart more thoroughly
+            if (salesTrendsByBranchChartInstance) {
+                try {
+                    if (typeof salesTrendsByBranchChartInstance.destroy === 'function') {
+                        salesTrendsByBranchChartInstance.destroy();
+                    }
+                } catch (e) {
+                    console.warn('Error destroying existing chart:', e);
+                }
                 salesTrendsByBranchChartInstance = null;
             }
+            
+            // Completely recreate the canvas element to avoid reuse issues
+            const parent = ctxEl.parentElement;
+            const newCanvas = document.createElement('canvas');
+            newCanvas.id = 'salesTrendsChart';
+            newCanvas.width = 400;
+            newCanvas.height = 200;
+            parent.replaceChild(newCanvas, ctxEl);
+            
+            const ctx = newCanvas.getContext('2d');
 
             const labels = payload.labels || [];
             const colors = ['#2e7d32','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
@@ -1008,40 +982,7 @@
             if (periodSel) periodSel.addEventListener('change', reloadSalesTrendsFiltered);
             if (branchSel) branchSel.addEventListener('change', reloadSalesTrendsFiltered);
             
-            // Enhanced date range filter with custom date picker
-            const rangeSel = document.getElementById('dateRangeSelect');
-            const customDateRange = document.getElementById('customDateRange');
-            const startDate = document.getElementById('startDate');
-            const endDate = document.getElementById('endDate');
-            const applyBtn = document.getElementById('applyCustomRange');
-            
-            if (rangeSel) {
-                rangeSel.addEventListener('change', () => {
-                    if (rangeSel.value === 'custom') {
-                        customDateRange.style.display = 'flex';
-                        // Set default dates (last 30 days)
-                        const today = new Date();
-                        const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
-                        endDate.value = today.toISOString().split('T')[0];
-                        startDate.value = thirtyDaysAgo.toISOString().split('T')[0];
-                    } else {
-                        customDateRange.style.display = 'none';
-                        loadAnalyticsData();
-                    }
-                });
-            }
-            
-            if (applyBtn) {
-                applyBtn.addEventListener('click', () => {
-                    const start = startDate.value;
-                    const end = endDate.value;
-                    if (start && end) {
-                        loadAnalyticsDataCustom(start, end);
-                    } else {
-                        alert('Please select both start and end dates');
-                    }
-                });
-            }
+            // Date range filter removed - using default 30 days
         }
 
         async function reloadSalesTrendsFiltered() {
@@ -1152,57 +1093,52 @@
             } catch (e) { console.error('updateTurnoverList failed', e); }
         }
 
-        // Branch-specific product data (demo for tabs; not used by API-driven widgets)
-        const branchProducts = {
-            marawoy: [
-                { name: 'Jasmine Rice Premium', sales: 2134, revenue: 42680, trend: '+18.2%' },
-                { name: 'Basmati Rice Long Grain', sales: 1891, revenue: 37820, trend: '+12.7%' },
-                { name: 'Brown Rice Organic', sales: 1432, revenue: 28640, trend: '+9.4%' },
-                { name: 'White Rice Regular', sales: 1156, revenue: 23120, trend: '+7.8%' },
-                { name: 'Red Rice Premium', sales: 987, revenue: 19740, trend: '+5.2%' }
-            ],
-            lipa: [
-                { name: 'White Rice Regular', sales: 2456, revenue: 49120, trend: '+22.1%' },
-                { name: 'Jasmine Rice Premium', sales: 1987, revenue: 39740, trend: '+15.8%' },
-                { name: 'Brown Rice Organic', sales: 1654, revenue: 33080, trend: '+11.3%' },
-                { name: 'Basmati Rice Long Grain', sales: 1342, revenue: 26840, trend: '+8.9%' },
-                { name: 'Red Rice Premium', sales: 1123, revenue: 22460, trend: '+6.7%' }
-            ],
-            malvar: [
-                { name: 'Basmati Rice Long Grain', sales: 2876, revenue: 57520, trend: '+25.4%' },
-                { name: 'Jasmine Rice Premium', sales: 2234, revenue: 44680, trend: '+19.7%' },
-                { name: 'White Rice Regular', sales: 1876, revenue: 37520, trend: '+14.2%' },
-                { name: 'Brown Rice Organic', sales: 1456, revenue: 29120, trend: '+10.8%' },
-                { name: 'Red Rice Premium', sales: 1234, revenue: 24680, trend: '+7.5%' }
-            ],
-            bulacnin: [
-                { name: 'Brown Rice Organic', sales: 3123, revenue: 62460, trend: '+28.9%' },
-                { name: 'Jasmine Rice Premium', sales: 2654, revenue: 53080, trend: '+23.1%' },
-                { name: 'White Rice Regular', sales: 2187, revenue: 43740, trend: '+17.6%' },
-                { name: 'Basmati Rice Long Grain', sales: 1765, revenue: 35300, trend: '+13.4%' },
-                { name: 'Red Rice Premium', sales: 1432, revenue: 28640, trend: '+9.8%' }
-            ],
-            boac: [
-                { name: 'White Rice Regular', sales: 3876, revenue: 77520, trend: '+34.7%' },
-                { name: 'Jasmine Rice Premium', sales: 3234, revenue: 64680, trend: '+29.8%' },
-                { name: 'Brown Rice Organic', sales: 2678, revenue: 53560, trend: '+24.1%' },
-                { name: 'Basmati Rice Long Grain', sales: 2187, revenue: 43740, trend: '+19.3%' },
-                { name: 'Red Rice Premium', sales: 1876, revenue: 37520, trend: '+15.6%' }
-            ],
-            'sta-cruz': [
-                { name: 'Jasmine Rice Premium', sales: 4234, revenue: 84680, trend: '+37.9%' },
-                { name: 'White Rice Regular', sales: 3654, revenue: 73080, trend: '+32.4%' },
-                { name: 'Brown Rice Organic', sales: 2987, revenue: 59740, trend: '+27.2%' },
-                { name: 'Basmati Rice Long Grain', sales: 2456, revenue: 49120, trend: '+22.8%' },
-                { name: 'Red Rice Premium', sales: 2123, revenue: 42460, trend: '+18.7%' }
-            ]
-        };
+        // Load top products for selected branch
+        async function loadTopProducts(branchId) {
+            try {
+                const productsList = document.getElementById('topProductsList');
+                productsList.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Loading top products...</div></div>';
+                
+                // Get the selected days from the dropdown (default to 30 if not found)
+                const daysSelect = document.querySelector('.chart-period');
+                const days = daysSelect ? daysSelect.value : '30';
+                
+                console.log('Loading top products for branch:', branchId, 'days:', days);
+                const response = await fetch(`/admin/api/dashboard/charts?branch_id=${branchId}&days=${days}`);
+                const data = await response.json();
+                
+                console.log('API Response:', data);
+                
+                if (data.ok && data.charts && data.charts.top_products) {
+                    console.log('Top products data:', data.charts.top_products);
+                    updateProductList(data.charts.top_products);
+                } else {
+                    console.log('No products data in response, trying without branch filter');
+                    // Try loading all products if branch-specific data is empty
+                    const allProductsResponse = await fetch(`/admin/api/dashboard/charts?days=${days}`);
+                    const allProductsData = await allProductsResponse.json();
+                    
+                    if (allProductsData.ok && allProductsData.charts && allProductsData.charts.top_products) {
+                        console.log('All products data:', allProductsData.charts.top_products);
+                        updateProductList(allProductsData.charts.top_products);
+                    } else {
+                        productsList.innerHTML = '<div class="no-data">No products found for this branch</div>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading top products:', error);
+                const productsList = document.getElementById('topProductsList');
+                productsList.innerHTML = '<div class="error-state">Failed to load products</div>';
+            }
+        }
 
-        function updateProductList(branch) {
-            const productsList = document.querySelector('.top-products-list');
-            const products = branchProducts[branch];
+        function updateProductList(products) {
+            const productsList = document.getElementById('topProductsList');
             
-            if (!products) return;
+            if (!products || products.length === 0) {
+                productsList.innerHTML = '<div class="no-data">No products found</div>';
+                return;
+            }
             
             productsList.innerHTML = '';
             
@@ -1212,11 +1148,11 @@
                 productItem.innerHTML = `
                     <div class="product-rank">${index + 1}</div>
                     <div class="product-info">
-                        <div class="product-name">${product.name}</div>
-                        <div class="product-sales">${product.sales.toLocaleString()} units sold</div>
+                        <div class="product-name">${product.name || 'Unknown Product'}</div>
+                        <div class="product-sales">${(product.quantity || 0).toLocaleString()} kg sold</div>
                     </div>
-                    <div class="product-revenue">$${product.revenue.toLocaleString()}</div>
-                    <div class="product-trend positive">${product.trend}</div>
+                    <div class="product-revenue">₱${(product.sales || 0).toLocaleString()}</div>
+                    <div class="product-trend positive">+${(product.growth || 0).toFixed(1)}%</div>
                 `;
                 productsList.appendChild(productItem);
             });

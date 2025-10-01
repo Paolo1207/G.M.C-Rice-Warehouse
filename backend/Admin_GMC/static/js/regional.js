@@ -8,7 +8,6 @@ class RegionalInsights {
         this.charts = {};
         this.filters = {
             product: 'all',
-            category: 'all',
             branch: 'all'
         };
         this.debounceTimer = null;
@@ -85,15 +84,32 @@ class RegionalInsights {
             });
         }
         
-        // Populate branch filter
+        // Populate branch filter with correct order
         const branchSelect = document.getElementById('region-select');
         if (branchSelect && catalog.branches) {
             branchSelect.innerHTML = '<option value="all">All Branches</option>';
+            
+            // Define the correct order
+            const branchOrder = ['Marawoy', 'Lipa', 'Malvar', 'Bulacnin', 'Boac', 'Sta. Cruz'];
+            
+            // Add branches in the correct order
+            branchOrder.forEach(branchName => {
+                if (catalog.branches.includes(branchName)) {
+                    const option = document.createElement('option');
+                    option.value = branchName;
+                    option.textContent = branchName;
+                    branchSelect.appendChild(option);
+                }
+            });
+            
+            // Add any remaining branches not in the predefined order
             catalog.branches.forEach(branch => {
-                const option = document.createElement('option');
-                option.value = branch;
-                option.textContent = branch;
-                branchSelect.appendChild(option);
+                if (!branchOrder.includes(branch)) {
+                    const option = document.createElement('option');
+                    option.value = branch;
+                    option.textContent = branch;
+                    branchSelect.appendChild(option);
+                }
             });
         }
     }
@@ -102,7 +118,7 @@ class RegionalInsights {
      * Setup filter event listeners with debouncing
      */
     setupFilters() {
-        const filterSelects = ['product-select', 'category-select', 'region-select'];
+        const filterSelects = ['product-select', 'region-select'];
         
         filterSelects.forEach(selectId => {
             const select = document.getElementById(selectId);
@@ -130,6 +146,10 @@ class RegionalInsights {
         } else {
             this.filters[filterKey] = value;
         }
+        
+        // Debug logging
+        console.log('Filter changed:', selectId, 'Value:', value);
+        console.log('Current filters:', this.filters);
         
         // Show loading state
         this.showLoadingState();
@@ -500,8 +520,106 @@ class RegionalInsights {
             return;
         }
         
-        // Add gap items
-        data.gaps.forEach(gap => {
+        // Debug logging
+        console.log('updateGapsList - Current filters:', this.filters);
+        console.log('Branch filter:', this.filters.branch, 'Product filter:', this.filters.product);
+        console.log('Should show condensed view?', this.filters.branch === 'all' && this.filters.product === 'all');
+        
+        // Check if "All Branches" AND "All Products" are selected - show condensed view
+        if (this.filters.branch === 'all' && this.filters.product === 'all') {
+            console.log('Rendering condensed view');
+            this.renderCondensedGapsView(data.gaps, gapsContainer);
+        } else {
+            console.log('Rendering detailed view');
+            // Show detailed list for specific filters
+            this.renderDetailedGapsView(data.gaps, gapsContainer);
+        }
+    }
+    
+    /**
+     * Render condensed gaps view for "All Branches" filter
+     */
+    renderCondensedGapsView(gaps, container) {
+        // Group gaps by branch and get top gaps per branch
+        const branchGaps = {};
+        
+        gaps.forEach(gap => {
+            if (!branchGaps[gap.branch_name]) {
+                branchGaps[gap.branch_name] = [];
+            }
+            branchGaps[gap.branch_name].push(gap);
+        });
+        
+        // Create branch selector buttons
+        const branchSelector = document.createElement('div');
+        branchSelector.className = 'branch-selector';
+        branchSelector.style.cssText = 'margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap;';
+        
+        const branches = Object.keys(branchGaps);
+        branches.forEach((branchName, index) => {
+            const button = document.createElement('button');
+            button.textContent = branchName;
+            button.className = index === 0 ? 'branch-btn active' : 'branch-btn';
+            button.style.cssText = `
+                padding: 8px 16px;
+                border: 2px solid #e0e0e0;
+                border-radius: 20px;
+                background: ${index === 0 ? '#2e7d32' : 'white'};
+                color: ${index === 0 ? 'white' : '#374151'};
+                cursor: pointer;
+                font-weight: 500;
+                transition: all 0.2s ease;
+            `;
+            
+            button.addEventListener('click', () => {
+                // Update active button
+                branchSelector.querySelectorAll('.branch-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.style.background = 'white';
+                    btn.style.color = '#374151';
+                });
+                button.classList.add('active');
+                button.style.background = '#2e7d32';
+                button.style.color = 'white';
+                
+                // Debug logging
+                console.log('Selected branch:', branchName);
+                console.log('Gaps for this branch:', branchGaps[branchName]);
+                
+                // Show gaps for selected branch
+                this.showGapsForBranch(branchGaps[branchName], container);
+            });
+            
+            branchSelector.appendChild(button);
+        });
+        
+        container.appendChild(branchSelector);
+        
+        // Show gaps for first branch by default
+        if (branches.length > 0) {
+            this.showGapsForBranch(branchGaps[branches[0]], container);
+        }
+    }
+    
+    /**
+     * Show gaps for a specific branch
+     */
+    showGapsForBranch(branchGaps, container) {
+        // Remove existing gap items (but keep branch selector)
+        const existingGaps = container.querySelectorAll('.regional-gap-item');
+        existingGaps.forEach(item => item.remove());
+        
+        if (branchGaps.length === 0) {
+            const noGapsItem = document.createElement('div');
+            noGapsItem.className = 'regional-gap-item info';
+            noGapsItem.innerHTML = '<span>No gaps found for this branch</span>';
+            container.appendChild(noGapsItem);
+            return;
+        }
+        
+        // Show top 5 gaps for the branch
+        const topGaps = branchGaps.slice(0, 5);
+        topGaps.forEach(gap => {
             const gapItem = document.createElement('div');
             gapItem.className = `regional-gap-item ${gap.status}`;
             
@@ -511,7 +629,26 @@ class RegionalInsights {
                 <span class="gap-status">${gap.gap_text}</span>
             `;
             
-            gapsContainer.appendChild(gapItem);
+            container.appendChild(gapItem);
+        });
+    }
+    
+    /**
+     * Render detailed gaps view for specific branch
+     */
+    renderDetailedGapsView(gaps, container) {
+        // Add gap items
+        gaps.forEach(gap => {
+            const gapItem = document.createElement('div');
+            gapItem.className = `regional-gap-item ${gap.status}`;
+            
+            gapItem.innerHTML = `
+                <span class="gap-branch">${gap.branch_name}</span>
+                <span class="gap-product">${gap.product_name}</span>
+                <span class="gap-status">${gap.gap_text}</span>
+            `;
+            
+            container.appendChild(gapItem);
         });
     }
     

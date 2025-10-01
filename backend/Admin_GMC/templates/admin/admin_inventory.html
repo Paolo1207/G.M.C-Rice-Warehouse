@@ -451,11 +451,11 @@
 
 <!-- Restock Product Modal -->
 <div id="restockProductModal" class="modal" aria-hidden="true">
-  <div class="modal-content glass-card" style="max-width:480px">
+  <div class="modal-content glass-card" style="max-width:600px">
     <button class="close-btn" data-close="#restockProductModal" aria-label="Close">&times;</button>
     <h2 style="margin-top:0;color:#2e7d32">Restock Product</h2>
 
-    <form id="restockForm" class="form-vertical">
+    <form id="restockForm" class="grid-2col gap-16">
       <div class="form-group">
         <label>Product</label>
         <select name="product" required>
@@ -481,15 +481,15 @@
         <input name="date" type="date" value="<?= date('Y-m-d') ?>">
       </div>
 
-      <div class="form-group">
+      <div class="form-group col-span-2">
         <label>Notes</label>
         <input name="notes" placeholder="Notes (optional)">
       </div>
 
-      <div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px">
+      <div class="col-span-2" style="display:flex;justify-content:space-between;gap:12px;margin-top:20px">
         <button type="button" class="action-btn cancel-btn" data-close="#restockProductModal"
-          style="background:#e53935;color:white;flex:1">Cancel</button>
-        <button type="submit" class="action-btn" style="background:#43a047;flex:1">Restock</button>
+          style="background:#e53935;color:white;flex:1;height:48px;font-size:16px;border-radius:8px">Cancel</button>
+        <button type="submit" class="action-btn" style="background:#43a047;color:white;flex:1;height:48px;font-size:16px;border-radius:8px">Restock</button>
       </div>
     </form>
   </div>
@@ -1303,6 +1303,89 @@ function exportCSV(){
         
         .close-confirm-btn:hover {
             color: #333;
+        }
+
+        /* Restock Modal Styling to match Add Product Modal */
+        #restockProductModal .modal-content {
+            max-width: 980px !important;
+            padding: 24px;
+        }
+        
+        #restockProductModal .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        #restockProductModal .col-span-2 {
+            grid-column: span 2;
+        }
+        
+        #restockProductModal .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        #restockProductModal .form-group label {
+            font-weight: 600;
+            color: #2e7d32;
+            font-size: 14px;
+        }
+        
+        #restockProductModal .form-group input,
+        #restockProductModal .form-group select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+            background: white;
+        }
+        
+        #restockProductModal .form-group input:focus,
+        #restockProductModal .form-group select:focus {
+            outline: none;
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+        }
+        
+        #restockProductModal .form-group input::placeholder {
+            color: #999;
+        }
+        
+        #restockProductModal .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: none;
+        }
+        
+        #restockProductModal .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        #restockProductModal .cancel-btn {
+            background: #e53935;
+            color: white;
+        }
+        
+        #restockProductModal .cancel-btn:hover {
+            background: #c62828;
+        }
+        
+        #restockProductModal .action-btn[type="submit"] {
+            background: #43a047;
+            color: white;
+        }
+        
+        #restockProductModal .action-btn[type="submit"]:hover {
+            background: #388e3c;
         }
     </style>
     <script src="../js/inventory.js"></script>

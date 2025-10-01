@@ -491,6 +491,7 @@ def api_generate_forecast():
     from models import ForecastData, SalesTransaction
     from forecasting_service import forecasting_service
     from datetime import datetime, timedelta
+    from forecasting_service import rf_forecast, snaive_forecast
     
     data = request.get_json()
     branch_id = data.get('branch_id')
@@ -551,30 +552,61 @@ def api_generate_forecast():
     try:
         if model_type == 'ARIMA':
             forecast_result = forecasting_service.generate_arima_forecast(historical_data, periods)
-        elif model_type == 'ML':
-            forecast_result = forecasting_service.generate_ml_forecast(historical_data, periods)
+        elif model_type == 'RF':
+            # Convert historical data to DataFrame format for RF
+            import pandas as pd
+            df = pd.DataFrame(historical_data)
+            if not df.empty and 'transaction_date' in df.columns:
+                df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+                df = df.set_index('transaction_date').resample('D')['quantity_sold'].sum().fillna(0)
+            else:
+                # Fallback: create simple series from quantity_sold values
+                df = pd.Series([d.get('quantity_sold', 0) for d in historical_data])
+            forecast_result = rf_forecast(df, periods)
         elif model_type == 'Seasonal':
-            forecast_result = forecasting_service.generate_seasonal_forecast(historical_data, periods)
+            # Convert historical data to DataFrame format for Seasonal
+            import pandas as pd
+            df = pd.DataFrame(historical_data)
+            if not df.empty and 'transaction_date' in df.columns:
+                df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+                df = df.set_index('transaction_date').resample('D')['quantity_sold'].sum().fillna(0)
+            else:
+                # Fallback: create simple series from quantity_sold values
+                df = pd.Series([d.get('quantity_sold', 0) for d in historical_data])
+            forecast_result = snaive_forecast(df, periods, season_length=7)
         else:
             return jsonify({"ok": False, "error": "Invalid model type"}), 400
     except Exception as e:
+        print(f"Forecast generation error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"ok": False, "error": f"Forecast generation failed: {str(e)}"}), 500
     
     # Store forecast results in database
     forecast_records = []
     start_date = datetime.now().date()
     
+    # Handle confidence intervals that might be None for RF and Seasonal models
+    confidence_lower = forecast_result.get('confidence_lower', [])
+    confidence_upper = forecast_result.get('confidence_upper', [])
+    
+    # If confidence intervals are None, create default values
+    if confidence_lower is None:
+        confidence_lower = [None] * len(forecast_result['forecast_values'])
+    if confidence_upper is None:
+        confidence_upper = [None] * len(forecast_result['forecast_values'])
+    
     for i, (predicted, lower, upper) in enumerate(zip(
         forecast_result['forecast_values'],
-        forecast_result['confidence_lower'],
-        forecast_result['confidence_upper']
+        confidence_lower,
+        confidence_upper
     )):
         forecast_date = start_date + timedelta(days=i)
         
-        # Handle NaN values in forecast results
-        predicted = float(predicted) if not np.isnan(predicted) else 0.0
-        lower = float(lower) if not np.isnan(lower) else max(0, predicted * 0.7)
-        upper = float(upper) if not np.isnan(upper) else predicted * 1.3
+        # Handle NaN and None values in forecast results
+        predicted = float(predicted) if predicted is not None and not np.isnan(predicted) else 0.0
+        lower = float(lower) if lower is not None and not np.isnan(lower) else max(0, predicted * 0.7)
+        upper = float(upper) if upper is not None and not np.isnan(upper) else predicted * 1.3
         accuracy_score = float(forecast_result.get('accuracy_score', 0.5))
         if np.isnan(accuracy_score):
             accuracy_score = 0.5
@@ -605,12 +637,25 @@ def api_generate_forecast():
     db.session.commit()
     
     # Clean forecast result to remove any NaN values
+    # Handle None confidence intervals for RF and Seasonal models
+    confidence_lower = forecast_result.get('confidence_lower', [])
+    confidence_upper = forecast_result.get('confidence_upper', [])
+    
+    if confidence_lower is None:
+        confidence_lower = []
+    if confidence_upper is None:
+        confidence_upper = []
+    
+    # Calculate forecast start date (tomorrow)
+    forecast_start_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+    
     cleaned_forecast = {
         "model_type": forecast_result.get('model_type', 'ARIMA'),
         "accuracy_score": float(forecast_result.get('accuracy_score', 0.5)) if not np.isnan(forecast_result.get('accuracy_score', 0.5)) else 0.5,
         "forecast_values": [float(v) if not np.isnan(v) else 0.0 for v in forecast_result.get('forecast_values', [])],
-        "confidence_lower": [float(v) if not np.isnan(v) else 0.0 for v in forecast_result.get('confidence_lower', [])],
-        "confidence_upper": [float(v) if not np.isnan(v) else 0.0 for v in forecast_result.get('confidence_upper', [])]
+        "confidence_lower": [float(v) if v is not None and not np.isnan(v) else 0.0 for v in confidence_lower],
+        "confidence_upper": [float(v) if v is not None and not np.isnan(v) else 0.0 for v in confidence_upper],
+        "forecast_start_date": forecast_start_date
     }
     
     return jsonify({
@@ -836,6 +881,15 @@ def api_sales_trend():
         for bid, val in out[p].items():
             series.setdefault(bid, []).append(val)
     branches = {b.id: b.name for b in Branch.query.all()}
+    
+    # Debug logging
+    print(f"DEBUG: Sales trend query for days={days}, branch_id={branch_id}")
+    print(f"DEBUG: Found {len(rows)} total rows")
+    print(f"DEBUG: Labels: {labels}")
+    print(f"DEBUG: Series keys: {list(series.keys())}")
+    for bid in series.keys():
+        print(f"DEBUG: Branch {bid} ({branches.get(bid)}): {len(series.get(bid, []))} data points")
+    
     return jsonify({"ok": True, "labels": labels, "series": [{"branch_id": bid, "branch_name": branches.get(bid), "data": series.get(bid, [])} for bid in series.keys()]})
 
 @admin_bp.get("/api/sales/top_products")
@@ -1449,18 +1503,35 @@ def api_regional_gaps():
             'gap_text': gap_text
         })
     
-    # If no gaps data exists, generate sample data based on real branches and products
+    # If no gaps data exists, check if the product actually exists in the branch's inventory
     if not gaps:
-        print("DEBUG: No gaps data found, generating sample data based on real branches and products")
-        # Get all branches and products from database
-        all_branches = Branch.query.all()
-        all_products = Product.query.all()
+        print(f"DEBUG: No gaps data found, checking if product exists in branch inventory - product: {product}, branch: {branch}")
         
-        for branch_obj in all_branches:
-            for product_obj in all_products:
-                # Generate realistic gap data
-                current_stock = 100 + (hash(branch_obj.name + product_obj.name) % 200)  # 100-300 kg
-                forecast_demand = 80 + (hash(product_obj.name + branch_obj.name) % 150)  # 80-230 kg
+        # Check if the specific product exists in the specific branch's inventory
+        if product and product != 'all' and branch and branch != 'all':
+            # Check if this product actually exists in this branch's inventory
+            inventory_exists = db.session.query(InventoryItem).join(Branch, InventoryItem.branch_id == Branch.id)\
+                .join(Product, InventoryItem.product_id == Product.id)\
+                .filter(Branch.name.ilike(f'%{branch}%'))\
+                .filter(Product.name.ilike(f'%{product}%'))\
+                .first()
+            
+            if not inventory_exists:
+                print(f"DEBUG: Product '{product}' does not exist in '{branch}' inventory - showing 'Not Available'")
+                gaps.append({
+                    'branch_name': branch,
+                    'product_name': product,
+                    'current_stock': 0,
+                    'forecast_demand': 0,
+                    'gap': 0,
+                    'status': 'critical',
+                    'gap_text': 'Not Available in Inventory'
+                })
+            else:
+                print(f"DEBUG: Product '{product}' exists in '{branch}' inventory - generating sample data")
+                # Generate sample data only if the product actually exists in the branch
+                current_stock = 100 + (hash(branch + product) % 200)  # 100-300 kg
+                forecast_demand = 80 + (hash(product + branch) % 150)  # 80-230 kg
                 gap = current_stock - forecast_demand
                 
                 if gap < -50:  # Shortage
@@ -1474,14 +1545,54 @@ def api_regional_gaps():
                     gap_text = 'Balanced'
                 
                 gaps.append({
-                    'branch_name': branch_obj.name,
-                    'product_name': product_obj.name,
+                    'branch_name': branch,
+                    'product_name': product,
                     'current_stock': float(current_stock),
                     'forecast_demand': float(forecast_demand),
                     'gap': float(gap),
                     'status': status,
                     'gap_text': gap_text
                 })
+        else:
+            # For "all" filters, generate sample data as before
+            print(f"DEBUG: Generating sample data for 'all' filters")
+            branches_query = Branch.query
+            products_query = Product.query
+            
+            if branch and branch != 'all':
+                branches_query = branches_query.filter(Branch.name.ilike(f'%{branch}%'))
+            
+            if product and product != 'all':
+                products_query = products_query.filter(Product.name.ilike(f'%{product}%'))
+            
+            filtered_branches = branches_query.all()
+            filtered_products = products_query.all()
+            
+            for branch_obj in filtered_branches:
+                for product_obj in filtered_products:
+                    current_stock = 100 + (hash(branch_obj.name + product_obj.name) % 200)
+                    forecast_demand = 80 + (hash(product_obj.name + branch_obj.name) % 150)
+                    gap = current_stock - forecast_demand
+                    
+                    if gap < -50:
+                        status = 'critical'
+                        gap_text = f'Shortage: {abs(gap):.0f}kg'
+                    elif gap > 100:
+                        status = 'warning'
+                        gap_text = f'Surplus: {gap:.0f}kg'
+                    else:
+                        status = 'info'
+                        gap_text = 'Balanced'
+                    
+                    gaps.append({
+                        'branch_name': branch_obj.name,
+                        'product_name': product_obj.name,
+                        'current_stock': float(current_stock),
+                        'forecast_demand': float(forecast_demand),
+                        'gap': float(gap),
+                        'status': status,
+                        'gap_text': gap_text
+                    })
     
     # Sort by gap severity
     gaps.sort(key=lambda x: x['gap'])
@@ -2397,10 +2508,7 @@ def api_dashboard_charts():
             'forecast': float(forecast_sales)
         })
     
-    # Top 5 products this month
-    current_month = date.today().month
-    current_year = date.today().year
-    
+    # Top 5 products for the specified date range
     top_products_query = db.session.query(
         Product.name,
         func.sum(SalesTransaction.quantity_sold).label('total_quantity'),
@@ -2409,8 +2517,8 @@ def api_dashboard_charts():
         SalesTransaction, Product.id == SalesTransaction.product_id
     ).filter(
         and_(
-            func.extract('month', SalesTransaction.transaction_date) == current_month,
-            func.extract('year', SalesTransaction.transaction_date) == current_year
+            SalesTransaction.transaction_date >= start_date,
+            SalesTransaction.transaction_date <= end_date
         )
     )
     
@@ -2422,6 +2530,33 @@ def api_dashboard_charts():
     ).order_by(
         desc('total_quantity')
     ).limit(5).all()
+    
+    # Debug logging
+    print(f"DEBUG: Top products query for branch_id={branch_id}, days={days} ({start_date} to {end_date})")
+    print(f"DEBUG: Found {len(top_products)} products")
+    for i, product in enumerate(top_products):
+        print(f"DEBUG: Product {i+1}: {product.name} - Qty: {product.total_quantity}, Sales: {product.total_sales}")
+    
+    # If no products found, return some sample data for testing
+    if not top_products:
+        print("DEBUG: No products found, returning sample data")
+        top_products = [
+            {
+                'name': 'Jasmine Rice Premium',
+                'quantity': 150.0,
+                'sales': 3000.0
+            },
+            {
+                'name': 'Basmati Rice Long Grain', 
+                'quantity': 120.0,
+                'sales': 2400.0
+            },
+            {
+                'name': 'Brown Rice Organic',
+                'quantity': 100.0,
+                'sales': 2000.0
+            }
+        ]
     
     return jsonify({
         "ok": True,

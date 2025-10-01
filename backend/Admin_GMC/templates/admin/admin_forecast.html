@@ -189,7 +189,7 @@
                 <label for="model-type-select">Model Type:</label>
                 <select id="model-type-select">
                     <option value="ARIMA">ARIMA</option>
-                    <option value="ML">Machine Learning</option>
+                    <option value="RF">Random Forest (RF)</option>
                     <option value="Seasonal">Seasonal</option>
                 </select>
             </div>
@@ -417,37 +417,60 @@
                 demandChart.destroy();
             }
 
-            const labels = forecast.forecast_values.map((_, index) => `Day ${index + 1}`);
+            // Generate actual dates for the forecast
+            const startDate = new Date(forecast.forecast_start_date || new Date().toISOString().split('T')[0]);
+            const labels = forecast.forecast_values.map((_, index) => {
+                const forecastDate = new Date(startDate);
+                forecastDate.setDate(forecastDate.getDate() + index);
+                return forecastDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+            });
             
-            demandChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                    labels: labels,
-                datasets: [{
-                        label: 'Predicted Demand',
-                        data: forecast.forecast_values,
-                    borderColor: '#2e7d32',
-                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4
-                    }, {
-                        label: 'Confidence Lower',
-                        data: forecast.confidence_lower,
-                        borderColor: '#ff9800',
-                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        fill: false
-                    }, {
-                        label: 'Confidence Upper',
-                        data: forecast.confidence_upper,
+            // Build datasets based on model type
+            const datasets = [{
+                label: 'Predicted Demand',
+                data: forecast.forecast_values,
+                borderColor: '#2e7d32',
+                backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }];
+            
+            // Only add confidence intervals for ARIMA model
+            if (forecast.model_type === 'ARIMA' && forecast.confidence_lower && forecast.confidence_upper) {
+                datasets.push({
+                    label: 'Confidence Lower',
+                    data: forecast.confidence_lower,
                     borderColor: '#ff9800',
                     backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        fill: false
-                    }]
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false
+                });
+                datasets.push({
+                    label: 'Confidence Upper',
+                    data: forecast.confidence_upper,
+                    borderColor: '#ff9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false
+                });
+            }
+            
+            // Set chart title based on model type
+            const chartTitle = forecast.model_type === 'ARIMA' 
+                ? 'Demand Forecast with Confidence Intervals'
+                : 'Demand Forecast';
+            
+            demandChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -455,7 +478,7 @@
                         legend: { position: 'top' },
                         title: {
                             display: true,
-                            text: 'Demand Forecast with Confidence Intervals'
+                            text: chartTitle
                         }
                     },
                     scales: {
