@@ -15,8 +15,15 @@ manager_bp = Blueprint(
 
 # ----------------------------- PAGES -----------------------------
 @manager_bp.route("/dashboard", endpoint="manager_dashboard")
+@manager_required
 def dashboard():
-    return render_template("manager_dashboard.html")
+    # Get branch_id from URL parameters
+    branch_id = request.args.get('branch_id', type=int)
+    branch_name = request.args.get('branch_name', '')
+    
+    return render_template("manager_dashboard.html", 
+                         branch_id=branch_id, 
+                         branch_name=branch_name)
 
 @manager_bp.route("/analytics", endpoint="analytics")
 @manager_required
@@ -26,22 +33,46 @@ def analytics():
 @manager_bp.route("/forecast", endpoint="forecast")
 @manager_required
 def forecast():
-    return render_template("manager_forecast.html")
+    # Get branch_id from URL parameters
+    branch_id = request.args.get('branch_id', type=int)
+    branch_name = request.args.get('branch_name', '')
+    
+    return render_template("manager_forecast.html", 
+                         branch_id=branch_id, 
+                         branch_name=branch_name)
 
 @manager_bp.route("/inventory", endpoint="inventory")
 @manager_required
 def inventory():
-    return render_template("manager_inventory.html")
+    # Get branch_id from URL parameters
+    branch_id = request.args.get('branch_id', type=int)
+    branch_name = request.args.get('branch_name', '')
+    
+    return render_template("manager_inventory.html", 
+                         branch_id=branch_id, 
+                         branch_name=branch_name)
 
 @manager_bp.route("/notifications", endpoint="notifications")
 @manager_required
 def notifications():
-    return render_template("manager_notifications.html")
+    # Get branch_id from URL parameters
+    branch_id = request.args.get('branch_id', type=int)
+    branch_name = request.args.get('branch_name', '')
+    
+    return render_template("manager_notifications.html", 
+                         branch_id=branch_id, 
+                         branch_name=branch_name)
 
 @manager_bp.route("/purchase", endpoint="purchase")
 @manager_required
 def purchase():
-    return render_template("manager_purchase.html")
+    # Get branch_id from URL parameters
+    branch_id = request.args.get('branch_id', type=int)
+    branch_name = request.args.get('branch_name', '')
+    
+    return render_template("manager_purchase.html", 
+                         branch_id=branch_id, 
+                         branch_name=branch_name)
 
 @manager_bp.route("/reports", endpoint="reports")
 @manager_required
@@ -418,10 +449,13 @@ def mgr_dashboard_kpis():
     from datetime import datetime, date, timedelta
     from sqlalchemy import func, and_, or_
     
-    # Get manager's branch ID (use default for testing)
-    branch_id = _current_manager_branch_id() or request.args.get('branch_id', 1, type=int)
+    # Get manager's branch ID - prioritize URL parameter over session
+    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id() or 1
     if not branch_id:
         return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    print(f"DEBUG: Manager API called with branch_id: {branch_id}")
+    print(f"DEBUG: Request args: {dict(request.args)}")
     
     # Get current date and month
     today = date.today()
@@ -470,13 +504,23 @@ def mgr_dashboard_kpis():
         ForecastData.branch_id == branch_id
     ).scalar() or 0
     
+    # Calculate Total Orders for this specific branch
+    total_orders = db.session.query(SalesTransaction).filter(
+        SalesTransaction.branch_id == branch_id
+    ).count()
+    
+    print(f"DEBUG: Manager Total Orders calculation for branch {branch_id}:")
+    print(f"  - Total orders (branch {branch_id}): {total_orders}")
+    
+    
     return jsonify({
         "ok": True,
         "kpis": {
             "today_sales": float(today_sales),
             "month_sales": float(month_sales),
             "low_stock_count": low_stock_count,
-            "forecast_accuracy": round(forecast_accuracy, 2)
+            "forecast_accuracy": round(forecast_accuracy, 2),
+            "total_orders": int(total_orders)
         }
     })
 
@@ -487,8 +531,8 @@ def mgr_dashboard_charts():
     from datetime import datetime, date, timedelta
     from sqlalchemy import func, and_, desc
     
-    # Get manager's branch ID (use default for testing)
-    branch_id = _current_manager_branch_id() or request.args.get('branch_id', 1, type=int)
+    # Get manager's branch ID - prioritize URL parameter over session
+    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id() or 1
     if not branch_id:
         return jsonify({"ok": False, "error": "Manager branch not found"}), 400
     
@@ -1904,9 +1948,12 @@ def mgr_list_notifications():
     """Get notifications for manager's branch"""
     from models import Notification
     
-    branch_id = _current_manager_branch_id()
+    # Get manager's branch ID - prioritize URL parameter over session
+    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
     if not branch_id:
         return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    print(f"DEBUG: Loading notifications for branch_id: {branch_id}")
     
     notifications = Notification.query.filter_by(branch_id=branch_id).order_by(Notification.created_at.desc()).all()
     
@@ -1922,16 +1969,12 @@ def mgr_unread_count():
     """Get unread notification count for manager's branch"""
     from models import Notification
     
-    branch_id = _current_manager_branch_id()
-    
+    # Get manager's branch ID - prioritize URL parameter over session
+    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
     if not branch_id:
-        # Fallback: try to get branch from URL parameters or default to 1
-        from flask import request
-        url_branch = request.args.get('branch')
-        if url_branch:
-            branch_id = int(url_branch)
-        else:
-            branch_id = 1  # Default to branch 1 for testing
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    print(f"DEBUG: Getting unread count for branch_id: {branch_id}")
     
     unread_count = Notification.query.filter_by(
         branch_id=branch_id, 
@@ -2039,7 +2082,11 @@ def mgr_purchases_recent():
         ).first()
         
         current_stock = float(inventory_item.stock_kg) if inventory_item else 0.0
-        unit_price = float(inventory_item.unit_price) if inventory_item else 0.0
+        unit_price = float(inventory_item.unit_price) if inventory_item and inventory_item.unit_price else 0.0
+        
+        # If unit_price is 0, calculate it from the sales transaction
+        if unit_price == 0.0 and float(sale.quantity_sold) > 0:
+            unit_price = float(sale.total_amount) / float(sale.quantity_sold)
         
         entry = {
             "id": sale.id,

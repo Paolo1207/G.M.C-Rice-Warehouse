@@ -382,7 +382,23 @@
         // --- CRUD using manager API ---
         async function loadInventoryData(query = '') {
             try {
-                const res = await fetch(`/manager/api/inventory${query ? `?q=${encodeURIComponent(query)}` : ''}`);
+                // Get branch_id from template variables or URL parameters
+                const branchId = {{ branch_id if branch_id else 'null' }} || 
+                                new URLSearchParams(window.location.search).get('branch') || 
+                                new URLSearchParams(window.location.search).get('branch_id');
+                
+                let apiUrl = '/manager/api/inventory';
+                const params = new URLSearchParams();
+                if (branchId) params.append('branch_id', branchId);
+                if (query) params.append('q', query);
+                
+                if (params.toString()) {
+                    apiUrl += `?${params.toString()}`;
+                }
+                
+                console.log('Loading inventory for branch:', branchId, 'URL:', apiUrl);
+                
+                const res = await fetch(apiUrl);
                 const json = await res.json();
                 if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load');
                 const data = (json.items || []).map(mapItem);
@@ -739,9 +755,8 @@
 
         // Update title and header based on branch selection
         function updateBranchTitle() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const branchName = urlParams.get('branch_name');
-            const branchId = urlParams.get('branch');
+            const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+            const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
             
             if (branchName) {
                 const decodedBranchName = decodeURIComponent(branchName);

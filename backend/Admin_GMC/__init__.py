@@ -2415,6 +2415,13 @@ def api_dashboard_kpis():
         forecast_accuracy = 0
         print("DEBUG: No forecast data found for accuracy calculation")
     
+    # Calculate Total Orders (all time for admin - all branches)
+    total_orders = sales_query.count()
+    
+    print(f"DEBUG: Total Orders calculation:")
+    print(f"  - Total orders (all branches): {total_orders}")
+    
+    
     return jsonify({
         "ok": True,
         "kpis": {
@@ -2422,7 +2429,8 @@ def api_dashboard_kpis():
             "month_sales": float(month_sales),
             "total_sales": float(total_sales),
             "low_stock_count": int(low_stock_count),
-            "forecast_accuracy": round(forecast_accuracy, 2)
+            "forecast_accuracy": round(forecast_accuracy, 2),
+            "total_orders": int(total_orders)
         }
     })
 
@@ -2689,15 +2697,13 @@ def api_dashboard_recent_activity():
     
     # Add sales activities
     for sale in recent_sales:
-        user = User.query.get(sale.user_id) if sale.user_id else None
         branch = Branch.query.get(sale.branch_id) if sale.branch_id else None
-        user_name = user.email.split('@')[0] if user else "System"
         branch_name = branch.name if branch else "Unknown Branch"
         
         activities.append({
             "icon": "💰",
             "title": "Sale Completed",
-            "description": f"Order #{sale.id} processed by {user_name} from {branch_name}",
+            "description": f"Order #{sale.id} from {branch_name} - ₱{sale.total_amount:,.2f}",
             "time": sale.transaction_date.strftime("%H:%M"),
             "time_ago": get_time_ago(sale.transaction_date),
             "type": "sale"
@@ -2824,11 +2830,13 @@ def api_inventory_status():
 def api_forecast_status():
     """Get forecast engine status"""
     try:
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+        
         # Get total forecasts
         total_forecasts = db.session.query(ForecastData).count()
         
         # Get active models (forecasts from last 30 days)
-        from datetime import datetime, timedelta
         recent_forecasts = db.session.query(ForecastData).filter(
             ForecastData.created_at >= datetime.now() - timedelta(days=30)
         ).count()

@@ -372,10 +372,18 @@
 
     async function loadAvailableRiceVarieties() {
       try {
-        // Include branch_id in the request if available
-        const urlParams = new URLSearchParams(window.location.search);
-        const branchId = urlParams.get('branch') || managerBranchId;
-        const apiUrl = branchId ? `/manager/api/inventory?branch_id=${branchId}` : '/manager/api/inventory';
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        console.log('Loading rice varieties for branch:', branchId, 'URL:', apiUrl);
         
         const response = await fetch(apiUrl);
         const data = await response.json();
@@ -922,9 +930,13 @@
 
     async function loadRecentPurchases() {
       try {
-        // Get branch_id from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const branchId = urlParams.get('branch') || managerBranchId;
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        console.log('Loading recent purchases for branch:', branchId);
         
         // Fetch recent purchases from API (branch-scoped)
         const response = await fetch(`/manager/api/purchases/recent?branch=${branchId}`);
@@ -1274,9 +1286,8 @@
 
     // Update title and header based on branch selection
     function updateBranchTitle() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const branchName = urlParams.get('branch_name');
-      const branchId = urlParams.get('branch');
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
       
       if (branchName) {
         const decodedBranchName = decodeURIComponent(branchName);

@@ -160,14 +160,14 @@
 
           <div class="card">
             <div class="card-icon success">
-              <i class="fas fa-chart-line"></i>
+              <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="card-content">
-              <h3>Forecast Accuracy</h3>
-              <p class="number" id="forecast-accuracy">0%</p>
+              <h3>Total Orders</h3>
+              <p class="number" id="total-orders">0</p>
               <p class="trend positive">
                 <i class="fas fa-arrow-up"></i>
-                Based on last 30 days
+                This branch only
               </p>
             </div>
           </div>
@@ -270,14 +270,18 @@
     // Load KPI data from API
     async function loadKPIData() {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const branchId = urlParams.get('branch');
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
         
         // Use manager-specific API endpoint with branch_id
         let apiUrl = '/manager/api/dashboard/kpis';
         if (branchId) {
           apiUrl += `?branch_id=${branchId}`;
         }
+        
+        console.log('Loading KPIs for branch:', branchId, 'URL:', apiUrl);
         
         const response = await fetch(apiUrl);
         const data = await response.json();
@@ -289,7 +293,7 @@
           document.getElementById('today-sales').textContent = '₱' + kpis.today_sales.toLocaleString();
           document.getElementById('month-sales').textContent = '₱' + kpis.month_sales.toLocaleString();
           document.getElementById('low-stock-count').textContent = kpis.low_stock_count;
-          document.getElementById('forecast-accuracy').textContent = kpis.forecast_accuracy.toFixed(1) + '%';
+          document.getElementById('total-orders').textContent = kpis.total_orders.toLocaleString();
         }
       } catch (error) {
         console.error('Error loading KPI data:', error);
@@ -317,8 +321,9 @@
     // Load Sales Trend data with its own filters
     async function loadSalesTrendData() {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const branchId = urlParams.get('branch');
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
         const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
 
         const params = new URLSearchParams();
@@ -341,8 +346,9 @@
     // Load Forecast data with its own filters
     async function loadForecastData() {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const branchId = urlParams.get('branch');
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
         const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
 
         const params = new URLSearchParams();
@@ -365,8 +371,9 @@
     // Load Top Products data with its own filters
     async function loadTopProductsData() {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const branchId = urlParams.get('branch');
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
 
         const params = new URLSearchParams();
         if (branchId) params.append('branch_id', branchId);
@@ -827,9 +834,8 @@
 
     // Update title and header based on branch selection
     function updateBranchTitle() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const branchName = urlParams.get('branch_name');
-      const branchId = urlParams.get('branch');
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
       
       if (branchName) {
         const decodedBranchName = decodeURIComponent(branchName);

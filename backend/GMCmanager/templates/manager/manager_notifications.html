@@ -239,7 +239,19 @@
     // Load notifications from API
     async function loadNotifications() {
       try {
-        const response = await fetch('/manager/api/notifications');
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        let apiUrl = '/manager/api/notifications';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        console.log('Loading notifications for branch:', branchId, 'URL:', apiUrl);
+        
+        const response = await fetch(apiUrl);
         const data = await response.json();
         
         if (data.ok && data.notifications) {
@@ -360,7 +372,17 @@
     // Check for new notifications and show popup
     async function checkForNewNotifications() {
       try {
-        const response = await fetch('/manager/api/notifications/unread-count');
+        // Get branch_id for the API call
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        let apiUrl = '/manager/api/notifications/unread-count';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl);
         const data = await response.json();
         
         if (data.ok && data.unread_count > 0) {
@@ -659,9 +681,8 @@
 
     // Update title and header based on branch selection
     function updateBranchTitle() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const branchName = urlParams.get('branch_name');
-      const branchId = urlParams.get('branch');
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
       
       if (branchName) {
         const decodedBranchName = decodeURIComponent(branchName);

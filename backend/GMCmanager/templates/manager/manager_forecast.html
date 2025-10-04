@@ -740,8 +740,19 @@
 
     async function loadBranchProducts() {
       try {
-        // Use the same inventory API as manager_inventory.html
-        const response = await fetch('/manager/api/inventory');
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        console.log('Loading products for branch:', branchId, 'URL:', apiUrl);
+        
+        const response = await fetch(apiUrl);
         const data = await response.json();
         if (data.ok && data.items) {
           populateProductFilters(data.items);
@@ -862,6 +873,11 @@
           
           console.log('Forecast parameters:', { productId, category, timeRange });
           
+          // Get branch_id for the API call
+          const branchId = {{ branch_id if branch_id else 'null' }} || 
+                          new URLSearchParams(window.location.search).get('branch') || 
+                          new URLSearchParams(window.location.search).get('branch_id');
+          
           const response = await fetch('/manager/api/forecast', {
             method: 'POST',
             headers: {
@@ -871,7 +887,8 @@
               product_id: productId,
               category: category,
               days: parseInt(timeRange),
-              model_type: 'arima'
+              model_type: 'arima',
+              branch_id: branchId
             }),
             signal: activeForecastController.signal
           });
@@ -939,6 +956,11 @@
           
           console.log('Price forecast parameters:', { productId, timeRange });
           
+          // Get branch_id for the API call
+          const branchId = {{ branch_id if branch_id else 'null' }} || 
+                          new URLSearchParams(window.location.search).get('branch') || 
+                          new URLSearchParams(window.location.search).get('branch_id');
+          
           const response = await fetch('/manager/api/forecast/price', {
             method: 'POST',
             headers: {
@@ -947,7 +969,8 @@
             body: JSON.stringify({
               product_id: productId,
               days: parseInt(timeRange),
-              model_type: 'holt_winters'  // Always use Holt-Winters for price forecast
+              model_type: 'holt_winters',  // Always use Holt-Winters for price forecast
+              branch_id: branchId
             })
           });
           
@@ -1005,6 +1028,11 @@
         
         console.log('Risk analysis parameters:', { productId, category, severity, days });
         
+        // Get branch_id for the API call
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
         const response = await fetch('/manager/api/forecast/risk', {
           method: 'POST',
           headers: {
@@ -1014,7 +1042,8 @@
             product_id: productId,
             category: category,
             severity: severity,
-            days: parseInt(days)
+            days: parseInt(days),
+            branch_id: branchId
           })
         });
         
@@ -1354,9 +1383,8 @@
 
     // Update title and header based on branch selection
     function updateBranchTitle() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const branchName = urlParams.get('branch_name');
-      const branchId = urlParams.get('branch');
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
       
       if (branchName) {
         const decodedBranchName = decodeURIComponent(branchName);

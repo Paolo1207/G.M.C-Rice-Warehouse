@@ -188,14 +188,14 @@
             <div class="dashboard-card">
                 <div class="card-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 17l6-6 4 4 8-8"/>
-                        <path d="M14 7h7v7"/>
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
                     </svg>
                 </div>
                 <div class="card-content">
-                <div class="dashboard-card-title">Forecast Accuracy</div>
-                    <div class="dashboard-card-value" id="forecast-accuracy">0%</div>
-                    <div class="dashboard-card-change positive">Based on last 30 days</div>
+                <div class="dashboard-card-title">Total Orders</div>
+                    <div class="dashboard-card-value" id="total-orders">0</div>
+                    <div class="dashboard-card-change positive">All branches</div>
                 </div>
             </div>
             <div class="dashboard-card">
@@ -591,7 +591,7 @@
                     document.getElementById('today-sales').textContent = '₱' + (kpis.today_sales || 0).toLocaleString();
                     document.getElementById('month-sales').textContent = '₱' + (kpis.total_sales || kpis.month_sales || 0).toLocaleString();
                     document.getElementById('low-stock-count').textContent = kpis.low_stock_count || 0;
-                    document.getElementById('forecast-accuracy').textContent = (kpis.forecast_accuracy || 0).toFixed(1) + '%';
+                    document.getElementById('total-orders').textContent = (kpis.total_orders || 0).toLocaleString();
                 }
             } catch (error) {
                 console.error('Error loading KPI data:', error);
