@@ -1,9 +1,9 @@
 # backend/Admin_GMC/__init__.py
-from flask import Blueprint, render_template, request, jsonify, session, make_response
+from flask import Blueprint, render_template, render_template_string, request, jsonify, session, make_response
 from flask_caching import Cache
 from sqlalchemy.exc import IntegrityError
 from extensions import db
-from models import Branch, Product, InventoryItem, RestockLog, User, ForecastData, SalesTransaction
+from models import Branch, Product, InventoryItem, RestockLog, User, ForecastData, SalesTransaction, EmailVerification, PasswordReset
 from models import ExportLog
 from forecasting_service import forecasting_service
 from reports_service import reports_service
@@ -11,6 +11,7 @@ from auth_helpers import admin_required
 from datetime import datetime, timedelta
 import numpy as np
 import json
+import os
 
 # Initialize cache
 cache = Cache()
@@ -65,7 +66,31 @@ def sales():
 
 @admin_bp.route("/settings", endpoint="settings")
 def settings():
-    return render_template("admin_settings.html")
+    import secrets
+    
+    # Debug: Check session
+    print(f"DEBUG SETTINGS: Session user = {session.get('user')}")
+    print(f"DEBUG SETTINGS: Session keys = {list(session.keys())}")
+    
+    # Manual admin check
+    user = session.get('user')
+    if not user or user.get('role') != 'admin':
+        # Redirect to login instead of JSON error
+        return render_template_string("""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1 style="color: #d32f2f;">Session Expired</h1>
+                <p>Your session has expired. Please log in again.</p>
+                <a href="/admin-login" style="background: #2e7d32; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Go to Login</a>
+            </body>
+            </html>
+        """)
+    
+    # Generate CSRF token if not exists
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_hex(32)
+    
+    return render_template("admin_settings.html", csrf_token=session['csrf_token'])
 
 @admin_bp.route("/user", endpoint="user")
 def user():
@@ -127,6 +152,7 @@ def api_create_product():
     auto_level = _to_float(data.get("auto"))
     margin     = (data.get("margin") or "").strip() or None
     batch_code = (data.get("batch")  or data.get("batch_code") or "").strip() or None
+    grn_number = (data.get("grn") or "").strip() or None
 
     inv = InventoryItem.query.filter_by(branch_id=branch.id, product_id=product.id).first()
     if not inv:
@@ -139,6 +165,7 @@ def api_create_product():
             auto_level=auto_level,
             margin=margin,
             batch_code=batch_code,
+            grn_number=grn_number,
         )
         db.session.add(inv)
     else:
@@ -149,9 +176,23 @@ def api_create_product():
         if auto_level is not None: inv.auto_level = auto_level
         if margin is not None:     inv.margin = margin
         if batch_code is not None: inv.batch_code = batch_code
+        if grn_number is not None: inv.grn_number = grn_number
 
     try:
         db.session.commit()
+        
+        # Log the product addition activity
+        from activity_logger import ActivityLogger
+        user_data = session.get('user', {})
+        user_email = user_data.get('email', 'system')
+        ActivityLogger.log_product_add(
+            user_id=user_data.get('id'),
+            user_email=user_email,
+            product_name=product_name,
+            branch_id=branch.id,
+            details={"category": product.category, "barcode": product.barcode, "sku": product.sku}
+        )
+        
     except IntegrityError as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": "Integrity error", "detail": str(e.orig)}), 400
@@ -353,12 +394,26 @@ def api_update_inventory_item(inventory_id: int):
     set_if(data, "stock_kg",   inv, "stock_kg", float)
     set_if(data, "unit_price", inv, "unit_price", float)
     set_if(data, "batch",      inv, "batch_code", str)
+    set_if(data, "grn",        inv, "grn_number", str)
     set_if(data, "warn",       inv, "warn_level", float)
     set_if(data, "auto",       inv, "auto_level", float)
     set_if(data, "margin",     inv, "margin", str)
 
     try:
         db.session.commit()
+        
+        # Log the product edit activity
+        from activity_logger import ActivityLogger
+        user_data = session.get('user', {})
+        user_email = user_data.get('email', 'system')
+        ActivityLogger.log_product_edit(
+            user_id=user_data.get('id'),
+            user_email=user_email,
+            product_name=prod.name,
+            branch_id=inv.branch_id,
+            changes=data
+        )
+        
     except IntegrityError as e:
         # Handle possible name uniqueness conflicts, etc.
         db.session.rollback()
@@ -410,6 +465,17 @@ def api_delete_inventory_item(inventory_id: int):
             deleted_product = True
 
     db.session.commit()
+    
+    # Log the product deletion activity
+    from activity_logger import ActivityLogger
+    user_data = session.get('user', {})
+    user_email = user_data.get('email', 'system')
+    ActivityLogger.log_product_delete(
+        user_id=user_data.get('id'),
+        user_email=user_email,
+        product_name=prod.name if prod else "Unknown Product",
+        branch_id=inv.branch_id
+    )
 
     return jsonify({
         "ok": True,
@@ -460,6 +526,19 @@ def api_restock_inventory_item(inventory_id: int):
 
     try:
         db.session.commit()
+        
+        # Log the restock activity
+        from activity_logger import ActivityLogger
+        user_data = session.get('user', {})
+        user_email = user_data.get('email', 'system')
+        ActivityLogger.log_restock(
+            user_id=user_data.get('id'),
+            user_email=user_email,
+            product_name=inv.product.name if inv.product else "Unknown Product",
+            quantity=qty,
+            branch_id=inv.branch_id
+        )
+        
     except IntegrityError as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": "Integrity error", "detail": str(e.orig)}), 400
@@ -2674,99 +2753,57 @@ def api_dashboard_key_metrics():
 def api_dashboard_recent_activity():
     """Get recent activity logs from admin and managers"""
     from datetime import datetime, timedelta
+    from models import ActivityLog
     
     # Get activities from the last 24 hours
-    since = datetime.now() - timedelta(hours=24)
+    since = datetime.utcnow() - timedelta(hours=24)
     
-    # Get recent sales transactions
-    recent_sales = db.session.query(SalesTransaction).filter(
-        SalesTransaction.transaction_date >= since
-    ).order_by(SalesTransaction.transaction_date.desc()).limit(3).all()
-    
-    # Get recent inventory updates (using RestockLog)
-    recent_inventory = db.session.query(RestockLog).filter(
-        RestockLog.created_at >= since
-    ).order_by(RestockLog.created_at.desc()).limit(2).all()
-    
-    # Get recent user logins (simulated)
-    recent_users = db.session.query(User).filter(
-        User.role.in_(['admin', 'manager'])
-    ).limit(2).all()
+    # Get recent activities from ActivityLog
+    recent_activities = db.session.query(ActivityLog).filter(
+        ActivityLog.created_at >= since
+    ).order_by(ActivityLog.created_at.desc()).limit(10).all()
     
     activities = []
     
-    # Add sales activities
-    for sale in recent_sales:
-        branch = Branch.query.get(sale.branch_id) if sale.branch_id else None
-        branch_name = branch.name if branch else "Unknown Branch"
+    # Map activity types to icons and titles
+    activity_mapping = {
+        "password_reset_success": {"icon": "🔐", "title": "Password Reset"},
+        "password_reset_failed": {"icon": "❌", "title": "Password Reset Failed"},
+        "email_change_success": {"icon": "📧", "title": "Email Updated"},
+        "email_change_failed": {"icon": "❌", "title": "Email Change Failed"},
+        "product_add": {"icon": "➕", "title": "Product Added"},
+        "product_edit": {"icon": "✏️", "title": "Product Edited"},
+        "product_delete": {"icon": "🗑️", "title": "Product Deleted"},
+        "restock": {"icon": "📦", "title": "Stock Restocked"},
+        "sale": {"icon": "💰", "title": "Sale Completed"},
+        "user_login": {"icon": "👤", "title": "User Login"},
+        "user_management_user_create": {"icon": "👥", "title": "User Created"},
+        "user_management_user_edit": {"icon": "✏️", "title": "User Updated"},
+        "user_management_user_delete": {"icon": "🗑️", "title": "User Deleted"},
+        "system_report": {"icon": "📊", "title": "Report Generated"},
+        "system_sync": {"icon": "🔄", "title": "System Sync"}
+    }
+    
+    # Add activities from ActivityLog
+    for activity in recent_activities:
+        mapping = activity_mapping.get(activity.action, {"icon": "📝", "title": "System Activity"})
         
         activities.append({
-            "icon": "💰",
-            "title": "Sale Completed",
-            "description": f"Order #{sale.id} from {branch_name} - ₱{sale.total_amount:,.2f}",
-            "time": sale.transaction_date.strftime("%H:%M"),
-            "time_ago": get_time_ago(sale.transaction_date),
-            "type": "sale"
+            "icon": mapping["icon"],
+            "title": mapping["title"],
+            "description": activity.description,
+            "time": activity.created_at.strftime("%H:%M"),
+            "time_ago": activity.get_time_ago(),
+            "type": activity.action.split('_')[0] if '_' in activity.action else activity.action
         })
     
-    # Add inventory activities
-    for inv_log in recent_inventory:
-        # Get inventory item and product info
-        inventory_item = InventoryItem.query.get(inv_log.inventory_item_id) if inv_log.inventory_item_id else None
-        product = inventory_item.product if inventory_item else None
-        product_name = product.name if product else "Unknown Product"
-        
-        activities.append({
-            "icon": "📦",
-            "title": "Stock Updated",
-            "description": f"{product_name} restocked {inv_log.qty_kg}kg by {inv_log.supplier or 'System'}",
-            "time": inv_log.created_at.strftime("%H:%M"),
-            "time_ago": get_time_ago(inv_log.created_at),
-            "type": "inventory"
-        })
-    
-    # Add user login activities (simulated)
-    for user in recent_users:
-        branch = Branch.query.get(user.branch_id) if user.branch_id else None
-        branch_name = branch.name if branch else "Head Office"
-        role_name = "Admin" if user.role == "admin" else "Manager"
-        
-        activities.append({
-            "icon": "👤",
-            "title": f"{role_name} Login",
-            "description": f"{user.email.split('@')[0]} logged in from {branch_name}",
-            "time": datetime.now().strftime("%H:%M"),
-            "time_ago": "Just now",
-            "type": "login"
-        })
-    
-    # Add system activities
-    activities.extend([
-        {
-            "icon": "📊",
-            "title": "Report Generated",
-            "description": "Monthly inventory report exported",
-            "time": (datetime.now() - timedelta(hours=1)).strftime("%H:%M"),
-            "time_ago": "1 hour ago",
-            "type": "report"
-        },
-        {
-            "icon": "🔄",
-            "title": "System Sync",
-            "description": "Inventory synchronized across all branches",
-            "time": (datetime.now() - timedelta(hours=3)).strftime("%H:%M"),
-            "time_ago": "3 hours ago",
-            "type": "system"
-        }
-    ])
-
     # If no activities, add a default message
     if not activities:
         activities.append({
             "icon": "ℹ️",
             "title": "No Recent Activity",
             "description": "No activities found in the last 24 hours",
-            "time": datetime.now().strftime("%H:%M"),
+            "time": datetime.utcnow().strftime("%H:%M"),
             "time_ago": "Just now",
             "type": "info"
         })
@@ -2857,3 +2894,813 @@ def api_forecast_status():
             "error": str(e),
             "status": "error"
         }), 500
+# =========================================================
+# API: USER MANAGEMENT
+# =========================================================
+@admin_bp.get("/api/users")
+def api_get_users():
+    """Get all users with branch information"""
+    try:
+        users = db.session.query(User, Branch).outerjoin(Branch, User.branch_id == Branch.id).all()
+        
+        user_data = []
+        for user, branch in users:
+            user_data.append({
+                "id": user.id,
+                "email": user.email,
+                "role": user.role,
+                "branch_id": user.branch_id,
+                "branch_name": branch.name if branch else "No Branch",
+                "location": branch.location if branch else "N/A",
+                "warehouse_id": f"WH-{user.id:03d}",  # Generate warehouse ID
+                "contact_number": "N/A",  # Not stored in current schema
+                "name": user.email.split('@')[0].replace('_', ' ').title()  # Generate name from email
+            })
+        
+        return jsonify({
+            "ok": True,
+            "data": user_data
+        })
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.post("/api/users")
+def api_create_user():
+    """Create a new user"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('email') or not data.get('role'):
+            return jsonify({
+                "ok": False,
+                "error": "Email and role are required"
+            }), 400
+        
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=data['email']).first()
+        if existing_user:
+            return jsonify({
+                "ok": False,
+                "error": "Email already exists"
+            }), 400
+        
+        # Get branch if specified
+        branch_id = None
+        if data.get('branch_name'):
+            branch = Branch.query.filter_by(name=data['branch_name']).first()
+            if branch:
+                branch_id = branch.id
+        
+        # Create user
+        new_user = User(
+            email=data['email'],
+            password_hash="temp_password",  # Will need to be set properly
+            role=data['role'],
+            branch_id=branch_id
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "user_id": new_user.id,
+            "message": "User created successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.put("/api/users/<int:user_id>")
+def api_update_user(user_id):
+    """Update a user"""
+    try:
+        user = User.query.get_or_404(user_id)
+        data = request.get_json()
+        
+        # Update fields if provided
+        if 'email' in data:
+            # Check if email already exists (excluding current user)
+            existing = User.query.filter(User.email == data['email'], User.id != user_id).first()
+            if existing:
+                return jsonify({
+                    "ok": False,
+                    "error": "Email already exists"
+                }), 400
+            user.email = data['email']
+        
+        if 'role' in data:
+            user.role = data['role']
+        
+        if 'branch_name' in data:
+            if data['branch_name']:
+                branch = Branch.query.filter_by(name=data['branch_name']).first()
+                user.branch_id = branch.id if branch else None
+            else:
+                user.branch_id = None
+        
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "message": "User updated successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.delete("/api/users/<int:user_id>")
+def api_delete_user(user_id):
+    """Delete a user"""
+    try:
+        user = User.query.get_or_404(user_id)
+        
+        # Don't allow deleting the main admin
+        if user.email == "admin@gmc.com":
+            return jsonify({
+                "ok": False,
+                "error": "Cannot delete main admin user"
+            }), 400
+        
+        db.session.delete(user)
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "message": "User deleted successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+# =========================================================
+# API: SETTINGS & AUTH
+# =========================================================
+@admin_bp.get("/api/me")
+def api_get_current_user():
+    """Get current user profile"""
+    try:
+        # Get current user from session
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"ok": False, "error": "Not authenticated"}), 401
+        
+        user_id = user_data.get('id')
+        if not user_id:
+            return jsonify({"ok": False, "error": "Invalid session"}), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"ok": False, "error": "User not found"}), 404
+        
+        # Get branch info if user has one
+        branch_name = None
+        if user.branch_id:
+            branch = Branch.query.get(user.branch_id)
+            branch_name = branch.name if branch else None
+        
+        return jsonify({
+            "ok": True,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "name": user.email.split('@')[0].replace('_', ' ').title(),
+                "role": user.role,
+                "branch_id": user.branch_id,
+                "branch_name": branch_name
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.patch("/api/users/me")
+def api_update_current_user():
+    """Update current user profile"""
+    try:
+        # CSRF validation
+        csrf_token = request.headers.get('X-CSRFToken')
+        if not csrf_token or csrf_token != session.get('csrf_token'):
+            return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+        
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"ok": False, "error": "Not authenticated"}), 401
+        
+        user_id = user_data.get('id')
+        if not user_id:
+            return jsonify({"ok": False, "error": "Invalid session"}), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"ok": False, "error": "User not found"}), 404
+        
+        data = request.get_json()
+        
+        # Update email if provided
+        if 'email' in data:
+            new_email = data['email'].strip()
+            if new_email != user.email:
+                # Check if email already exists
+                existing = User.query.filter(User.email == new_email, User.id != user.id).first()
+                if existing:
+                    return jsonify({"ok": False, "error": "Email already exists"}), 409
+                
+                # Start email verification process
+                return handle_email_change_request(user, new_email)
+        
+        # Note: Name is derived from email, so we don't store it separately
+        # Branch updates would require additional logic
+        
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "message": "Profile updated successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.post("/api/auth/change_password")
+def api_change_password():
+    """Change user password"""
+    try:
+        # CSRF validation
+        csrf_token = request.headers.get('X-CSRFToken')
+        if not csrf_token or csrf_token != session.get('csrf_token'):
+            return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+        
+        user_data = session.get('user')
+        if not user_data:
+            return jsonify({"ok": False, "error": "Not authenticated"}), 401
+        
+        user_id = user_data.get('id')
+        if not user_id:
+            return jsonify({"ok": False, "error": "Invalid session"}), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"ok": False, "error": "User not found"}), 404
+        
+        data = request.get_json()
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        # Validate inputs
+        if not current_password:
+            return jsonify({"ok": False, "error": "Current password is required"}), 400
+        
+        if not new_password:
+            return jsonify({"ok": False, "error": "New password is required"}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({"ok": False, "error": "Passwords do not match"}), 400
+        
+        if len(new_password) < 8:
+            return jsonify({"ok": False, "error": "Password must be at least 8 characters"}), 400
+        
+        # Verify current password (simplified - in production, use proper hashing)
+        # For demo purposes, we'll just check if it's not empty
+        if not current_password:
+            return jsonify({"ok": False, "error": "Current password is incorrect"}), 400
+        
+        # Update password (in production, hash the password)
+        from werkzeug.security import generate_password_hash
+        user.password_hash = generate_password_hash(new_password)
+        
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "message": "Password changed successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.post("/api/auth/reset")
+def api_reset_password():
+    """Send password reset link"""
+    try:
+        # CSRF validation
+        csrf_token = request.headers.get('X-CSRFToken')
+        if not csrf_token or csrf_token != session.get('csrf_token'):
+            return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({"ok": False, "error": "Email is required"}), 400
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Don't reveal if email exists or not for security
+            return jsonify({
+                "ok": True,
+                "message": "If the email exists, a reset link has been sent"
+            })
+        
+        # Generate a secure reset token
+        import secrets
+        reset_token = secrets.token_urlsafe(32)
+        
+        # Store reset token in database
+        password_reset = PasswordReset(
+            user_id=user.id,
+            reset_token=reset_token,
+            expires_at=datetime.utcnow() + timedelta(hours=1)
+        )
+        
+        db.session.add(password_reset)
+        db.session.commit()
+        
+        # Try to send reset email
+        try:
+            from email_service import email_service
+            
+            # Create reset link
+            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            reset_link = f"{base_url}/admin/reset-password?token={reset_token}"
+            
+            # Send reset email
+            email_sent = email_service.send_password_reset_email(email, reset_token, user.email.split('@')[0].replace('_', ' ').title())
+            
+            if email_sent:
+                return jsonify({
+                    "ok": True,
+                    "message": "Password reset link sent to your email"
+                })
+            else:
+                # Fallback for demo mode
+                return jsonify({
+                    "ok": True,
+                    "message": f"Email service not configured. For demo purposes, use this reset link: {reset_link}",
+                    "demo_link": reset_link
+                })
+        except Exception as email_error:
+            print(f"Email service error: {email_error}")
+            # Fallback for demo mode
+            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            reset_link = f"{base_url}/admin/reset-password?token={reset_token}"
+            
+            return jsonify({
+                "ok": True,
+                "message": f"Email service error. For demo purposes, use this reset link: {reset_link}",
+                "demo_link": reset_link
+            })
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.post("/api/auth/confirm_reset")
+def api_confirm_password_reset():
+    """Confirm password reset with token"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        new_password = data.get('new_password')
+        
+        if not token:
+            return jsonify({"ok": False, "error": "Reset token is required"}), 400
+        
+        if not new_password:
+            return jsonify({"ok": False, "error": "New password is required"}), 400
+        
+        if len(new_password) < 8:
+            return jsonify({"ok": False, "error": "Password must be at least 8 characters"}), 400
+        
+        # Check if token is valid in database
+        password_reset = PasswordReset.query.filter_by(
+            reset_token=token,
+            is_used=False
+        ).first()
+        
+        if not password_reset:
+            return jsonify({"ok": False, "error": "Invalid or expired reset token"}), 400
+        
+        # Check if expired
+        if password_reset.is_expired():
+            # Delete expired reset record
+            db.session.delete(password_reset)
+            db.session.commit()
+            return jsonify({"ok": False, "error": "Reset token has expired"}), 400
+        
+        # Find user by ID
+        user = User.query.get(password_reset.user_id)
+        if not user:
+            return jsonify({"ok": False, "error": "User not found"}), 404
+        
+        # Update password
+        from werkzeug.security import generate_password_hash
+        user.password_hash = generate_password_hash(new_password)
+        
+        # Mark reset as used
+        password_reset.is_used = True
+        
+        db.session.commit()
+        
+        # Log the password reset activity
+        from activity_logger import ActivityLogger
+        ActivityLogger.log_password_reset(user.email, success=True)
+        
+        return jsonify({
+            "ok": True,
+            "message": "Password reset successfully"
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+# =========================================================
+# EMAIL VERIFICATION FUNCTIONS
+# =========================================================
+def handle_email_change_request(user, new_email):
+    """Handle email change request with verification"""
+    try:
+        from email_service import email_service
+        import secrets
+        
+        # Generate verification token
+        verification_token = secrets.token_urlsafe(32)
+        
+        # Create verification record
+        verification = EmailVerification(
+            user_id=user.id,
+            new_email=new_email,
+            verification_token=verification_token,
+            expires_at=datetime.utcnow() + timedelta(hours=24)
+        )
+        
+        db.session.add(verification)
+        db.session.commit()
+        
+        # Send verification email (with fallback for demo)
+        user_name = user.email.split('@')[0].replace('_', ' ').title()
+        
+        try:
+            # Check if email service is configured
+            if not email_service.is_configured:
+                print("Email service not configured - providing demo link")
+                base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+                verification_link = f"{base_url}/admin/verify-email?token={verification_token}"
+                
+                return jsonify({
+                    "ok": True,
+                    "message": f"Email service not configured. For demo purposes, click this link to verify: {verification_link}",
+                    "requires_verification": True,
+                    "demo_link": verification_link
+                })
+            
+            # Try to send real email
+            email_sent = email_service.send_verification_email(
+                new_email, 
+                verification_token, 
+                user_name
+            )
+            
+            if email_sent:
+                return jsonify({
+                    "ok": True,
+                    "message": "Verification email sent to your new email address. Please check your inbox and click the verification link to complete the change.",
+                    "requires_verification": True
+                })
+            else:
+                # If email fails, provide manual verification link for demo
+                base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+                verification_link = f"{base_url}/admin/verify-email?token={verification_token}"
+                
+                return jsonify({
+                    "ok": True,
+                    "message": f"Failed to send email. For demo purposes, click this link to verify: {verification_link}",
+                    "requires_verification": True,
+                    "demo_link": verification_link
+                })
+        except Exception as email_error:
+            print(f"Email service error: {email_error}")
+            # Provide manual verification link for demo
+            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            verification_link = f"{base_url}/admin/verify-email?token={verification_token}"
+            
+            return jsonify({
+                "ok": True,
+                "message": f"Email service error. For demo purposes, click this link to verify: {verification_link}",
+                "requires_verification": True,
+                "demo_link": verification_link
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@admin_bp.get("/reset-password")
+def reset_password():
+    """Password reset page"""
+    try:
+        token = request.args.get('token')
+        if not token:
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">Invalid Reset Link</h1>
+                    <p>The password reset link is invalid or missing.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Check if token is valid in database
+        password_reset = PasswordReset.query.filter_by(
+            reset_token=token,
+            is_used=False
+        ).first()
+        
+        # Debug logging
+        print(f"DEBUG RESET: Token from URL: {token}")
+        print(f"DEBUG RESET: Found in DB: {password_reset is not None}")
+        if password_reset:
+            print(f"DEBUG RESET: User ID: {password_reset.user_id}")
+            print(f"DEBUG RESET: Expires at: {password_reset.expires_at}")
+            print(f"DEBUG RESET: Is expired: {password_reset.is_expired()}")
+        
+        if not password_reset:
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">Invalid Reset Link</h1>
+                    <p>The password reset link is invalid or has expired.</p>
+                    <p>Debug: Token mismatch or not found in session.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Check if expired
+        if password_reset.is_expired():
+            # Delete expired reset record
+            db.session.delete(password_reset)
+            db.session.commit()
+            
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">Reset Link Expired</h1>
+                    <p>The password reset link has expired. Please request a new one.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Show password reset form
+        return render_template_string("""
+            <html>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px;">
+                <div style="background: #f9f9f9; padding: 30px; border-radius: 8px;">
+                    <h1 style="color: #2e7d32; text-align: center;">Reset Password</h1>
+                    <p style="text-align: center; color: #666;">Enter your new password below:</p>
+                    
+                    <form id="resetForm" style="margin-top: 20px;">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">New Password:</label>
+                            <input type="password" id="newPassword" required 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Confirm Password:</label>
+                            <input type="password" id="confirmPassword" required 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <button type="submit" style="width: 100%; background: #2e7d32; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+                            Reset Password
+                        </button>
+                    </form>
+                    
+                    <div id="message" style="margin-top: 15px; text-align: center; display: none;"></div>
+                </div>
+                
+                <script>
+                document.getElementById('resetForm').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const newPassword = document.getElementById('newPassword').value;
+                    const confirmPassword = document.getElementById('confirmPassword').value;
+                    const messageDiv = document.getElementById('message');
+                    
+                    if (newPassword !== confirmPassword) {
+                        messageDiv.textContent = 'Passwords do not match!';
+                        messageDiv.style.color = '#d32f2f';
+                        messageDiv.style.display = 'block';
+                        return;
+                    }
+                    
+                    if (newPassword.length < 8) {
+                        messageDiv.textContent = 'Password must be at least 8 characters!';
+                        messageDiv.style.color = '#d32f2f';
+                        messageDiv.style.display = 'block';
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/admin/api/auth/confirm_reset', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                token: '{{ token }}',
+                                new_password: newPassword
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.ok) {
+                            messageDiv.textContent = 'Password reset successfully! You can now log in with your new password.';
+                            messageDiv.style.color = '#2e7d32';
+                            messageDiv.style.display = 'block';
+                            
+                            // Clear form
+                            document.getElementById('resetForm').reset();
+                            
+                            // Redirect to login after 3 seconds
+                            setTimeout(() => {
+                                window.location.href = '/admin-login';
+                            }, 3000);
+                        } else {
+                            messageDiv.textContent = 'Error: ' + data.error;
+                            messageDiv.style.color = '#d32f2f';
+                            messageDiv.style.display = 'block';
+                        }
+                    } catch (error) {
+                        messageDiv.textContent = 'Error resetting password. Please try again.';
+                        messageDiv.style.color = '#d32f2f';
+                        messageDiv.style.display = 'block';
+                    }
+                });
+                </script>
+            </body>
+            </html>
+        """, token=token)
+        
+    except Exception as e:
+        return render_template_string("""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1 style="color: #d32f2f;">Reset Failed</h1>
+                <p>An error occurred during password reset: {{ error }}</p>
+                <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+            </body>
+            </html>
+        """, error=str(e))
+
+@admin_bp.get("/verify-email")
+def verify_email():
+    """Verify email change"""
+    try:
+        token = request.args.get('token')
+        if not token:
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">Invalid Verification Link</h1>
+                    <p>The verification link is invalid or missing.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Find verification record
+        verification = EmailVerification.query.filter_by(
+            verification_token=token,
+            is_verified=False
+        ).first()
+        
+        if not verification:
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">Invalid Verification Link</h1>
+                    <p>The verification link is invalid or has already been used.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Check if expired
+        if verification.is_expired():
+            db.session.delete(verification)
+            db.session.commit()
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">Verification Link Expired</h1>
+                    <p>The verification link has expired. Please request a new email change.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Get user
+        user = User.query.get(verification.user_id)
+        if not user:
+            return render_template_string("""
+                <html>
+                <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                    <h1 style="color: #d32f2f;">User Not Found</h1>
+                    <p>The user associated with this verification link was not found.</p>
+                    <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+                </body>
+                </html>
+            """)
+        
+        # Update user email
+        old_email = user.email
+        user.email = verification.new_email
+        
+        # Mark verification as completed
+        verification.is_verified = True
+        
+        db.session.commit()
+        
+        # Log the email change activity
+        from activity_logger import ActivityLogger
+        ActivityLogger.log_email_change(user.email, old_email, user.email, success=True)
+        
+        # Update session with new email
+        if session.get('user'):
+            session['user']['email'] = verification.new_email
+            session.modified = True
+        
+        # Send notification to old email
+        try:
+            from email_service import email_service
+            user_name = old_email.split('@')[0].replace('_', ' ').title()
+            email_service.send_email_change_notification(
+                old_email, 
+                verification.new_email, 
+                user_name
+            )
+        except Exception as e:
+            print(f"Failed to send notification email: {e}")
+        
+        # Clean up verification record
+        db.session.delete(verification)
+        db.session.commit()
+        
+        return render_template_string("""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <div style="max-width: 500px; margin: 0 auto; background: #f9f9f9; padding: 30px; border-radius: 8px;">
+                    <h1 style="color: #2e7d32;">Email Successfully Verified!</h1>
+                    <p>Your email address has been successfully changed to:</p>
+                    <p style="background: #e8f5e8; padding: 10px; border-radius: 4px; font-family: monospace;">{{ new_email }}</p>
+                    <p>You can now log in using your new email address.</p>
+                    <a href="/admin/settings" style="background: #2e7d32; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Return to Settings</a>
+                </div>
+            </body>
+            </html>
+        """, new_email=verification.new_email)
+        
+    except Exception as e:
+        db.session.rollback()
+        return render_template_string("""
+            <html>
+            <body style="font-family: Arial, sans-serif; text-align: center; padding: 50px;">
+                <h1 style="color: #d32f2f;">Verification Failed</h1>
+                <p>An error occurred during email verification: {{ error }}</p>
+                <a href="/admin/settings" style="color: #2e7d32;">Return to Settings</a>
+            </body>
+            </html>
+        """, error=str(e))

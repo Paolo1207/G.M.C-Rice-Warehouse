@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Dashboard - GMC Admin</title>
 <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
 
 <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Settings.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="{{ url_for('admin.static', filename='js/settings.js') }}"></script>
 </head>
 <body>
   <!-- Sidebar directly embedded -->
@@ -172,28 +174,10 @@
             <h3>Profile Information</h3>
             <form class="profile-form">
                 <label>Full Name:
-                    <input type="text" value="John Doe" required>
+                    <input type="text" name="name" value="John Doe" required>
                 </label>
                 <label>Email Address:
-                    <input type="email" value="admin@gmc.com" required>
-                </label>
-                <label>Assigned Branch:
-                    <select required>
-                        <option>Main Branch</option>
-                        <option>Marawoy</option>
-                        <option>Lima</option>
-                        <option>Malvar</option>
-                        <option>Bulacnin</option>
-                        <option>Bulacnin Main</option>
-                        <option>Boac</option>
-                        <option>Sta. Cruz</option>
-                    </select>
-                </label>
-                <label>Role:
-                    <select required>
-                        <option>System Admin</option>
-                        <option>Branch Manager</option>
-                    </select>
+                    <input type="email" name="email" value="admin@gmc.com" required>
                 </label>
                 <button type="submit" class="save-profile-btn">Save Changes</button>
             </form>
@@ -203,14 +187,14 @@
             <h3>Change Password</h3>
             <form class="password-form">
                 <label>Current Password:
-                    <input type="password" required>
+                    <input type="password" name="current_password" required>
                 </label>
                 <label>New Password:
-                    <input type="password" required>
+                    <input type="password" name="new_password" required>
                     <div class="password-strength"><span class="strength-bar"></span> <span class="strength-label">Weak</span></div>
                 </label>
                 <label>Confirm New Password:
-                    <input type="password" required>
+                    <input type="password" name="confirm_password" required>
                 </label>
                 <button type="submit" class="update-password-btn">Update Password</button>
             </form>
@@ -220,66 +204,11 @@
             <h3>Forgot Password?</h3>
             <form class="reset-form">
                 <label>Email Address:
-                    <input type="email" value="admin@gmc.com" required>
+                    <input type="email" name="reset_email" id="reset_email" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
                 </label>
                 <button type="submit" class="send-reset-btn">Send Reset Link</button>
-                <div class="reset-info">A secure reset link will be sent to your Gmail for password reconfiguration.</div>
+                <div class="reset-info">A secure reset link will be sent to your registered email for password reconfiguration.</div>
             </form>
-        </section>
-        <!-- System Preferences & Controls -->
-        <section class="settings-section system-preferences-section">
-            <h3>System Preferences & Controls</h3>
-            <div class="preferences-group">
-                <div class="preference-card">
-                    <h4>Low Stock Thresholds</h4>
-                    <form class="thresholds-form">
-                        <label>Sinandomeng: <input type="number" min="1" value="20"> kg</label>
-                        <label>Dinorado: <input type="number" min="1" value="20"> kg</label>
-                        <label>Jasmine: <input type="number" min="1" value="20"> kg</label>
-                        <label>Premium: <input type="number" min="1" value="20"> kg</label>
-                        <button type="submit" class="save-thresholds-btn">Save Thresholds</button>
-                    </form>
-                </div>
-                <div class="preference-card">
-                    <h4>Regional Settings</h4>
-                    <form class="regional-form">
-                        <label>Branch:
-                            <select>
-                                <option>Main Branch</option>
-                                <option>Marawoy</option>
-                                <option>Lima</option>
-                                <option>Malvar</option>
-                                <option>Bulacnin</option>
-                                <option>Bulacnin Main</option>
-                                <option>Boac</option>
-                                <option>Sta. Cruz</option>
-                            </select>
-                        </label>
-                        <label>Timezone:
-                            <select>
-                                <option>Asia/Manila</option>
-                                <option>Asia/Singapore</option>
-                                <option>Asia/Tokyo</option>
-                            </select>
-                        </label>
-                        <label>Contact Info:
-                            <input type="text" placeholder="e.g., 0917-123-4567">
-                        </label>
-                        <label>Delivery Window:
-                            <input type="text" placeholder="e.g., 8:00 AM - 5:00 PM">
-                        </label>
-                        <button type="submit" class="save-regional-btn">Save Regional Settings</button>
-                    </form>
-                </div>
-                <div class="preference-card">
-                    <h4>System Maintenance Tools</h4>
-                    <form class="maintenance-form">
-                        <label><input type="checkbox"> System Lock (prevent actions during updates)</label>
-                        <label><input type="checkbox"> Enable/Disable Modules for Maintenance</label>
-                        <button type="button" class="retrain-btn">Trigger Forecast Model Retraining</button>
-                    </form>
-                </div>
-            </div>
         </section>
         <!-- Log Out Button -->
         <section class="settings-section logout-section">

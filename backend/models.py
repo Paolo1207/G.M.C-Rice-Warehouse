@@ -1,5 +1,5 @@
 # models.py
-from datetime import datetime
+from datetime import datetime, timedelta
 from extensions import db
 
 class Branch(db.Model):
@@ -54,6 +54,7 @@ class InventoryItem(db.Model):
     stock_kg = db.Column(db.Float, default=0)
     unit_price = db.Column(db.Float, default=0)
     batch_code = db.Column(db.String(120))
+    grn_number = db.Column(db.String(120))
 
     # optional thresholds/margins
     warn_level = db.Column(db.Float)
@@ -90,6 +91,7 @@ class InventoryItem(db.Model):
             "stock": self.stock_kg,
             "price": self.unit_price,
             "batch": self.batch_code,
+            "grn": self.grn_number,
             "warn": self.warn_level,
             "auto": self.auto_level,
             "margin": self.margin,
@@ -126,6 +128,74 @@ class User(db.Model):
     password_hash = db.Column(db.String, nullable=False)
     role = db.Column(db.String, default="manager")  # "admin" | "manager"
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=True)  # required for manager
+
+class EmailVerification(db.Model):
+    __tablename__ = "email_verifications"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    new_email = db.Column(db.String, nullable=False)
+    verification_token = db.Column(db.String, unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_verified = db.Column(db.Boolean, default=False)
+    
+    def is_expired(self):
+        return datetime.utcnow() > self.expires_at
+
+class PasswordReset(db.Model):
+    __tablename__ = "password_resets"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    reset_token = db.Column(db.String, unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
+    
+    def is_expired(self):
+        return datetime.utcnow() > self.expires_at
+
+class ActivityLog(db.Model):
+    __tablename__ = "activity_logs"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    user_email = db.Column(db.String, nullable=True)  # Store email for deleted users
+    action = db.Column(db.String, nullable=False)  # reset_password, email_change, add_stock, edit_product, delete_product, restock, etc.
+    description = db.Column(db.String, nullable=False)
+    details = db.Column(db.Text)  # JSON string for additional details
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship("User", backref="activity_logs")
+    branch = db.relationship("Branch", backref="activity_logs")
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_email": self.user_email,
+            "action": self.action,
+            "description": self.description,
+            "details": self.details,
+            "branch_name": self.branch.name if self.branch else None,
+            "created_at": self.created_at.isoformat(),
+            "time_ago": self.get_time_ago()
+        }
+    
+    def get_time_ago(self):
+        """Get human-readable time ago"""
+        now = datetime.utcnow()
+        diff = now - self.created_at
+        
+        if diff.days > 0:
+            return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+        elif diff.seconds > 3600:
+            hours = diff.seconds // 3600
+            return f"{hours} hour{'s' if hours > 1 else ''} ago"
+        elif diff.seconds > 60:
+            minutes = diff.seconds // 60
+            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+        else:
+            return "Just now"
 
 class ForecastData(db.Model):
     __tablename__ = "forecast_data"

@@ -285,35 +285,39 @@
 
     <!-- INVENTORY TAB -->
     <div id="inventoryTab" class="tab-pane active">
-      <table class="inventory-table">
-        <thead>
-          <tr>
-            <th>Rice Variant</th>
-            <th>Stock (kg)</th>
-            <th>Price/Unit</th>
-            <th>Status</th>
-            <th>Batch Code</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="invTableBody"></tbody>
-      </table>
+      <div class="table-container">
+        <table class="inventory-table">
+          <thead>
+            <tr>
+              <th>Rice Variant</th>
+              <th>Stock (kg)</th>
+              <th>Price/Unit</th>
+              <th>Status</th>
+              <th>Batch Code</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="invTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- RESTOCK LOG TAB -->
     <div id="restockTab" class="tab-pane" style="display:none;">
-      <table class="inventory-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Variant</th>
-            <th>Qty (kg)</th>
-            <th>By</th>
-            <th>Note</th>
-          </tr>
-        </thead>
-        <tbody id="logTableBody"></tbody>
-      </table>
+      <div class="table-container">
+        <table class="inventory-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Variant</th>
+              <th>Qty (kg)</th>
+              <th>By</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -325,44 +329,56 @@
 
     <form id="addProductForm" class="grid-2col gap-16">
       <div class="form-group">
-        <label>Product Name</label>
-        <input name="variant" placeholder="Product Name" required>
+        <label>Product Name <span class="required">*</span></label>
+        <input name="variant" placeholder="Product Name" required 
+               pattern="[A-Za-z0-9\s\-_]+" 
+               title="Product name can only contain letters, numbers, spaces, hyphens, and underscores">
       </div>
       <div class="form-group">
-        <label>Warning Threshold Stock Level</label>
-        <input name="warn" placeholder="Ex: 100" inputmode="numeric">
+        <label>Warning Threshold Stock Level <span class="required">*</span></label>
+        <input name="warn" type="number" min="0" step="0.01" placeholder="Ex: 100" required>
       </div>
       <div class="form-group">
-        <label>Auto Order Stock Level</label>
-        <input name="auto" placeholder="Ex: 50" inputmode="numeric">
+        <label>Auto Order Stock Level <span class="required">*</span></label>
+        <input name="auto" type="number" min="0" step="0.01" placeholder="Ex: 50" required>
       </div>
       <div class="form-group">
-        <label>Category</label>
-        <input name="category" placeholder="Category">
+        <label>Category <span class="required">*</span></label>
+        <input name="category" placeholder="Category" required>
       </div>
       <div class="form-group">
-        <label>Barcode Number</label>
-        <input name="barcode" placeholder="Barcode Number">
+        <label>Barcode Number <span class="required">*</span></label>
+        <input name="barcode" type="text" placeholder="Barcode Number" required
+               pattern="[0-9]+" 
+               title="Barcode must contain only numbers">
       </div>
       <div class="form-group">
         <label>GRN Number (Optional)</label>
         <input name="grn" placeholder="GRN Number (Optional)">
       </div>
       <div class="form-group">
-        <label>Recorded Stock Level</label>
-        <input name="stock" placeholder="Ex: 2000" inputmode="numeric">
+        <label>Recorded Stock Level <span class="required">*</span></label>
+        <input name="stock" type="number" min="0" step="0.01" placeholder="Ex: 2000" required>
       </div>
       <div class="form-group">
-        <label>Purchasing Price</label>
-        <input name="price" placeholder="Ex: 100" inputmode="numeric">
+        <label>Purchasing Price <span class="required">*</span></label>
+        <input name="price" type="number" min="0" step="0.01" placeholder="Ex: 100" required>
       </div>
       <div class="form-group">
-        <label>Selling Price Margin</label>
-        <input name="margin" placeholder="Ex: 20%">
+        <label>Selling Price Margin <span class="required">*</span></label>
+        <input name="margin" type="number" min="0" max="100" step="0.01" placeholder="Ex: 20" required>
       </div>
       <div class="form-group">
-        <label>SKU Code</label>
-        <input name="sku" placeholder="SKU Code">
+        <label>SKU Code <span class="required">*</span></label>
+        <input name="sku" placeholder="SKU Code" required
+               pattern="[A-Za-z0-9\-_]+" 
+               title="SKU code can contain letters, numbers, hyphens, and underscores">
+      </div>
+      <div class="form-group">
+        <label>Batch Code <span class="required">*</span></label>
+        <input name="batch" placeholder="Batch Code" required
+               pattern="[A-Za-z0-9\-_]+" 
+               title="Batch code can contain letters, numbers, hyphens, and underscores">
       </div>
       <div class="form-group col-span-2">
         <label>Product Description</label>
@@ -386,15 +402,17 @@
       <!-- keep-empty placeholders -->
       <div class="form-group">
         <label>Product Name <small>(optional)</small></label>
-        <input name="variant" placeholder="Leave empty to keep current name">
+        <input name="variant" placeholder="Leave empty to keep current name"
+               pattern="[A-Za-z0-9\s\-_]+" 
+               title="Product name can only contain letters, numbers, spaces, hyphens, and underscores">
       </div>
       <div class="form-group">
         <label>Warning Threshold Stock Level <small>(optional)</small></label>
-        <input name="warn" placeholder="Leave empty to keep current" inputmode="numeric">
+        <input name="warn" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
       </div>
       <div class="form-group">
         <label>Auto Order Stock Level <small>(optional)</small></label>
-        <input name="auto" placeholder="Leave empty to keep current" inputmode="numeric">
+        <input name="auto" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
       </div>
       <div class="form-group">
         <label>Category <small>(optional)</small></label>
@@ -402,7 +420,9 @@
       </div>
       <div class="form-group">
         <label>Barcode Number <small>(optional)</small></label>
-        <input name="barcode" placeholder="Leave empty to keep current">
+        <input name="barcode" placeholder="Leave empty to keep current"
+               pattern="[0-9]+" 
+               title="Barcode must contain only numbers">
       </div>
       <div class="form-group">
         <label>GRN Number <small>(optional)</small></label>
@@ -410,19 +430,27 @@
       </div>
       <div class="form-group">
         <label>Recorded Stock Level <small>(optional)</small></label>
-        <input name="stock" placeholder="Leave empty to keep current" inputmode="numeric">
+        <input name="stock" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
       </div>
       <div class="form-group">
         <label>Purchasing Price <small>(optional)</small></label>
-        <input name="price" placeholder="Leave empty to keep current" inputmode="numeric">
+        <input name="price" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
       </div>
       <div class="form-group">
         <label>Selling Price Margin <small>(optional)</small></label>
-        <input name="margin" placeholder="Leave empty to keep current">
+        <input name="margin" type="number" min="0" max="100" step="0.01" placeholder="Leave empty to keep current">
       </div>
       <div class="form-group">
         <label>SKU Code <small>(optional)</small></label>
-        <input name="sku" placeholder="Leave empty to keep current">
+        <input name="sku" placeholder="Leave empty to keep current"
+               pattern="[A-Za-z0-9\-_]+" 
+               title="SKU code can contain letters, numbers, hyphens, and underscores">
+      </div>
+      <div class="form-group">
+        <label>Batch Code <small>(optional)</small></label>
+        <input name="batch" placeholder="Leave empty to keep current"
+               pattern="[A-Za-z0-9\-_]+" 
+               title="Batch code can contain letters, numbers, hyphens, and underscores">
       </div>
       <div class="form-group col-span-2">
         <label>Product Description <small>(optional)</small></label>
@@ -443,8 +471,10 @@
     <button class="close-btn" data-close="#viewProductModal" aria-label="Close">&times;</button>
     <h2 style="margin-top:0;color:#2e7d32">Product Details</h2>
 
-    <div class="grid-3col gap-16" id="viewFields">
-      <!-- filled by JS -->
+    <div class="view-modal-container">
+      <div class="grid-3col gap-16" id="viewFields">
+        <!-- filled by JS -->
+      </div>
     </div>
   </div>
 </div>
@@ -660,7 +690,7 @@ function mapServerItemToClient(it){
     margin:     it.margin ?? "",
 
     batch:      it.batch ?? it.batch_code ?? "",
-    grn:        it.batch ?? it.batch_code ?? "",
+    grn:        it.grn ?? it.grn_number ?? "",
 
     desc:       it.desc ?? it.description ?? "",
     status:     it.status ?? derivedStatus,
@@ -870,7 +900,8 @@ document.getElementById("addProductForm").addEventListener("submit", async (e)=>
     margin:       (fd.get("margin")   || "").trim(),
     stock_kg:     fd.get("stock") === "" ? 0 : Number(fd.get("stock")),
     unit_price:   fd.get("price") === "" ? 0 : Number(fd.get("price")),
-    batch:        (fd.get("grn") || "").trim()
+    grn:          (fd.get("grn") || "").trim(),
+    batch:        (fd.get("batch") || "").trim()
   };
 
   if (!payload.product_name) { alert("Product name is required."); return; }
@@ -978,7 +1009,8 @@ function onEditItem(e){
   form.querySelector('input[name="auto"]').placeholder    = it.auto ?? "";
   form.querySelector('input[name="category"]').placeholder= it.category || "";
   form.querySelector('input[name="barcode"]').placeholder = it.barcode || "";
-  form.querySelector('input[name="grn"]').placeholder     = it.batch || "";
+  form.querySelector('input[name="grn"]').placeholder     = it.grn || "";
+  form.querySelector('input[name="batch"]').placeholder   = it.batch || "";
   form.querySelector('input[name="stock"]').placeholder   = it.stock ?? 0;
   form.querySelector('input[name="price"]').placeholder   = it.price ?? 0;
   form.querySelector('input[name="margin"]').placeholder  = it.margin || "";
@@ -1018,7 +1050,8 @@ document.getElementById("editProductForm").addEventListener("submit", async (e)=
     desc:         onlyIfFilled("desc", v=>v.trim()),
     stock_kg:     onlyIfFilled("stock", Number),
     unit_price:   onlyIfFilled("price", Number),
-    batch:        onlyIfFilled("grn", v=>v.trim()),
+    batch:        onlyIfFilled("batch", v=>v.trim()),
+    grn:          onlyIfFilled("grn", v=>v.trim()),
     warn:         onlyIfFilled("warn", Number),
     auto:         onlyIfFilled("auto", Number),
     margin:       onlyIfFilled("margin", v=>v.trim()),
@@ -1386,6 +1419,208 @@ function exportCSV(){
         
         #restockProductModal .action-btn[type="submit"]:hover {
             background: #388e3c;
+        }
+
+        /* Scrollable Table Container */
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Ensure table headers stay visible */
+        .table-container table {
+            margin: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table-container thead th {
+            position: sticky;
+            top: 0;
+            background: #2e7d32;
+            color: white;
+            z-index: 10;
+            border-bottom: 2px solid #1b5e20;
+        }
+
+        /* Style for table rows */
+        .table-container tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table-container tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .table-container {
+                max-height: 300px;
+            }
+        }
+
+        /* View Product Modal Scrollable Container */
+        .view-modal-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .view-modal-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .view-modal-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .view-modal-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .view-modal-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Style for form fields in view modal */
+        .view-modal-container .form-group {
+            margin-bottom: 16px;
+        }
+
+        .view-modal-container .form-group label {
+            font-weight: 600;
+            color: #2e7d32;
+            font-size: 14px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .view-modal-container .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            font-size: 14px;
+        }
+
+        .view-modal-container .form-group input:focus {
+            outline: none;
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.1);
+        }
+
+        /* Responsive for view modal */
+        @media (max-width: 768px) {
+            .view-modal-container {
+                max-height: 400px;
+            }
+        }
+
+        /* Form Validation Styles */
+        .required {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        /* Input validation states */
+        input:invalid {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.1);
+        }
+
+        input:valid {
+            border-color: #4caf50;
+        }
+
+        input:focus:invalid {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
+        }
+
+        input:focus:valid {
+            border-color: #4caf50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+
+        /* Error message styling */
+        .error-message {
+            color: #d32f2f;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group.error input {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.1);
+        }
+
+        .form-group.error .error-message {
+            display: block;
+        }
+
+        /* Success message styling */
+        .success-message {
+            color: #4caf50;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group.success input {
+            border-color: #4caf50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+        }
+
+        .form-group.success .success-message {
+            display: block;
+        }
+
+        /* Form field improvements */
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Pattern validation feedback */
+        input:not(:placeholder-shown):invalid {
+            border-color: #d32f2f;
+        }
+
+        input:not(:placeholder-shown):valid {
+            border-color: #4caf50;
         }
     </style>
     <script src="../js/inventory.js"></script>

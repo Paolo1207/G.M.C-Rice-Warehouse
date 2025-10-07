@@ -92,12 +92,19 @@
 .user-modal {
   /* Modal overlay for add/edit user */
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.2);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  margin: 0;
+  padding: 0;
 }
 
 .user-modal-content {
@@ -105,7 +112,11 @@
   border-radius: 10px;
   padding: 2rem 2.5rem;
   min-width: 350px;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
   box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+  margin: auto;
 }
 
 .user-form label {
@@ -223,4 +234,40 @@
 
 .reset-password-btn:hover {
   background: #0d47a1;
+}
+
+/* User Details Modal Styles */
+.user-detail-item {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.user-detail-item:last-child {
+  border-bottom: none;
+}
+
+.user-detail-item strong {
+  color: #333;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.role-badge.admin {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.role-badge.manager {
+  background: #f3e5f5;
+  color: #7b1fa2;
 }
