@@ -677,6 +677,19 @@ body.sidebar-collapsed .main-content {
   color: #dc2626;
 }
 
+/* Recent Activity Widget */
+.recent-activity-widget {
+  flex: 1;
+  min-width: 0;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.activity-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
 /* Responsive design for metrics grid */
 @media (max-width: 1200px) {
   .metrics-grid-full {

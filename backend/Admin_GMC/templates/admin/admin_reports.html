@@ -174,9 +174,9 @@
             <div class="reports-filters">
                 <label>Date Range:
                     <select id="dateRangeSelect">
-                        <option value="7" selected>Last 7 Days</option>
+                        <option value="7">Last 7 Days</option>
                         <option value="30">Last 30 Days</option>
-                        <option value="90">Last 90 Days</option>
+                        <option value="90" selected>Last 90 Days</option>
                     </select>
                 </label>
                 <label>Product/Variant:
@@ -252,32 +252,45 @@
         });
         document.getElementById('dateRangeSelect').addEventListener('change', renderCurrent);
         document.getElementById('productSelect').addEventListener('change', renderCurrent);
-        document.getElementById('branchSelect').addEventListener('change', renderCurrent);
+        document.getElementById('branchSelect').addEventListener('change', async () => {
+          await loadProductsForBranch();
+          // Reset product selection when branch changes
+          document.getElementById('productSelect').value = '';
+          await renderCurrent();
+        });
       }
 
       async function loadFilters() {
         try {
-          const [branchesRes, productsRes] = await Promise.all([
-            fetch('/admin/api/branches'),
-            fetch('/admin/api/products')
-          ]);
+          const branchesRes = await fetch('/admin/api/branches');
           const branches = await branchesRes.json();
-          const products = await productsRes.json();
           const branchSel = document.getElementById('branchSelect');
           const prodSel = document.getElementById('productSelect');
+          
           if (branches.ok) {
             branches.branches.forEach(b => {
               const opt = document.createElement('option');
               opt.value = b.id; opt.textContent = b.name; branchSel.appendChild(opt);
             });
           }
-          if (products.ok) {
-            products.products.forEach(p => {
-              const opt = document.createElement('option');
-              opt.value = p.id; opt.textContent = p.name; prodSel.appendChild(opt);
-            });
-          }
+          
+          // Load products based on current branch filter
+          await loadProductsForBranch();
         } catch(e) { console.error('loadFilters', e); }
+      }
+
+      async function loadProductsForBranch() {
+        try {
+          const branchId = document.getElementById('branchSelect').value;
+          let url = '/admin/api/products';
+          if (branchId) {
+            url = `/admin/api/products?branch_id=${branchId}`;
+          }
+          const rp = await fetch(url).then(r=>r.json());
+          const names = (rp.products||[]).map(p=>({id:p.id,name:p.name}));
+          const prodSel = document.getElementById('productSelect');
+          prodSel.innerHTML = '<option value="">All</option>' + names.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+        }catch{}
       }
 
       function getDateRange() {
@@ -298,6 +311,7 @@
           if (product_id) params.set('product_id', product_id);
           const res = await fetch(`/admin/api/reports/sales?${params.toString()}`);
           const data = await res.json();
+          console.log('Sales report data:', data);
           if (!data.ok) return;
           const header = document.getElementById('tableHeader');
           header.innerHTML = `<th>Date/Period</th><th>Branch</th><th>Product</th><th>Qty (kg)</th><th>Amount (₱)</th>`;
@@ -306,11 +320,11 @@
           data.rows.forEach(r => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${r.date}</td>
+              <td>${r.date || r.d || ''}</td>
               <td>${r.branch_name || ''}</td>
               <td>${r.product_name || ''}</td>
-              <td>${Number(r.qty_kg||0).toLocaleString()}</td>
-              <td>₱${Number(r.amount||0).toLocaleString()}</td>
+              <td>${Number(r.qty_kg || r.qty || 0).toLocaleString()}</td>
+              <td>₱${Number(r.amount || r.amt || 0).toLocaleString()}</td>
             `;
             tbody.appendChild(tr);
           });
@@ -338,7 +352,7 @@
           data.rows.forEach(r => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${r.date}</td>
+              <td>${r.date || r.d || ''}</td>
               <td>${r.branch_name || ''}</td>
               <td>${r.product_name || ''}</td>
               <td>${Number(r.forecast_kg||0).toLocaleString()}</td>
@@ -375,7 +389,7 @@
           data.rows.forEach(r => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${r.date}</td>
+              <td>${r.date || r.d || ''}</td>
               <td>${r.branch_name || ''}</td>
               <td>${r.product_name || ''}</td>
               <td>${r.opening_kg == null ? '-' : Number(r.opening_kg).toLocaleString()}</td>

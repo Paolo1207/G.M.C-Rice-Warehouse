@@ -172,8 +172,8 @@
                 <label>Date Range:
                     <select id="salesDays">
                         <option value="7">Last 7 Days</option>
-                        <option value="30" selected>Last 30 Days</option>
-                        <option value="90">Last 90 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="90" selected>Last 90 Days</option>
                     </select>
                 </label>
                 <label>Rice Variant:
@@ -204,7 +204,7 @@
         <div class="sales-widgets-row">
             <div class="sales-widget sales-trend-widget">
                 <div class="widget-header">
-                    <h3>📈 Daily Sales Trend</h3>
+                    <h3 id="trendTitle">📈 Daily Sales Trend</h3>
                 </div>
                 <div class="chart-container">
                     <canvas id="dailySalesChart" width="400" height="200"></canvas>
@@ -265,7 +265,14 @@
       }
 
       function bindFilters(){
-        [daysSel, prodSel, brSel].forEach(el=> el && el.addEventListener('change', refreshAll));
+        daysSel.addEventListener('change', refreshAll);
+        prodSel.addEventListener('change', refreshAll);
+        brSel.addEventListener('change', async () => {
+          await loadProductsForBranch();
+          // Reset product selection when branch changes
+          prodSel.value = '';
+          await refreshAll();
+        });
       }
 
       async function hydrateFilters(){
@@ -274,16 +281,42 @@
           const rb = await fetch('/admin/api/branches').then(r=>r.json());
           brSel.innerHTML = '<option value="">All Branches</option>' + (rb.branches||[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
         }catch{}
-        // products via inventory presence
+        // Load products based on current branch filter
+        await loadProductsForBranch();
+      }
+
+      async function loadProductsForBranch(){
         try{
-          const rp = await fetch('/admin/api/products').then(r=>r.json());
+          const branchId = brSel.value;
+          let url = '/admin/api/products';
+          if (branchId) {
+            url = `/admin/api/products?branch_id=${branchId}`;
+          }
+          const rp = await fetch(url).then(r=>r.json());
           const names = (rp.products||[]).map(p=>({id:p.id,name:p.name}));
           prodSel.innerHTML = '<option value="">All Products</option>' + names.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
         }catch{}
       }
 
       async function refreshAll(){
+        updateTrendTitle();
         await Promise.all([loadKPIs(), loadTrend(), loadTopProducts(), loadTable()]);
+      }
+
+      function updateTrendTitle(){
+        const trendTitle = document.getElementById('trendTitle');
+        if (!trendTitle) return;
+        
+        const branchName = brSel.options[brSel.selectedIndex]?.text || '';
+        const productName = prodSel.options[prodSel.selectedIndex]?.text || '';
+        
+        if (productName && productName !== 'All Products') {
+          trendTitle.textContent = `📈 Daily Sales Trend - ${productName}`;
+        } else if (branchName && branchName !== 'All Branches') {
+          trendTitle.textContent = `📈 Daily Sales Trend - ${branchName}`;
+        } else {
+          trendTitle.textContent = '📈 Daily Sales Trend';
+        }
       }
 
       function params(){
