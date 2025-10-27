@@ -12,11 +12,15 @@ class Branch(db.Model):
     inventory_items = db.relationship("InventoryItem", back_populates="branch", cascade="all,delete-orphan")
     
     def to_dict(self):
+        # Calculate total stock for this branch
+        total_stock_kg = sum(item.stock_kg or 0 for item in self.inventory_items)
+        
         return {
             "id": self.id,
             "name": self.name,
             "location": self.location,
-            "status": self.status
+            "status": self.status,
+            "total_stock_kg": round(total_stock_kg, 2)
         }
 
 class Product(db.Model):
@@ -121,6 +125,7 @@ class RestockLog(db.Model):
             "date": self.created_at.strftime("%Y-%m-%d"),
             "datetime": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),  # Full timestamp for sorting
             "variant": self.inventory_item.product.name,
+            "batch_code": self.inventory_item.batch_code or "",  # Include batch code from inventory item
         }
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)

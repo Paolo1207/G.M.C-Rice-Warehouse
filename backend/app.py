@@ -133,6 +133,18 @@ def create_app() -> Flask:
         
         print(f"DEBUG LOGIN: Login successful for {user.email}")
         session["user"] = session_user
+        
+        # Log the login activity
+        try:
+            from activity_logger import ActivityLogger
+            ActivityLogger.log_user_login(
+                user_id=user.id,
+                user_email=user.email,
+                branch_id=user.branch_id
+            )
+        except Exception as e:
+            print(f"DEBUG LOGIN: Failed to log activity: {e}")
+        
         return jsonify(ok=True, user=session_user)
 
     @app.post("/logout")

@@ -186,65 +186,10 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="branches-tbody">
                     <tr>
-                        <td>Marawoy</td>
-                        <td>Marawoy, Lipa City</td>
-                        <td>8,500</td>
-                        <td class="status-ok">Operational</td>
-                        <td>
-                            <button class="table-action-btn view-btn">View</button>
-                            <button class="table-action-btn edit-btn">Edit</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Lipa</td>
-                        <td>Lipa, Batangas</td>
-                        <td>0</td>
-                        <td class="status-ok">Operational</td>
-                        <td>
-                            <button class="table-action-btn view-btn">View</button>
-                            <button class="table-action-btn edit-btn">Edit</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Malvar</td>
-                        <td>Malvar, Batangas</td>
-                        <td>7,200</td>
-                        <td class="status-warning">Maintenance</td>
-                        <td>
-                            <button class="table-action-btn view-btn">View</button>
-                            <button class="table-action-btn edit-btn">Edit</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Bulacnin</td>
-                        <td>Bulacnin, Lipa City</td>
-                        <td>9,100</td>
-                        <td class="status-ok">Operational</td>
-                        <td>
-                            <button class="table-action-btn view-btn">View</button>
-                            <button class="table-action-btn edit-btn">Edit</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Boac</td>
-                        <td>Boac, Marinduque</td>
-                        <td>0</td>
-                        <td class="status-ok">Operational</td>
-                        <td>
-                            <button class="table-action-btn view-btn">View</button>
-                            <button class="table-action-btn edit-btn">Edit</button>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Sta. Cruz</td>
-                        <td>Sta. Cruz, Laguna</td>
-                        <td>8,200</td>
-                        <td class="status-ok">Operational</td>
-                        <td>
-                            <button class="table-action-btn view-btn">View</button>
-                            <button class="table-action-btn edit-btn">Edit</button>
+                        <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.7;">
+                            Loading branches...
                         </td>
                     </tr>
                 </tbody>
@@ -310,6 +255,7 @@
             <tr>
               <th>Date</th>
               <th>Variant</th>
+              <th>Batch Code</th>
               <th>Qty (kg)</th>
               <th>By</th>
               <th>Note</th>
@@ -502,6 +448,15 @@
       </div>
 
       <div class="form-group">
+        <label>Batch Code</label>
+        <select name="batch_code" style="display: none;" required>
+          <option value="">Loading batch codes...</option>
+        </select>
+        <input name="batch_code_input" placeholder="Enter new batch code (e.g., BATCH-001)" style="display: none;">
+        <small style="display: block; margin-top: 5px; color: #666; font-size: 0.85em;" id="batch-code-hint">Select product to load batch codes</small>
+      </div>
+
+      <div class="form-group">
         <label>Supplier</label>
         <input name="supplier" placeholder="Supplier (optional)">
       </div>
@@ -607,6 +562,9 @@ const restockProductModal = document.getElementById("restockProductModal");
 const restockForm         = document.getElementById("restockForm");
 const restockSelect       = restockForm.querySelector('select[name="product"]');
 const restockQty          = restockForm.querySelector('input[name="quantity"]');
+const restockBatchCode    = restockForm.querySelector('select[name="batch_code"]');
+const restockBatchCodeInput = restockForm.querySelector('input[name="batch_code_input"]');
+const batchCodeHint       = document.getElementById("batch-code-hint");
 const restockSupplier     = restockForm.querySelector('input[name="supplier"]');
 const restockDate         = restockForm.querySelector('input[name="date"]');
 const restockNotes        = restockForm.querySelector('input[name="notes"]');
@@ -763,6 +721,7 @@ async function hydrateLogsForBranch(branch_name){
         created_by: l.created_by || l.by || "Admin",  // Use created_by for "By" column
         note: l.note || "Restock",
         variant: it.variant,
+        batch_code: l.batch_code || it.batch || "",  // Include batch code from log or inventory item
       }));
     });
 
@@ -815,16 +774,18 @@ function renderInventory(){
     .forEach((it, idx) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${it.variant}</td>
+        <td>${it.variant}${it.batch ? ` (Batch ${it.batch})` : ''}</td>
         <td>${(it.stock ?? 0).toLocaleString()}</td>
         <td>${money(it.price)}</td>
         <td class="${statusClass(it.status)}">${it.status==="available"?"Available":it.status==="low"?"Low Stock":"Out of Stock"}</td>
         <td>${it.batch || ""}</td>
         <td>
-          <button class="table-action-btn view-details" data-idx="${idx}">View</button>
-          <button class="table-action-btn edit-item"   data-idx="${idx}">Edit</button>
-          <button class="table-action-btn delete-item" data-idx="${idx}">Delete</button>
-          <button class="table-action-btn restock-item"data-idx="${idx}">Restock</button>
+          <div class="action-buttons-container">
+            <button class="table-action-btn view-details" data-idx="${idx}">View</button>
+            <button class="table-action-btn edit-item" data-idx="${idx}">Edit</button>
+            <button class="table-action-btn delete-item" data-idx="${idx}">Delete</button>
+            <button class="table-action-btn restock-item" data-idx="${idx}">Restock</button>
+          </div>
         </td>`;
       invTableBody.appendChild(tr);
     });
@@ -851,13 +812,14 @@ function renderLog(onlyVariant=null){
 
   logTableBody.innerHTML = rows.length
     ? ""
-    : `<tr><td colspan="5" style="text-align:center;opacity:.7;">No log entries yet.</td></tr>`;
+    : `<tr><td colspan="6" style="text-align:center;opacity:.7;">No log entries yet.</td></tr>`;
 
   rows.forEach(l=>{
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${l.date}</td>
       <td>${l.variant}</td>
+      <td>${l.batch_code || l.batch || ""}</td>
       <td>${Number(l.qty).toLocaleString()}</td>
       <td>${l.created_by || "Admin"}</td>
       <td>${l.note || "Restock"}</td>`;
@@ -1167,24 +1129,119 @@ function openRestockModal(preselectIdx = null){
   restockSelect.value = String(initialInvId);
 
   restockQty.value      = "";
+  restockBatchCode.value = "";
+  restockBatchCodeInput.value = "";
   restockSupplier.value = "";
   restockDate.value     = new Date().toISOString().slice(0,10);
   restockNotes.value    = "";
+  
+  // Load batch codes for the initial product
+  loadBatchCodesForProduct(restockSelect.value);
+  
   showModal(restockProductModal);
 }
+
+// Load batch codes when product changes
+restockSelect.addEventListener("change", function() {
+  loadBatchCodesForProduct(this.value);
+});
+
+// Function to load batch codes for a product
+async function loadBatchCodesForProduct(invItemId) {
+  if (!invItemId) {
+    // Hide both inputs
+    restockBatchCode.style.display = 'none';
+    restockBatchCodeInput.style.display = 'none';
+    batchCodeHint.textContent = 'Select product to load batch codes';
+    return;
+  }
+  
+  try {
+    // First, get the product ID from the inventory item
+    const items = BRANCH_DATA[currentBranch]?.items || [];
+    const invItem = items.find(item => String(item.id) === String(invItemId));
+    
+    if (!invItem || !invItem.product_id) {
+      // No product ID found, show input field
+      restockBatchCode.style.display = 'none';
+      restockBatchCodeInput.style.display = 'block';
+      batchCodeHint.textContent = 'Enter new batch code for this product';
+      return;
+    }
+    
+    // Fetch batch codes from API
+    const response = await fetch(`/admin/api/products/${invItem.product_id}/batch-codes`);
+    const data = await response.json();
+    
+    if (data.ok && data.batch_codes && data.batch_codes.length > 0) {
+      // Populate dropdown with existing batch codes
+      restockBatchCode.innerHTML = '';
+      
+      // Add option to create new batch
+      restockBatchCode.innerHTML += '<option value="">-- Create New Batch --</option>';
+      
+      // Add existing batch codes
+      data.batch_codes.forEach(code => {
+        restockBatchCode.innerHTML += `<option value="${code}">${code}</option>`;
+      });
+      
+      // Show dropdown, hide input
+      restockBatchCode.style.display = 'block';
+      restockBatchCodeInput.style.display = 'none';
+      batchCodeHint.textContent = `Select from ${data.batch_codes.length} existing batch code(s) or create new`;
+      
+      // Reset input field
+      restockBatchCodeInput.value = '';
+    } else {
+      // No batch codes exist, show input field
+      restockBatchCode.style.display = 'none';
+      restockBatchCodeInput.style.display = 'block';
+      batchCodeHint.textContent = 'This product has no existing batch codes. Enter a new batch code.';
+    }
+  } catch (error) {
+    console.error('Error loading batch codes:', error);
+    // On error, default to input field
+    restockBatchCode.style.display = 'none';
+    restockBatchCodeInput.style.display = 'block';
+    batchCodeHint.textContent = 'Enter batch code manually';
+  }
+}
+
+// Handle dropdown change to show input when "Create New Batch" is selected
+restockBatchCode.addEventListener('change', function() {
+  if (this.value === '') {
+    // Show input field for new batch code
+    restockBatchCodeInput.style.display = 'block';
+    restockBatchCodeInput.required = true;
+    batchCodeHint.textContent = 'Enter the new batch code';
+  } else {
+    // Hide input field
+    restockBatchCodeInput.style.display = 'none';
+    restockBatchCodeInput.required = false;
+    restockBatchCodeInput.value = '';
+    batchCodeHint.textContent = 'Selected batch code';
+  }
+});
 
 restockForm.addEventListener("submit", async (e)=>{
   e.preventDefault();
   if (!currentBranch) return;
 
-  const invId    = Number(restockSelect.value);
-  const quantity = Number(restockQty.value);
-  const supplier = restockSupplier.value.trim();
-  const date     = restockDate.value;
-  const notes    = restockNotes.value.trim();
+  const invId      = Number(restockSelect.value);
+  const quantity   = Number(restockQty.value);
+  // Get batch code from either dropdown or input
+  const batchCode  = (restockBatchCode.value || restockBatchCodeInput.value).trim();
+  const supplier   = restockSupplier.value.trim();
+  const date        = restockDate.value;
+  const notes      = restockNotes.value.trim();
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
     alert("Please enter a valid positive quantity.");
+    return;
+  }
+
+  if (!batchCode) {
+    alert("Please select or enter a batch code.");
     return;
   }
 
@@ -1194,6 +1251,7 @@ restockForm.addEventListener("submit", async (e)=>{
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         quantity,
+        batch_code: batchCode,
         supplier: supplier || "Admin",
         date: date || null,
         notes: notes || "Restock"
@@ -1265,6 +1323,239 @@ function exportCSV(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/* =========================================================
+   LOAD BRANCHES DYNAMICALLY
+========================================================= */
+async function loadBranches() {
+  try {
+    const response = await fetch('/admin/api/branches');
+    const data = await response.json();
+    
+    if (data.ok && data.branches) {
+      renderBranchesTable(data.branches);
+    } else {
+      console.error('Failed to load branches:', data);
+      showBranchesError('Failed to load branches');
+    }
+  } catch (error) {
+    console.error('Error loading branches:', error);
+    showBranchesError('Error loading branches');
+  }
+}
+
+function renderBranchesTable(branches) {
+  const tbody = document.getElementById('branches-tbody');
+  if (!tbody) return;
+  
+  if (branches.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.7;">
+          No branches found
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tbody.innerHTML = branches.map(branch => {
+    const statusClass = branch.status === 'operational' ? 'status-ok' : 
+                       branch.status === 'maintenance' ? 'status-warning' : 'status-error';
+    const statusText = branch.status === 'operational' ? 'Operational' :
+                      branch.status === 'maintenance' ? 'Maintenance' : 'Closed';
+    
+    return `
+      <tr>
+        <td>${branch.name}</td>
+        <td>${branch.location || 'N/A'}</td>
+        <td>${branch.total_stock_kg ? branch.total_stock_kg.toLocaleString() : '0'}</td>
+        <td class="${statusClass}">${statusText}</td>
+        <td>
+          <button class="table-action-btn view-btn" data-branch="${branch.name}">View</button>
+          <button class="table-action-btn edit-btn" data-branch="${branch.name}">Edit</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Re-attach event listeners for the new buttons
+  attachBranchEventListeners();
+}
+
+function showBranchesError(message) {
+  const tbody = document.getElementById('branches-tbody');
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.7; color: #e74c3c;">
+          ${message}
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function attachBranchEventListeners() {
+  // View button listeners
+  document.querySelectorAll('.branch-table .view-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const branchName = e.currentTarget.getAttribute('data-branch');
+      if (!branchName) return alert("Unknown branch");
+      openInventoryModal(branchName);
+    });
+  });
+  
+  // Edit button listeners (placeholder for now)
+  document.querySelectorAll('.branch-table .edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const branchName = e.currentTarget.getAttribute('data-branch');
+      if (!branchName) return alert("Unknown branch");
+      alert(`Edit functionality for ${branchName} branch will be implemented soon.`);
+    });
+  });
+}
+
+// Load branches when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  loadBranches();
+  
+  // Attach Export All button listener
+  document.querySelector('.export-all-btn')?.addEventListener('click', async () => {
+    await exportAllBranches();
+  });
+});
+
+/* =========================================================
+   EXPORT ALL BRANCHES TO CSV
+========================================================= */
+async function exportAllBranches() {
+  const exportBtn = document.querySelector('.export-all-btn');
+  const originalText = exportBtn?.textContent;
+  
+  try {
+    console.log('Exporting all branches inventory...');
+    
+    // Show loading state
+    if (exportBtn) {
+      exportBtn.disabled = true;
+      exportBtn.textContent = 'Exporting...';
+    }
+    
+    // Fetch all branches and their inventory
+    const branchesRes = await fetch('/admin/api/branches');
+    const branchesData = await branchesRes.json();
+    
+    if (!branchesData.ok) {
+      throw new Error('Failed to fetch branches');
+    }
+    
+    const branches = branchesData.branches;
+    
+    // Build CSV content with branch sections
+    let csvLines = [];
+    
+    // Add header with date
+    const exportDate = new Date().toISOString().split('T')[0];
+    csvLines.push(`All Branches Inventory Report`);
+    csvLines.push(`Export Date: ${exportDate}`);
+    csvLines.push(`Generated by: G.M.C Rice Warehouse System`);
+    csvLines.push('');
+    csvLines.push('='.repeat(80));
+    csvLines.push('');
+    
+    // Fetch all inventories in parallel for speed
+    const invPromises = branches.map(branch => 
+      fetch(`/admin/api/branches/${branch.id}/inventory?page_size=1000`)
+        .then(res => res.json())
+        .catch(err => ({ ok: false, error: err.message }))
+    );
+    
+    const invResults = await Promise.all(invPromises);
+    
+    for (let i = 0; i < branches.length; i++) {
+      const branch = branches[i];
+      const invData = invResults[i];
+      
+      // Add branch header
+      csvLines.push(''); // Empty line for spacing
+      csvLines.push(`BRANCH: ${branch.name}`);
+      csvLines.push(`Location: ${branch.location || 'N/A'}`);
+      csvLines.push(`Total Stock: ${branch.total_stock_kg ? branch.total_stock_kg.toLocaleString() : '0'} kg`);
+      csvLines.push(`Status: ${branch.status || 'operational'}`);
+      csvLines.push(''); // Empty line
+      
+      // Add inventory items
+      if (invData.ok && invData.items && invData.items.length > 0) {
+        // Add inventory table headers
+        csvLines.push('Product,Stock (kg),Price/Unit,Status,Batch Code,GRN Number,Warn Level,Auto Level');
+        
+        // Add inventory items
+        invData.items.forEach(item => {
+          const escapeCSV = (str) => {
+            if (str === null || str === undefined) return '';
+            const s = String(str);
+            if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+              return `"${s.replace(/"/g, '""')}"`;
+            }
+            return s;
+          };
+          
+          const row = [
+            escapeCSV(item.variant || item.product_name || 'N/A'),
+            escapeCSV(item.stock || 0),
+            escapeCSV(item.price || 0),
+            escapeCSV(item.status || 'available'),
+            escapeCSV(item.batch || item.batch_code || ''),
+            escapeCSV(item.grn || item.grn_number || ''),
+            escapeCSV(item.warn || item.warn_level || ''),
+            escapeCSV(item.auto || item.auto_level || '')
+          ];
+          csvLines.push(row.join(','));
+        });
+      } else {
+        csvLines.push('No inventory items found');
+      }
+      
+      csvLines.push(''); // Empty line for spacing
+      csvLines.push('='.repeat(80)); // Separator line
+    }
+    
+    // Create and download CSV
+    const csvContent = csvLines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all_branches_inventory_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('Export completed successfully');
+    
+    // Show success message briefly
+    if (exportBtn) {
+      exportBtn.textContent = '✓ Exported!';
+      setTimeout(() => {
+        if (exportBtn) {
+          exportBtn.textContent = originalText;
+          exportBtn.disabled = false;
+        }
+      }, 1500);
+    }
+  } catch (error) {
+    console.error('Error exporting branches:', error);
+    alert('Failed to export branches: ' + error.message);
+    
+    // Reset button state
+    if (exportBtn) {
+      exportBtn.textContent = originalText;
+      exportBtn.disabled = false;
+    }
+  }
 }
 </script>
 

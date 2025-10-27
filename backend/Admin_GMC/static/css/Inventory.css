@@ -77,26 +77,120 @@ body {
 .status-warning { color: #f59e0b; font-weight: 600; }
 .status-danger { color: #e53935; font-weight: 600; }
 .table-action-btn {
-  background: none;
-  border: 1px solid #2e7d32;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
   color: #2e7d32;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  margin-right: 8px;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+  margin: 2px;
+  min-width: 70px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .table-action-btn:hover {
   background: #2e7d32;
   color: white;
+  border-color: #2e7d32;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(46, 125, 50, 0.3);
 }
-.table-action-btn.delete-btn {
-  border-color: #e53935;
-  color: #e53935;
+.table-action-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-.table-action-btn.delete-btn:hover {
-  background: #e53935;
+
+/* Specific button styles */
+.table-action-btn.view-details {
+  background: #e3f2fd;
+  border-color: #2196f3;
+  color: #1976d2;
+}
+.table-action-btn.view-details:hover {
+  background: #2196f3;
   color: white;
+  border-color: #2196f3;
+}
+
+.table-action-btn.edit-item {
+  background: #fff3e0;
+  border-color: #ff9800;
+  color: #f57c00;
+}
+.table-action-btn.edit-item:hover {
+  background: #ff9800;
+  color: white;
+  border-color: #ff9800;
+}
+
+.table-action-btn.delete-item {
+  background: #ffebee;
+  border-color: #f44336;
+  color: #d32f2f;
+}
+.table-action-btn.delete-item:hover {
+  background: #f44336;
+  color: white;
+  border-color: #f44336;
+}
+
+.table-action-btn.restock-item {
+  background: #e8f5e8;
+  border-color: #4caf50;
+  color: #388e3c;
+}
+.table-action-btn.restock-item:hover {
+  background: #4caf50;
+  color: white;
+  border-color: #4caf50;
+}
+
+/* Action buttons container */
+.action-buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+td:last-child {
+  padding: 8px !important;
+  white-space: nowrap;
+  min-width: 300px;
+}
+
+/* Responsive button layout */
+@media (max-width: 768px) {
+  .table-action-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    min-width: 60px;
+    margin: 1px;
+  }
+  
+  .action-buttons-container {
+    gap: 2px;
+  }
+  
+  td:last-child {
+    min-width: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .action-buttons-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .table-action-btn {
+    width: 100%;
+    margin: 1px 0;
+  }
 }
 
 /* Modal Styles */

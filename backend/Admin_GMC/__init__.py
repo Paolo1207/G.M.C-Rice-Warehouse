@@ -145,7 +145,7 @@ def api_create_product():
         db.session.add(product)
         db.session.flush()
 
-    # Inventory: upsert for (branch, product)
+    # Inventory: create new entry for (branch, product, batch_code) combination
     stock_kg   = _to_float(data.get("stock_kg") or data.get("stock"))
     unit_price = _to_float(data.get("unit_price") or data.get("price"))
     warn_level = _to_float(data.get("warn"))
@@ -154,8 +154,15 @@ def api_create_product():
     batch_code = (data.get("batch")  or data.get("batch_code") or "").strip() or None
     grn_number = (data.get("grn") or "").strip() or None
 
-    inv = InventoryItem.query.filter_by(branch_id=branch.id, product_id=product.id).first()
+    # Check if this exact combination already exists (branch + product + batch_code)
+    inv = InventoryItem.query.filter_by(
+        branch_id=branch.id, 
+        product_id=product.id, 
+        batch_code=batch_code
+    ).first()
+    
     if not inv:
+        # Create new inventory item for this batch
         inv = InventoryItem(
             branch_id=branch.id,
             product_id=product.id,
@@ -175,7 +182,6 @@ def api_create_product():
         if warn_level is not None: inv.warn_level = warn_level
         if auto_level is not None: inv.auto_level = auto_level
         if margin is not None:     inv.margin = margin
-        if batch_code is not None: inv.batch_code = batch_code
         if grn_number is not None: inv.grn_number = grn_number
 
     try:
@@ -184,9 +190,12 @@ def api_create_product():
         # Log the product addition activity
         from activity_logger import ActivityLogger
         user_data = session.get('user', {})
-        user_email = user_data.get('email', 'system')
+        user_id = user_data.get('id')
+        # Get current user email from database to ensure accuracy
+        current_user = User.query.get(user_id) if user_id else None
+        user_email = current_user.email if current_user else user_data.get('email', 'system')
         ActivityLogger.log_product_add(
-            user_id=user_data.get('id'),
+            user_id=user_id,
             user_email=user_email,
             product_name=product_name,
             branch_id=branch.id,
@@ -221,6 +230,60 @@ def api_list_branches():
     return jsonify({
         "ok": True,
         "branches": [branch.to_dict() for branch in branches]
+    })
+
+@admin_bp.get("/api/branches/<int:branch_id>/inventory")
+def api_branch_inventory(branch_id):
+    """Get inventory for a specific branch"""
+    from sqlalchemy.orm import joinedload
+    
+    branch = Branch.query.get_or_404(branch_id)
+    
+    # Get all inventory items for this branch with product information
+    items = InventoryItem.query.filter_by(branch_id=branch_id).all()
+    
+    inventory_data = []
+    for item in items:
+        inventory_data.append({
+            "id": item.id,
+            "product_name": item.product.name if item.product else "Unknown",
+            "variant": item.product.name if item.product else "Unknown",
+            "stock": item.stock_kg,
+            "price": item.unit_price,
+            "status": "available" if (item.stock_kg or 0) > 0 else "out_of_stock",
+            "batch": item.batch_code,
+            "batch_code": item.batch_code,
+            "grn": item.grn_number,
+            "grn_number": item.grn_number,
+            "warn": item.warn_level,
+            "warn_level": item.warn_level,
+            "auto": item.auto_level,
+            "auto_level": item.auto_level,
+        })
+    
+    return jsonify({
+        "ok": True,
+        "branch": branch.to_dict(),
+        "items": inventory_data
+    })
+
+@admin_bp.get("/api/products/<int:product_id>/batch-codes")
+def api_product_batch_codes(product_id):
+    """Get all batch codes for a specific product"""
+    # Get distinct batch codes for this product across all branches
+    batch_codes = db.session.query(
+        InventoryItem.batch_code
+    ).filter(
+        InventoryItem.product_id == product_id,
+        InventoryItem.batch_code.isnot(None),
+        InventoryItem.batch_code != ''
+    ).distinct().all()
+    
+    batch_codes_list = [row[0] for row in batch_codes if row[0]]
+    
+    return jsonify({
+        "ok": True,
+        "batch_codes": batch_codes_list
     })
 
 # =========================================================
@@ -316,14 +379,27 @@ def api_delete_notification(notification_id):
 # =========================================================
 @admin_bp.get("/api/products")
 def api_list_products():
-    """Get all products that have inventory items"""
-    # Get products that have inventory items
-    products_with_inventory = (
-        Product.query
-        .join(InventoryItem)
-        .distinct()
-        .all()
-    )
+    """Get all products that have inventory items, optionally filtered by branch"""
+    branch_id = request.args.get("branch_id", type=int)
+    
+    if branch_id:
+        # Get products that have inventory items in the specific branch
+        products_with_inventory = (
+            Product.query
+            .join(InventoryItem)
+            .filter(InventoryItem.branch_id == branch_id)
+            .distinct()
+            .all()
+        )
+    else:
+        # Get all products that have inventory items in any branch
+        products_with_inventory = (
+            Product.query
+            .join(InventoryItem)
+            .distinct()
+            .all()
+        )
+    
     return jsonify({
         "ok": True,
         "products": [product.to_dict() for product in products_with_inventory]
@@ -405,9 +481,12 @@ def api_update_inventory_item(inventory_id: int):
         # Log the product edit activity
         from activity_logger import ActivityLogger
         user_data = session.get('user', {})
-        user_email = user_data.get('email', 'system')
+        user_id = user_data.get('id')
+        # Get current user email from database to ensure accuracy
+        current_user = User.query.get(user_id) if user_id else None
+        user_email = current_user.email if current_user else user_data.get('email', 'system')
         ActivityLogger.log_product_edit(
-            user_id=user_data.get('id'),
+            user_id=user_id,
             user_email=user_email,
             product_name=prod.name,
             branch_id=inv.branch_id,
@@ -469,9 +548,12 @@ def api_delete_inventory_item(inventory_id: int):
     # Log the product deletion activity
     from activity_logger import ActivityLogger
     user_data = session.get('user', {})
-    user_email = user_data.get('email', 'system')
+    user_id = user_data.get('id')
+    # Get current user email from database to ensure accuracy
+    current_user = User.query.get(user_id) if user_id else None
+    user_email = current_user.email if current_user else user_data.get('email', 'system')
     ActivityLogger.log_product_delete(
-        user_id=user_data.get('id'),
+        user_id=user_id,
         user_email=user_email,
         product_name=prod.name if prod else "Unknown Product",
         branch_id=inv.branch_id
@@ -498,6 +580,10 @@ def api_restock_inventory_item(inventory_id: int):
         return jsonify({"ok": False, "error": "quantity must be a positive number"}), 400
 
     inv: InventoryItem = InventoryItem.query.get_or_404(inventory_id)
+    batch_code = (data.get("batch_code") or "").strip()
+    
+    if not batch_code:
+        return jsonify({"ok": False, "error": "batch_code is required"}), 400
 
     supplier = (data.get("supplier") or "").strip() or None
     note     = (data.get("notes") or data.get("note") or "").strip() or None
@@ -510,13 +596,38 @@ def api_restock_inventory_item(inventory_id: int):
         except ValueError:
             return jsonify({"ok": False, "error": "date must be YYYY-MM-DD"}), 400
 
-    # Update stock
-    inv.stock_kg = (inv.stock_kg or 0) + qty
+    # Check if inventory item with this batch code already exists
+    existing_inv = InventoryItem.query.filter_by(
+        branch_id=inv.branch_id,
+        product_id=inv.product_id,
+        batch_code=batch_code
+    ).first()
+
+    if existing_inv:
+        # Add to existing batch
+        existing_inv.stock_kg = (existing_inv.stock_kg or 0) + qty
+        target_inv = existing_inv
+    else:
+        # Create new inventory item with new batch code
+        new_inv = InventoryItem(
+            branch_id=inv.branch_id,
+            product_id=inv.product_id,
+            stock_kg=qty,
+            unit_price=inv.unit_price,
+            warn_level=inv.warn_level,
+            auto_level=inv.auto_level,
+            margin=inv.margin,
+            batch_code=batch_code,
+            grn_number=inv.grn_number,
+        )
+        db.session.add(new_inv)
+        db.session.flush()  # Get the ID
+        target_inv = new_inv
 
     # Create a restock log row
     from models import RestockLog
     log = RestockLog(
-        inventory_item_id=inv.id,
+        inventory_item_id=target_inv.id,
         qty_kg=qty,
         supplier=supplier,
         note=note,
@@ -530,9 +641,12 @@ def api_restock_inventory_item(inventory_id: int):
         # Log the restock activity
         from activity_logger import ActivityLogger
         user_data = session.get('user', {})
-        user_email = user_data.get('email', 'system')
+        user_id = user_data.get('id')
+        # Get current user email from database to ensure accuracy
+        current_user = User.query.get(user_id) if user_id else None
+        user_email = current_user.email if current_user else user_data.get('email', 'system')
         ActivityLogger.log_restock(
-            user_id=user_data.get('id'),
+            user_id=user_id,
             user_email=user_email,
             product_name=inv.product.name if inv.product else "Unknown Product",
             quantity=qty,
@@ -936,8 +1050,9 @@ def api_sales_kpis():
 def api_sales_trend():
     from sqlalchemy import func, and_
     granularity = request.args.get('granularity', 'daily')
-    days = request.args.get('days', 30, type=int)
+    days = request.args.get('days', 90, type=int)  # Changed default from 30 to 90 days
     branch_id = request.args.get('branch_id', type=int)
+    product_id = request.args.get('product_id', type=int)
     end = datetime.utcnow().date()
     start = end - timedelta(days=days)
     if granularity == 'daily':
@@ -949,6 +1064,7 @@ def api_sales_trend():
     q = db.session.query(date_expr.label('period'), SalesTransaction.branch_id, func.sum(SalesTransaction.total_amount).label('amt'))
     q = q.filter(func.date(SalesTransaction.transaction_date) >= start)
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
+    if product_id: q = q.filter(SalesTransaction.product_id == product_id)
     q = q.group_by('period', SalesTransaction.branch_id).order_by('period')
     rows = q.all()
     out = {}
@@ -962,7 +1078,7 @@ def api_sales_trend():
     branches = {b.id: b.name for b in Branch.query.all()}
     
     # Debug logging
-    print(f"DEBUG: Sales trend query for days={days}, branch_id={branch_id}")
+    print(f"DEBUG: Sales trend query for days={days}, branch_id={branch_id}, product_id={product_id}")
     print(f"DEBUG: Found {len(rows)} total rows")
     print(f"DEBUG: Labels: {labels}")
     print(f"DEBUG: Series keys: {list(series.keys())}")
@@ -2063,6 +2179,15 @@ def api_export_report(report_type: str):
     else:
         writer.writerow(['Date','Branch','Product','Opening (kg)','In (kg)','Out (kg)','Closing (kg)'])
     for row in rows:
+        # Fix date formatting for Excel compatibility
+        if len(row) > 0 and isinstance(row[0], str) and '-' in str(row[0]):
+            # Ensure date is in YYYY-MM-DD format for Excel
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(row[0], '%Y-%m-%d')
+                row[0] = date_obj.strftime('%Y-%m-%d')
+            except:
+                pass  # Keep original if parsing fails
         writer.writerow(row)
     csv_data = output.getvalue()
 
@@ -3662,6 +3787,7 @@ def verify_email():
         if session.get('user'):
             session['user']['email'] = verification.new_email
             session.modified = True
+            print(f"DEBUG: Updated session email to {verification.new_email}")
         
         # Send notification to old email
         try:

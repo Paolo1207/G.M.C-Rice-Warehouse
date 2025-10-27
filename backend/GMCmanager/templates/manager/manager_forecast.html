@@ -250,21 +250,20 @@
               <div class="summary-cards">
                 <div class="summary-card">
                   <h4>Average Demand</h4>
-                  <p class="number">1,234</p>
-                  <p class="trend positive">
-                    <i class="fas fa-arrow-up"></i>
-                    +5.2% from last period
+                  <p class="number">--</p>
+                  <p class="trend">
+                    No forecast generated yet
                   </p>
                 </div>
                 <div class="summary-card">
                   <h4>Peak Day</h4>
-                  <p class="date">March 15, 2024</p>
-                  <p class="quantity">2,500 kg</p>
+                  <p class="date">--</p>
+                  <p class="quantity">--</p>
                 </div>
                 <div class="summary-card">
                   <h4>Suggested Reorder</h4>
-                  <p class="number">500</p>
-                  <p class="trend">Based on forecast</p>
+                  <p class="number">--</p>
+                  <p class="trend">Generate forecast first</p>
                 </div>
               </div>
             </div>
@@ -640,7 +639,10 @@
           }
           
           if (details) {
+            console.log('DEBUG FRONTEND: Details data:', details);
             renderForecastTable(details);
+          } else {
+            console.log('DEBUG FRONTEND: No details data received');
           }
         } else {
           console.warn('Invalid forecast data - generating sample data');
@@ -807,13 +809,23 @@
     function renderForecastTable(data) {
       const tbody = document.getElementById('forecastTableBody');
       tbody.innerHTML = '';
+      
+      if (!data || data.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td colspan="4" style="text-align: center; color: #666;">No forecast data available</td>
+        `;
+        tbody.appendChild(tr);
+        return;
+      }
+      
       data.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${formatDate(item.date)}</td>
-          <td>${item.projected} kg</td>
-          <td>${item.confidence}</td>
-          <td>${item.trend}</td>
+          <td>${item.predicted_demand || item.projected || '--'} kg</td>
+          <td>${item.confidence || '--'}</td>
+          <td>${item.trend || '--'}</td>
         `;
         tbody.appendChild(tr);
       });
@@ -954,6 +966,8 @@
           const productId = document.getElementById('priceProductFilter')?.value || '';
           const timeRange = document.getElementById('priceTimeRange')?.value || '30';
           
+          console.log('DEBUG PRICE FORECAST FRONTEND: Product ID:', productId);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Time Range:', timeRange);
           console.log('Price forecast parameters:', { productId, timeRange });
           
           // Get branch_id for the API call
@@ -976,7 +990,9 @@
           
           console.log('Price forecast API Response status:', response.status);
           const data = await response.json();
-          console.log('Price forecast API Response data:', data);
+          console.log('DEBUG PRICE FORECAST FRONTEND: API Response:', data);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Price forecast data:', data.price_forecast);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Number of products:', data.price_forecast ? data.price_forecast.length : 0);
           
           if (data.ok) {
             showToast('Holt-Winters price forecast generated successfully', 'success');

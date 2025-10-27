@@ -34,7 +34,7 @@ class EmailService:
             'gmcrice2025@gmail.com' in self.sender_email  # Check for our specific Gmail account
         )
         
-    def send_verification_email(self, to_email, verification_token, user_name):
+    def send_verification_email(self, to_email, verification_token, user_name, route_prefix="admin"):
         """Send email verification link"""
         try:
             # Check if email is configured
@@ -44,21 +44,31 @@ class EmailService:
                 
             # Create verification link
             base_url = os.getenv('BASE_URL', 'http://localhost:5000')
-            verification_link = f"{base_url}/admin/verify-email?token={verification_token}"
+            verification_link = f"{base_url}/{route_prefix}/verify-email?token={verification_token}"
             
             # Create email content
             subject = "Verify Your New Email Address - GMC System"
+            
+            # Determine theme based on route
+            if route_prefix == "manager":
+                primary_color = "#1976d2"  # Manager blue
+                header_bg = "#1976d2"
+                button_bg = "#1976d2"
+            else:
+                primary_color = "#2e7d32"  # Admin green
+                header_bg = "#2e7d32"
+                button_bg = "#2e7d32"
             
             html_content = f"""
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="background: #2e7d32; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <div style="background: {header_bg}; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
                         <h1 style="margin: 0;">GMC Rice Warehouse System</h1>
                     </div>
                     
                     <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
-                        <h2 style="color: #2e7d32; margin-top: 0;">Email Verification Required</h2>
+                        <h2 style="color: {primary_color}; margin-top: 0;">Email Verification Required</h2>
                         
                         <p>Hello {user_name},</p>
                         
@@ -66,7 +76,7 @@ class EmailService:
                         
                         <div style="text-align: center; margin: 30px 0;">
                             <a href="{verification_link}" 
-                               style="background: #2e7d32; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                               style="background: {button_bg}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                                 Verify Email Address
                             </a>
                         </div>
@@ -102,7 +112,7 @@ class EmailService:
             print(f"Error sending verification email: {e}")
             return False
     
-    def send_password_reset_email(self, to_email, reset_token, user_name):
+    def send_password_reset_email(self, to_email, reset_token, user_name, route_prefix="admin"):
         """Send password reset email"""
         try:
             # Check if email is configured
@@ -112,21 +122,29 @@ class EmailService:
                 
             # Create reset link
             base_url = os.getenv('BASE_URL', 'http://localhost:5000')
-            reset_link = f"{base_url}/admin/reset-password?token={reset_token}"
+            reset_link = f"{base_url}/{route_prefix}/reset-password?token={reset_token}"
             
             # Create email content
             subject = "Password Reset Request - GMC System"
+            
+            # Set colors based on route prefix
+            if route_prefix == "manager":
+                primary_color = "#2196F3"  # Blue for manager
+                system_name = "GMC Manager System"
+            else:
+                primary_color = "#d32f2f"  # Red for admin
+                system_name = "GMC Rice Warehouse System"
             
             html_content = f"""
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <div style="background: #d32f2f; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-                        <h1 style="margin: 0;">GMC Rice Warehouse System</h1>
+                    <div style="background: {primary_color}; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h1 style="margin: 0;">{system_name}</h1>
                     </div>
                     
                     <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px;">
-                        <h2 style="color: #d32f2f; margin-top: 0;">Password Reset Request</h2>
+                        <h2 style="color: {primary_color}; margin-top: 0;">Password Reset Request</h2>
                         
                         <p>Hello {user_name},</p>
                         
@@ -134,7 +152,7 @@ class EmailService:
                         
                         <div style="text-align: center; margin: 30px 0;">
                             <a href="{reset_link}" 
-                               style="background: #d32f2f; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                               style="background: {primary_color}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                                 Reset Password
                             </a>
                         </div>

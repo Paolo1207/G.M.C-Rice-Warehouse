@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title id="pageTitle">Settings - G.M.C. Rice Warehouse</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
 
   <!-- Manager-scoped static assets -->
   <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
@@ -11,6 +12,125 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    /* Email Verification Modal */
+    .verification-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    
+    .verification-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    
+    .verification-icon {
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+    
+    .verification-content h3 {
+      color: #2c3e50;
+      margin-bottom: 15px;
+    }
+    
+    .verification-content p {
+      color: #7f8c8d;
+      margin-bottom: 25px;
+      line-height: 1.5;
+    }
+    
+    /* Password Reset Modal */
+    .password-reset-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    }
+    
+    .password-reset-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 400px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    
+    .password-reset-icon {
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+    
+    .password-reset-content h3 {
+      color: #2c3e50;
+      margin-bottom: 15px;
+    }
+    
+    .password-reset-content p {
+      color: #7f8c8d;
+      margin-bottom: 25px;
+      line-height: 1.5;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .btn.primary {
+      background: #2196F3;
+      color: white;
+    }
+    
+    .btn.primary:hover {
+      background: #1976D2;
+    }
+    
+    .btn.secondary {
+      background: #95a5a6;
+      color: white;
+    }
+    
+    .btn.secondary:hover {
+      background: #7f8c8d;
+    }
+    
+    .btn.danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn.danger:hover {
+      background: #c82333;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -67,16 +187,8 @@
               <input type="text" id="fullName" name="fullName" value="John Doe" required>
             </div>
             <div class="form-group">
-              <label for="email">Email</label>
+              <label for="email">Email Address</label>
               <input type="email" id="email" name="email" value="john.doe@example.com" required>
-            </div>
-            <div class="form-group">
-              <label for="branch">Assigned Branch</label>
-              <input type="text" id="branch" name="branch" value="Main Branch" readonly>
-            </div>
-            <div class="form-group">
-              <label for="role">Role</label>
-              <input type="text" id="role" name="role" value="Branch Manager" readonly>
             </div>
             <button type="submit" class="btn primary">Save Changes</button>
           </form>
@@ -128,9 +240,10 @@
           <form id="forgotPasswordForm" class="settings-form">
             <div class="form-group">
               <label for="resetEmail">Email Address</label>
-              <input type="email" id="resetEmail" name="resetEmail" required>
+              <input type="email" id="resetEmail" name="resetEmail" readonly style="background-color: #f5f5f5; cursor: not-allowed;">
             </div>
-            <button type="submit" class="btn secondary">Send Reset Link</button>
+            <button type="submit" class="btn danger">Send Reset Link</button>
+            <div class="reset-info">A secure reset link will be sent to your registered email for password reconfiguration.</div>
           </form>
         </div>
 
@@ -167,6 +280,7 @@
     // ---------- Init ----------
     document.addEventListener('DOMContentLoaded', () => {
       initSettings();
+      loadUserProfile();
     });
 
     function initSettings() {
@@ -176,19 +290,78 @@
       document.getElementById('newPassword').addEventListener('input', checkPasswordStrength);
     }
 
-    // ---------- Handlers ----------
-    function handleProfileUpdate(e) {
-      e.preventDefault();
+    // Load user profile data
+    async function loadUserProfile() {
       try {
-        // TODO: POST to /manager/api/profile
-        showNotification('Profile updated successfully', 'success');
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const response = await fetch('/manager/api/users/me', {
+          headers: {
+            'X-CSRFToken': csrfToken
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ok) {
+            const user = data.user;
+            document.getElementById('fullName').value = user.fullName || '';
+            document.getElementById('email').value = user.email || '';
+            document.getElementById('resetEmail').value = user.email || '';
+          }
+        } else if (response.status === 401) {
+          // Redirect to login if not authenticated
+          window.location.href = '/manager-login';
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      }
+    }
+
+    // ---------- Handlers ----------
+    async function handleProfileUpdate(e) {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const fullName = formData.get('fullName');
+      const email = formData.get('email');
+      
+      try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        console.log('DEBUG FRONTEND: CSRF token =', csrfToken);
+        console.log('DEBUG FRONTEND: Sending request with headers:', {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        });
+        
+        const response = await fetch('/manager/api/users/me', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({
+            fullName: fullName,
+            email: email
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          if (data.requires_verification) {
+            showNotification(data.message, 'info');
+            showVerificationNotice(data.message, data.demo_link);
+          } else {
+            showNotification('Profile updated successfully!', 'success');
+          }
+        } else {
+          showNotification(data.error || 'Error updating profile', 'error');
+        }
       } catch (err) {
         console.error(err);
         showNotification('Error updating profile', 'error');
       }
     }
 
-    function handlePasswordChange(e) {
+    async function handlePasswordChange(e) {
       e.preventDefault();
       const currentPassword = document.getElementById('currentPassword').value;
       const newPassword = document.getElementById('newPassword').value;
@@ -199,25 +372,76 @@
         return;
       }
 
+      if (newPassword.length < 6) {
+        showNotification('Password must be at least 6 characters', 'error');
+        return;
+      }
+
       try {
-        // TODO: POST to /manager/api/change_password
-        showNotification('Password changed successfully', 'success');
-        e.target.reset();
-        document.querySelector('.strength-bar').style.width = '0%';
-        document.getElementById('strengthValue').textContent = 'None';
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        const response = await fetch('/manager/api/auth/change_password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({
+            currentPassword: currentPassword,
+            newPassword: newPassword
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showNotification('Password changed successfully', 'success');
+          e.target.reset();
+          document.querySelector('.strength-bar').style.width = '0%';
+          document.getElementById('strengthValue').textContent = 'None';
+        } else {
+          showNotification(data.error || 'Error changing password', 'error');
+        }
       } catch (err) {
         console.error(err);
         showNotification('Error changing password', 'error');
       }
     }
 
-    function handleForgotPassword(e) {
+    async function handleForgotPassword(e) {
       e.preventDefault();
       const email = document.getElementById('resetEmail').value;
+      
+      if (!email) {
+        showNotification('Please enter your email address', 'error');
+        return;
+      }
+      
       try {
-        // TODO: POST to /manager/api/forgot_password
-        showNotification('Password reset link sent to your email', 'success');
-        e.target.reset();
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        console.log('DEBUG PASSWORD RESET FRONTEND: CSRF token =', csrfToken);
+        const response = await fetch('/manager/api/auth/reset', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+          },
+          body: JSON.stringify({
+            email: email
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          if (data.demo_link) {
+            showPasswordResetDemo(data.message, data.demo_link);
+          } else {
+            showNotification('Password reset link sent to your email', 'success');
+          }
+          e.target.reset();
+        } else {
+          showNotification(data.error || 'Error sending reset link', 'error');
+        }
       } catch (err) {
         console.error(err);
         showNotification('Error sending reset link', 'error');
@@ -299,6 +523,52 @@
 
     // Call the function when page loads
     document.addEventListener('DOMContentLoaded', updateBranchTitle);
+
+    // ---------- Email Verification Functions ----------
+    function showVerificationNotice(message, demoLink) {
+      const modal = document.createElement('div');
+      modal.className = 'verification-modal';
+      modal.innerHTML = `
+        <div class="verification-content">
+          <div class="verification-icon">📧</div>
+          <h3>Email Verification Required</h3>
+          <p>${message}</p>
+          ${demoLink ? `<a href="${demoLink}" target="_blank" class="btn primary">Click to Verify Email</a>` : ''}
+          <button onclick="closeVerificationModal()" class="btn secondary">Close</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function closeVerificationModal() {
+      const modal = document.querySelector('.verification-modal');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    // ---------- Password Reset Demo Functions ----------
+    function showPasswordResetDemo(message, demoLink) {
+      const modal = document.createElement('div');
+      modal.className = 'password-reset-modal';
+      modal.innerHTML = `
+        <div class="password-reset-content">
+          <div class="password-reset-icon">🔐</div>
+          <h3>Password Reset</h3>
+          <p>${message}</p>
+          <a href="${demoLink}" target="_blank" class="btn danger">Click to Reset Password</a>
+          <button onclick="closePasswordResetDemo()" class="btn secondary">Close</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function closePasswordResetDemo() {
+      const modal = document.querySelector('.password-reset-modal');
+      if (modal) {
+        modal.remove();
+      }
+    }
   </script>
       <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
 </body>

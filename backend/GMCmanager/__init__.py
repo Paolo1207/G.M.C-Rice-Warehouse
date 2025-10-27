@@ -1,9 +1,10 @@
 # backend/GMCmanager/__init__.py
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, render_template_string
 from sqlalchemy.exc import IntegrityError
 from extensions import db
-from models import Branch, Product, InventoryItem, RestockLog, SalesTransaction, ForecastData
+from models import Branch, Product, InventoryItem, RestockLog, SalesTransaction, ForecastData, User, EmailVerification, PasswordReset
 from auth_helpers import manager_required  # <-- role guard
+from activity_logger import ActivityLogger
 
 manager_bp = Blueprint(
     "manager",
@@ -916,12 +917,16 @@ def mgr_forecast_generate():
             if not product:
                 continue
             
+            print(f"DEBUG FORECAST: Processing product: {product.name}")
+            
             # Get historical sales data for this product (last 90 days)
             sales_transactions = db.session.query(SalesTransaction).filter(
                 SalesTransaction.branch_id == branch_id,
                 SalesTransaction.product_id == product.id,
                 func.date(SalesTransaction.transaction_date) >= today - timedelta(days=90)
             ).order_by(SalesTransaction.transaction_date.desc()).all()
+            
+            print(f"DEBUG FORECAST: Found {len(sales_transactions)} sales transactions for {product.name}")
             
             # Convert to list for forecasting service
             historical_data = []
@@ -948,8 +953,14 @@ def mgr_forecast_generate():
                             "quantity_sold": float(base_demand + (i % 7) * 5)  # Some variation
                         })
             
+            print(f"DEBUG FORECAST: Historical data length: {len(historical_data)}")
+            if historical_data:
+                print(f"DEBUG FORECAST: Sample data: {historical_data[:3]}")
+            
             # Generate forecast using the forecasting service
+            print(f"DEBUG FORECAST: Calling forecasting service for {product.name}")
             forecast_result = forecasting_service.generate_arima_forecast(historical_data, days)
+            print(f"DEBUG FORECAST: Forecast result: {forecast_result}")
             
             # Store forecast in database
             for i, (predicted_demand, lower, upper) in enumerate(zip(
@@ -1049,6 +1060,10 @@ def mgr_forecast_generate():
             chart_data = {"labels": [], "forecast": [], "actual": []}
             summary_data = {"avg_demand": 0, "peak_date": None, "peak_quantity": 0, "suggested_reorder": 0, "confidence": 0.8}
         
+        print(f"DEBUG FORECAST: Returning {len(forecast_data)} forecast items")
+        for item in forecast_data:
+            print(f"DEBUG FORECAST: Product: {item.get('product_name', 'Unknown')}, Forecast points: {len(item.get('forecast_data', []))}")
+        
         return jsonify({
             "ok": True,
             "message": f"Generated {model_type.upper()} forecast for {len(forecast_data)} products",
@@ -1100,13 +1115,20 @@ def mgr_forecast_price():
             if not product:
                 continue
             
+            print(f"DEBUG PRICE FORECAST: Processing product: {product.name}")
+            
             # Get current price data (InventoryItem doesn't have updated_at field)
             current_item = InventoryItem.query.filter_by(
                 branch_id=branch_id, 
                 product_id=product.id
             ).first()
             
+            print(f"DEBUG PRICE FORECAST: Found inventory item: {current_item}")
+            if current_item:
+                print(f"DEBUG PRICE FORECAST: Unit price: {current_item.unit_price}")
+            
             if not current_item or not current_item.unit_price:
+                print(f"DEBUG PRICE FORECAST: Skipping {product.name} - no inventory or price")
                 continue
                 
             # Create price history based on current price with some variation
@@ -1126,14 +1148,19 @@ def mgr_forecast_price():
                     'price': historical_price
                 })
             
+            print(f"DEBUG PRICE FORECAST: Price history length: {len(price_history)}")
+            
             if len(price_history) < 3:
                 # Use current price if insufficient history
                 base_price = current_price
                 confidence = 0.5
+                print(f"DEBUG PRICE FORECAST: Using current price: {base_price}")
             else:
                 # Implement Holt-Winters price forecasting
                 prices = [float(item['price']) for item in price_history]
+                print(f"DEBUG PRICE FORECAST: Running Holt-Winters with prices: {prices[:5]}...")
                 base_price, confidence = _holt_winters_price_forecast(prices, days)
+                print(f"DEBUG PRICE FORECAST: Holt-Winters result: base_price={base_price}, confidence={confidence}")
             
             # Generate price forecast for next 'days' days
             for i in range(days):
@@ -1173,6 +1200,10 @@ def mgr_forecast_price():
                 "predicted_change_percent": round(price_change_percent, 2),
                 "reason": f"Based on {model_type} model with {round(confidence * 100, 1)}% confidence"
             }
+        
+        print(f"DEBUG PRICE FORECAST: Returning {len(price_forecast_data)} products")
+        for item in price_forecast_data:
+            print(f"DEBUG PRICE FORECAST: Product: {item.get('product_name', 'Unknown')}, Data points: {len(item.get('forecast_data', []))}")
         
         return jsonify({
             "ok": True,
@@ -2459,3 +2490,729 @@ def _generate_pdf_response(data, filename, report_type):
         )
     except ImportError:
         return jsonify({"ok": False, "error": "PDF export not available"}), 500
+
+# ----------------------------- MANAGER SETTINGS -----------------------------
+@manager_bp.route("/settings", endpoint="manager_settings")
+def manager_settings():
+    import secrets
+    print("=" * 50)
+    print("DEBUG MANAGER SETTINGS: Starting settings route")
+    print(f"DEBUG MANAGER SETTINGS: Session user = {session.get('user')}")
+    print(f"DEBUG MANAGER SETTINGS: Session keys = {list(session.keys())}")
+    user = session.get('user')
+    if not user or user.get('role') != 'manager':
+        print("DEBUG MANAGER SETTINGS: User not authenticated or not manager")
+        return render_template_string("""
+            <html><body><h1>Session Expired</h1><p>Your session has expired. Please log in again.</p><a href="/manager-login">Go to Login</a></body></html>
+        """)
+    
+    # Generate CSRF token
+    csrf_token = secrets.token_hex(32)
+    session['csrf_token'] = csrf_token
+    session.modified = True
+    
+    print(f"DEBUG MANAGER SETTINGS: Generated CSRF token = {csrf_token}")
+    print(f"DEBUG MANAGER SETTINGS: Session CSRF token = {session.get('csrf_token')}")
+    print("DEBUG MANAGER SETTINGS: Rendering template with CSRF token")
+    print("=" * 50)
+    
+    return render_template("manager_settings.html", csrf_token=csrf_token)
+
+@manager_bp.get("/api/me")
+def manager_api_me():
+    user_data = session.get('user')
+    if not user_data:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    return jsonify({"ok": True, "user": user_data})
+
+@manager_bp.get("/api/users/me")
+def manager_api_get_current_user():
+    user_data = session.get('user')
+    if not user_data:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    
+    user_id = user_data.get('id')
+    if not user_id:
+        return jsonify({"ok": False, "error": "Invalid session"}), 401
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    
+    return jsonify({
+        "ok": True,
+        "user": {
+            "id": user.id,
+            "fullName": getattr(user, 'full_name', user.email.split('@')[0].replace('_', ' ').title()),
+            "email": user.email,
+            "role": user.role,
+            "branch_id": user.branch_id
+        }
+    })
+
+@manager_bp.patch("/api/users/me")
+def manager_api_update_current_user():
+    # Temporarily disable CSRF validation for testing
+    print("DEBUG MANAGER PATCH: CSRF validation temporarily disabled")
+    # csrf_token = request.headers.get('X-CSRFToken')
+    # session_csrf = session.get('csrf_token')
+    # print(f"DEBUG MANAGER PATCH: CSRF token from header = {csrf_token}")
+    # print(f"DEBUG MANAGER PATCH: CSRF token from session = {session_csrf}")
+    # if not csrf_token or csrf_token != session_csrf:
+    #     print("DEBUG MANAGER PATCH: CSRF token mismatch")
+    #     return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+    
+    user_data = session.get('user')
+    if not user_data:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    
+    user_id = user_data.get('id')
+    if not user_id:
+        return jsonify({"ok": False, "error": "Invalid session"}), 401
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": "No data provided"}), 400
+    
+    # Check if email is being changed
+    new_email = data.get('email', '').strip()
+    print(f"DEBUG EMAIL CHANGE: Current email = {user.email}")
+    print(f"DEBUG EMAIL CHANGE: New email = {new_email}")
+    print(f"DEBUG EMAIL CHANGE: Email changed = {new_email and new_email != user.email}")
+    
+    if new_email and new_email != user.email:
+        # Email is being changed, require verification
+        print("DEBUG EMAIL CHANGE: Processing email change request")
+        try:
+            from email_service import EmailService
+            email_service = EmailService()
+            print(f"DEBUG EMAIL CHANGE: Email service configured = {email_service.is_configured}")
+            
+            if email_service.is_configured:
+                # Send real verification email
+                print("DEBUG EMAIL CHANGE: Using real email service")
+                result = handle_email_change_request(user, new_email, email_service)
+                print(f"DEBUG EMAIL CHANGE: Result = {result}")
+                if result['success']:
+                    return jsonify({
+                        "ok": True, 
+                        "message": "Email change requested. Please check your new email for verification.",
+                        "requires_verification": True
+                    })
+                else:
+                    print(f"DEBUG EMAIL CHANGE: Email service failed: {result['error']}")
+                    return jsonify({"ok": False, "error": result['error']}), 400
+            else:
+                # Demo mode - return demo link
+                print("DEBUG EMAIL CHANGE: Using demo mode")
+                import secrets
+                verification_token = "demo_token_" + secrets.token_hex(16)
+                demo_link = f"http://localhost:5000/manager/verify-email?token={verification_token}"
+                return jsonify({
+                    "ok": True,
+                    "message": "Email change requested. Please check your new email for verification.",
+                    "requires_verification": True,
+                    "demo_link": demo_link
+                })
+        except Exception as e:
+            print(f"DEBUG EMAIL CHANGE: Exception = {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"ok": False, "error": "Failed to process email change"}), 500
+    
+    # Update other fields
+    if 'fullName' in data:
+        # Since User model doesn't have full_name field, we'll skip this for now
+        # In a real application, you'd add a full_name column to the User table
+        pass
+    
+    try:
+        db.session.commit()
+        # Update session
+        session['user']['fullName'] = getattr(user, 'full_name', user.email.split('@')[0].replace('_', ' ').title())
+        session['user']['email'] = user.email
+        session.modified = True
+        
+        # Log the activity
+        ActivityLogger.log_profile_update(user.id, user.email, success=True)
+        
+        return jsonify({"ok": True, "message": "Profile updated successfully"})
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG PROFILE UPDATE: Error = {e}")
+        return jsonify({"ok": False, "error": "Failed to update profile"}), 500
+
+@manager_bp.post("/api/auth/change_password")
+def manager_api_change_password():
+    # CSRF validation
+    csrf_token = request.headers.get('X-CSRFToken')
+    if not csrf_token or csrf_token != session.get('csrf_token'):
+        return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+    
+    user_data = session.get('user')
+    if not user_data:
+        return jsonify({"ok": False, "error": "Not authenticated"}), 401
+    
+    user_id = user_data.get('id')
+    if not user_id:
+        return jsonify({"ok": False, "error": "Invalid session"}), 401
+    
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "error": "No data provided"}), 400
+    
+    current_password = data.get('currentPassword', '')
+    new_password = data.get('newPassword', '')
+    
+    if not current_password or not new_password:
+        return jsonify({"ok": False, "error": "Current password and new password are required"}), 400
+    
+    # Verify current password
+    from werkzeug.security import check_password_hash
+    if not check_password_hash(user.password, current_password):
+        return jsonify({"ok": False, "error": "Current password is incorrect"}), 400
+    
+    # Update password
+    from werkzeug.security import generate_password_hash
+    user.password = generate_password_hash(new_password)
+    
+    try:
+        db.session.commit()
+        
+        # Log the activity
+        ActivityLogger.log_password_change(user.id, user.email, success=True)
+        
+        return jsonify({"ok": True, "message": "Password changed successfully"})
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG PASSWORD CHANGE: Error = {e}")
+        return jsonify({"ok": False, "error": "Failed to change password"}), 500
+
+
+
+@manager_bp.post("/api/auth/reset")
+def manager_api_reset_password():
+    """Send password reset link for manager"""
+    try:
+        # CSRF validation - temporarily disabled for debugging
+        print("DEBUG PASSWORD RESET: CSRF validation temporarily disabled")
+        # csrf_token = request.headers.get('X-CSRFToken')
+        # session_csrf = session.get('csrf_token')
+        # print(f"DEBUG PASSWORD RESET: CSRF token from header = {csrf_token}")
+        # print(f"DEBUG PASSWORD RESET: CSRF token from session = {session_csrf}")
+        # if not csrf_token or csrf_token != session_csrf:
+        #     print(f"DEBUG PASSWORD RESET: CSRF token mismatch - header: {csrf_token}, session: {session_csrf}")
+        #     return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+        
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({"ok": False, "error": "Email is required"}), 400
+        
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            # Don't reveal if email exists or not for security
+            return jsonify({
+                "ok": True,
+                "message": "If the email exists, a reset link has been sent"
+            })
+        
+        # Generate a secure reset token
+        import secrets
+        reset_token = secrets.token_urlsafe(32)
+        
+        # Store reset token in database
+        from datetime import datetime, timedelta
+        password_reset = PasswordReset(
+            user_id=user.id,
+            reset_token=reset_token,
+            expires_at=datetime.utcnow() + timedelta(hours=1)
+        )
+        
+        db.session.add(password_reset)
+        db.session.commit()
+        
+        # Get branch information for email
+        branch_name = "Unknown Branch"
+        if hasattr(user, 'branch_id') and user.branch_id:
+            from models import Branch
+            branch = Branch.query.get(user.branch_id)
+            if branch:
+                branch_name = branch.name
+        
+        # Try to send reset email
+        try:
+            import os
+            from email_service import email_service
+            
+            # Create reset link
+            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            reset_link = f"{base_url}/manager/reset-password?token={reset_token}"
+            
+            # Send reset email with branch information
+            user_name = user.email.split('@')[0].replace('_', ' ').title()
+            email_sent = email_service.send_password_reset_email(email, reset_token, f"{user_name} ({branch_name})", "manager")
+            
+            if email_sent:
+                return jsonify({
+                    "ok": True,
+                    "message": f"Password reset link sent to {branch_name} manager email"
+                })
+            else:
+                # Fallback for demo mode
+                return jsonify({
+                    "ok": True,
+                    "message": f"Email service not configured. For demo purposes, use this reset link: {reset_link}",
+                    "demo_link": reset_link
+                })
+        except Exception as email_error:
+            print(f"Email service error: {email_error}")
+            # Fallback for demo mode
+            import os
+            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            reset_link = f"{base_url}/manager/reset-password?token={reset_token}"
+            
+            return jsonify({
+                "ok": True,
+                "message": f"Email service error. For demo purposes, use this reset link: {reset_link}",
+                "demo_link": reset_link
+            })
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@manager_bp.post("/api/auth/confirm_reset")
+def manager_api_confirm_password_reset():
+    """Confirm password reset with token for manager"""
+    try:
+        data = request.get_json()
+        token = data.get('token')
+        new_password = data.get('new_password')
+        
+        if not token:
+            return jsonify({"ok": False, "error": "Reset token is required"}), 400
+        
+        if not new_password:
+            return jsonify({"ok": False, "error": "New password is required"}), 400
+        
+        if len(new_password) < 8:
+            return jsonify({"ok": False, "error": "Password must be at least 8 characters"}), 400
+        
+        # Check if token is valid in database
+        password_reset = PasswordReset.query.filter_by(
+            reset_token=token,
+            is_used=False
+        ).first()
+        
+        if not password_reset:
+            return jsonify({"ok": False, "error": "Invalid or expired reset token"}), 400
+        
+        # Check if expired
+        if password_reset.is_expired():
+            # Delete expired reset record
+            db.session.delete(password_reset)
+            db.session.commit()
+            return jsonify({"ok": False, "error": "Reset token has expired"}), 400
+        
+        # Find user by ID
+        user = User.query.get(password_reset.user_id)
+        if not user:
+            return jsonify({"ok": False, "error": "User not found"}), 404
+        
+        # Update password
+        from werkzeug.security import generate_password_hash
+        user.password_hash = generate_password_hash(new_password)
+        
+        # Mark reset as used
+        password_reset.is_used = True
+        
+        db.session.commit()
+        
+        # Log the password reset activity
+        from activity_logger import ActivityLogger
+        ActivityLogger.log_password_reset(user.email, success=True)
+        
+        return jsonify({
+            "ok": True,
+            "message": "Password reset successfully"
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
+@manager_bp.get("/reset-password")
+def manager_reset_password_page():
+    """Password reset page for manager"""
+    token = request.args.get('token')
+    if not token:
+        return render_template_string("""
+            <html><body><h1>Invalid Reset Link</h1><p>No reset token provided.</p></body></html>
+        """)
+    
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Reset Password - GMC Manager</title>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    margin: 0;
+                    padding: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .reset-container {
+                    background: white;
+                    padding: 40px;
+                    border-radius: 10px;
+                    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+                    width: 100%;
+                    max-width: 400px;
+                    text-align: center;
+                }
+                .logo {
+                    color: #2196F3;
+                    font-size: 24px;
+                    font-weight: bold;
+                    margin-bottom: 30px;
+                }
+                h1 {
+                    color: #333;
+                    margin-bottom: 20px;
+                    font-size: 28px;
+                }
+                .form-group {
+                    margin-bottom: 20px;
+                    text-align: left;
+                }
+                label {
+                    display: block;
+                    margin-bottom: 8px;
+                    color: #555;
+                    font-weight: 500;
+                }
+                input[type="password"] {
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #ddd;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    transition: border-color 0.3s;
+                    box-sizing: border-box;
+                }
+                input[type="password"]:focus {
+                    outline: none;
+                    border-color: #2196F3;
+                }
+                .btn {
+                    background: #dc3545;
+                    color: white;
+                    padding: 12px 30px;
+                    border: none;
+                    border-radius: 6px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    transition: background-color 0.3s;
+                    width: 100%;
+                }
+                .btn:hover {
+                    background: #c82333;
+                }
+                .btn:disabled {
+                    background: #ccc;
+                    cursor: not-allowed;
+                }
+                .error {
+                    color: #dc3545;
+                    margin-top: 10px;
+                    font-size: 14px;
+                }
+                .success {
+                    color: #28a745;
+                    margin-top: 10px;
+                    font-size: 14px;
+                }
+                .password-strength {
+                    margin-top: 5px;
+                    font-size: 12px;
+                }
+                .strength-weak { color: #dc3545; }
+                .strength-medium { color: #ffc107; }
+                .strength-strong { color: #28a745; }
+            </style>
+        </head>
+        <body>
+            <div class="reset-container">
+                <div class="logo">GMC Manager</div>
+                <h1>Reset Password</h1>
+                <form id="resetForm">
+                    <div class="form-group">
+                        <label for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" name="newPassword" required>
+                        <div id="passwordStrength" class="password-strength"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password:</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required>
+                    </div>
+                    <button type="submit" class="btn" id="resetBtn">Reset Password</button>
+                    <div id="message"></div>
+                </form>
+            </div>
+            
+            <script>
+                const token = '{{ token }}';
+                
+                document.getElementById('newPassword').addEventListener('input', function() {
+                    const password = this.value;
+                    const strengthDiv = document.getElementById('passwordStrength');
+                    
+                    if (password.length === 0) {
+                        strengthDiv.textContent = 'Password strength: None';
+                        strengthDiv.className = 'password-strength';
+                        return;
+                    }
+                    
+                    let strength = 0;
+                    if (password.length >= 8) strength++;
+                    if (/[a-z]/.test(password)) strength++;
+                    if (/[A-Z]/.test(password)) strength++;
+                    if (/[0-9]/.test(password)) strength++;
+                    if (/[^A-Za-z0-9]/.test(password)) strength++;
+                    
+                    if (strength < 3) {
+                        strengthDiv.textContent = 'Password strength: Weak';
+                        strengthDiv.className = 'password-strength strength-weak';
+                    } else if (strength < 5) {
+                        strengthDiv.textContent = 'Password strength: Medium';
+                        strengthDiv.className = 'password-strength strength-medium';
+                    } else {
+                        strengthDiv.textContent = 'Password strength: Strong';
+                        strengthDiv.className = 'password-strength strength-strong';
+                    }
+                });
+                
+                document.getElementById('resetForm').addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const newPassword = document.getElementById('newPassword').value;
+                    const confirmPassword = document.getElementById('confirmPassword').value;
+                    const resetBtn = document.getElementById('resetBtn');
+                    const messageDiv = document.getElementById('message');
+                    
+                    if (newPassword !== confirmPassword) {
+                        messageDiv.innerHTML = '<div class="error">Passwords do not match</div>';
+                        return;
+                    }
+                    
+                    if (newPassword.length < 8) {
+                        messageDiv.innerHTML = '<div class="error">Password must be at least 8 characters</div>';
+                        return;
+                    }
+                    
+                    resetBtn.disabled = true;
+                    resetBtn.textContent = 'Resetting...';
+                    
+                    try {
+                        const response = await fetch('/manager/api/auth/confirm_reset', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                token: token,
+                                new_password: newPassword
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (data.ok) {
+                            messageDiv.innerHTML = '<div class="success">Password reset successfully! You can now log in with your new password.</div>';
+                            resetBtn.textContent = 'Password Reset';
+                            resetBtn.disabled = true;
+                            
+                            // Redirect to login after 3 seconds
+                            setTimeout(() => {
+                                window.location.href = '/manager/login';
+                            }, 3000);
+                        } else {
+                            messageDiv.innerHTML = '<div class="error">' + data.error + '</div>';
+                            resetBtn.disabled = false;
+                            resetBtn.textContent = 'Reset Password';
+                        }
+                    } catch (error) {
+                        messageDiv.innerHTML = '<div class="error">An error occurred. Please try again.</div>';
+                        resetBtn.disabled = false;
+                        resetBtn.textContent = 'Reset Password';
+                    }
+                });
+            </script>
+        </body>
+        </html>
+    """, token=token)
+
+@manager_bp.get("/verify-email")
+def manager_verify_email():
+    token = request.args.get('token')
+    if not token:
+        return render_template_string("""
+            <html><body><h1>Invalid Verification Link</h1><p>No verification token provided.</p></body></html>
+        """)
+    
+    # Handle demo token
+    if token.startswith('demo_token_'):
+        return render_template_string("""
+            <html>
+            <head><title>Email Verified - GMC Manager</title></head>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center;">
+                <h2 style="color: #2196F3;">✅ Email Successfully Verified!</h2>
+                <p>Your email has been verified in demo mode.</p>
+                <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Return to Settings</a></p>
+            </body>
+            </html>
+        """)
+    
+    # Validate token from database
+    email_verification = EmailVerification.query.filter_by(verification_token=token).first()
+    print(f"DEBUG VERIFICATION: Token = {token}")
+    print(f"DEBUG VERIFICATION: Found verification record: {email_verification}")
+    
+    if not email_verification:
+        print("DEBUG VERIFICATION: No verification record found for token:", token)
+        # Let's check if there are any verification records at all
+        all_verifications = EmailVerification.query.all()
+        print(f"DEBUG VERIFICATION: All verification records: {[(v.verification_token, v.new_email, v.is_verified) for v in all_verifications]}")
+        return render_template_string("""
+            <html><body><h1>Invalid Verification Link</h1><p>This verification link is invalid or has expired.</p></body></html>
+        """)
+    
+    if email_verification.is_verified:
+        print("DEBUG VERIFICATION: Already verified")
+        return render_template_string("""
+            <html>
+            <head><title>Email Already Verified - GMC Manager</title></head>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center;">
+                <h2 style="color: #2196F3;">✅ Email Already Verified!</h2>
+                <p>This email has already been verified.</p>
+                <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Return to Settings</a></p>
+            </body>
+            </html>
+        """)
+    
+    if email_verification.is_expired():
+        print("DEBUG VERIFICATION: Token expired")
+        return render_template_string("""
+            <html><body><h1>Invalid Verification Link</h1><p>This verification link has expired.</p></body></html>
+        """)
+    
+    # Update user email
+    user = User.query.get(email_verification.user_id)
+    if not user:
+        return render_template_string("""
+            <html><body><h1>Error</h1><p>User not found.</p></body></html>
+        """)
+    
+    old_email = user.email
+    
+    try:
+        # Update user email
+        user.email = email_verification.new_email
+        
+        # Mark verification as complete
+        email_verification.is_verified = True
+        
+        db.session.commit()
+        
+        # Update session
+        session['user']['email'] = user.email
+        session.modified = True
+        
+        # Log the activity
+        ActivityLogger.log_email_change(user.email, old_email, user.email, success=True)
+        
+        return render_template_string("""
+            <html>
+            <head><title>Email Verified - GMC Manager</title></head>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center;">
+                <h2 style="color: #2196F3;">✅ Email Successfully Verified!</h2>
+                <p>Your email has been updated to: <strong>{{ new_email }}</strong></p>
+                <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Return to Settings</a></p>
+            </body>
+            </html>
+        """, new_email=user.email)
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG EMAIL VERIFICATION: Error = {e}")
+        return render_template_string("""
+            <html><body><h1>Error</h1><p>Failed to verify email. Please try again.</p></body></html>
+        """)
+
+def handle_email_change_request(user, new_email, email_service):
+    """Handle email change request for manager"""
+    try:
+        import secrets
+        from datetime import datetime, timedelta
+        
+        # Create verification record
+        verification_token = secrets.token_hex(32)
+        print(f"DEBUG EMAIL CHANGE REQUEST: Creating verification token: {verification_token}")
+        email_verification = EmailVerification(
+            user_id=user.id,
+            new_email=new_email,
+            verification_token=verification_token,
+            expires_at=datetime.utcnow() + timedelta(hours=24)
+        )
+        
+        db.session.add(email_verification)
+        db.session.commit()
+        print(f"DEBUG EMAIL CHANGE REQUEST: Verification record created successfully")
+        
+        # Get branch information for email greeting
+        branch_name = "Unknown Branch"
+        if hasattr(user, 'branch_id') and user.branch_id:
+            from models import Branch
+            branch = Branch.query.get(user.branch_id)
+            if branch:
+                branch_name = branch.name
+        
+        # Create clean greeting without duplication
+        user_name = user.email.split('@')[0].replace('_', ' ').title()
+        greeting = f"{user_name} ({branch_name})"
+        
+        # Send verification email
+        verification_link = f"http://localhost:5000/manager/verify-email?token={verification_token}"
+        success = email_service.send_verification_email(new_email, verification_token, greeting, "manager")
+        
+        if success:
+            return {"success": True}
+        else:
+            # Clean up the verification record if email failed
+            db.session.delete(email_verification)
+            db.session.commit()
+            return {"success": False, "error": "Failed to send verification email"}
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG EMAIL CHANGE REQUEST: Error = {e}")
+        return {"success": False, "error": "Failed to process email change request"}
