@@ -208,31 +208,37 @@ def mgr_inventory_create():
 @manager_bp.route("/api/inventory", methods=["GET"])
 @manager_required
 def mgr_inventory_list():
-    branch_id = request.args.get("branch_id", type=int) or _current_manager_branch_id()
-    
-    # If no branch_id found, try to get from URL parameters or default to branch 1
-    if not branch_id:
-        url_branch = request.args.get('branch')
-        if url_branch:
-            branch_id = int(url_branch)
-        else:
-            branch_id = 1  # Default to branch 1 for testing
-    
-    q = InventoryItem.query
-    if branch_id:
-        q = q.filter(InventoryItem.branch_id == branch_id)
+    try:
+        branch_id = request.args.get("branch_id", type=int) or _current_manager_branch_id()
+        
+        # If no branch_id found, try to get from URL parameters or default to branch 1
+        if not branch_id:
+            url_branch = request.args.get('branch')
+            if url_branch:
+                branch_id = int(url_branch)
+            else:
+                branch_id = 1  # Default to branch 1 for testing
+        
+        q = InventoryItem.query
+        if branch_id:
+            q = q.filter(InventoryItem.branch_id == branch_id)
 
-    # Optional text filter by product name (?q=jas)
-    qtext = (request.args.get("q") or "").strip()
-    if qtext:
-        q = q.join(Product).filter(Product.name.ilike(f"%{qtext}%"))
+        # Optional text filter by product name (?q=jas)
+        qtext = (request.args.get("q") or "").strip()
+        if qtext:
+            q = q.join(Product).filter(Product.name.ilike(f"%{qtext}%"))
 
-    items = q.order_by(InventoryItem.id.desc()).all()
-    
-    # Debug logging
-    print(f"DEBUG: Inventory API called with branch_id={branch_id}, found {len(items)} items")
-    
-    return jsonify({"ok": True, "items": [item_to_dict(it) for it in items]}), 200
+        items = q.order_by(InventoryItem.id.desc()).all()
+        
+        # Debug logging
+        print(f"DEBUG: Inventory API called with branch_id={branch_id}, found {len(items)} items")
+        
+        return jsonify({"ok": True, "items": [item_to_dict(it) for it in items]}), 200
+    except Exception as e:
+        print(f"DEBUG: Error in mgr_inventory_list: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e), "items": []}), 500
 
 
 # READ: one item
@@ -447,83 +453,115 @@ def mgr_inventory_logs(item_id: int):
 @manager_required
 def mgr_dashboard_kpis():
     """Get KPI data for manager dashboard (branch-specific)"""
-    from datetime import datetime, date, timedelta
-    from sqlalchemy import func, and_, or_
-    
-    # Get manager's branch ID - prioritize URL parameter over session
-    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id() or 1
-    if not branch_id:
-        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
-    
-    print(f"DEBUG: Manager API called with branch_id: {branch_id}")
-    print(f"DEBUG: Request args: {dict(request.args)}")
-    
-    # Get current date and month
-    today = date.today()
-    current_month = today.month
-    current_year = today.year
-    
-    # Today's sales for this branch
-    today_sales = db.session.query(SalesTransaction).filter(
-        and_(
-            SalesTransaction.branch_id == branch_id,
-            func.date(SalesTransaction.transaction_date) == today
-        )
-    ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
-    
-    # This month's sales for this branch
-    month_sales = db.session.query(SalesTransaction).filter(
-        and_(
-            SalesTransaction.branch_id == branch_id,
-            func.extract('month', SalesTransaction.transaction_date) == current_month,
-            func.extract('year', SalesTransaction.transaction_date) == current_year
-        )
-    ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
-    
-    # Low stock count for this branch
-    # Check for items where stock is below warn_level (if set) or below 100kg (default threshold)
-    low_stock_count = db.session.query(InventoryItem).filter(
-        and_(
-            InventoryItem.branch_id == branch_id,
-            or_(
-                and_(InventoryItem.warn_level.isnot(None), InventoryItem.stock_kg < InventoryItem.warn_level),
-                and_(InventoryItem.warn_level.is_(None), InventoryItem.stock_kg < 100)
-            )
-        )
-    ).count()
-    
-    # Debug: Get all inventory items for this branch
-    all_items = db.session.query(InventoryItem).filter(InventoryItem.branch_id == branch_id).all()
-    print(f"DEBUG: Branch {branch_id} has {len(all_items)} inventory items")
-    for item in all_items:
-        print(f"  - Item {item.id}: stock={item.stock_kg}kg, warn_level={item.warn_level}")
-    
-    print(f"DEBUG: Low stock count for branch {branch_id}: {low_stock_count}")
-    
-    # Forecast accuracy for this branch
-    forecast_accuracy = db.session.query(func.avg(ForecastData.accuracy_score)).filter(
-        ForecastData.branch_id == branch_id
-    ).scalar() or 0
-    
-    # Calculate Total Orders for this specific branch
-    total_orders = db.session.query(SalesTransaction).filter(
-        SalesTransaction.branch_id == branch_id
-    ).count()
-    
-    print(f"DEBUG: Manager Total Orders calculation for branch {branch_id}:")
-    print(f"  - Total orders (branch {branch_id}): {total_orders}")
-    
-    
-    return jsonify({
-        "ok": True,
-        "kpis": {
-            "today_sales": float(today_sales),
-            "month_sales": float(month_sales),
-            "low_stock_count": low_stock_count,
-            "forecast_accuracy": round(forecast_accuracy, 2),
-            "total_orders": int(total_orders)
-        }
-    })
+    try:
+        from datetime import datetime, date, timedelta
+        from sqlalchemy import func, and_, or_
+        
+        # Get manager's branch ID - prioritize URL parameter over session
+        branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id() or 1
+        if not branch_id:
+            return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+        
+        print(f"DEBUG: Manager API called with branch_id: {branch_id}")
+        print(f"DEBUG: Request args: {dict(request.args)}")
+        
+        # Initialize default values
+        today_sales = 0
+        month_sales = 0
+        low_stock_count = 0
+        forecast_accuracy = 0
+        total_orders = 0
+        
+        try:
+            # Get current date and month
+            today = date.today()
+            current_month = today.month
+            current_year = today.year
+            
+            # Today's sales for this branch
+            today_sales = db.session.query(SalesTransaction).filter(
+                and_(
+                    SalesTransaction.branch_id == branch_id,
+                    func.date(SalesTransaction.transaction_date) == today
+                )
+            ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+            
+            # This month's sales for this branch
+            month_sales = db.session.query(SalesTransaction).filter(
+                and_(
+                    SalesTransaction.branch_id == branch_id,
+                    func.extract('month', SalesTransaction.transaction_date) == current_month,
+                    func.extract('year', SalesTransaction.transaction_date) == current_year
+                )
+            ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+            
+        except Exception as e:
+            print(f"DEBUG KPI: Error in sales queries: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        try:
+            # Low stock count for this branch
+            # Check for items where stock is below warn_level (if set) or below 100kg (default threshold)
+            low_stock_count = db.session.query(InventoryItem).filter(
+                and_(
+                    InventoryItem.branch_id == branch_id,
+                    or_(
+                        and_(InventoryItem.warn_level.isnot(None), InventoryItem.stock_kg < InventoryItem.warn_level),
+                        and_(InventoryItem.warn_level.is_(None), InventoryItem.stock_kg < 100)
+                    )
+                )
+            ).count()
+        except Exception as e:
+            print(f"DEBUG KPI: Error in inventory query: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        try:
+            # Forecast accuracy for this branch
+            forecast_accuracy = db.session.query(func.avg(ForecastData.accuracy_score)).filter(
+                ForecastData.branch_id == branch_id
+            ).scalar() or 0
+        except Exception as e:
+            print(f"DEBUG KPI: Error in forecast query: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        try:
+            # Calculate Total Orders for this specific branch
+            total_orders = db.session.query(SalesTransaction).filter(
+                SalesTransaction.branch_id == branch_id
+            ).count()
+        except Exception as e:
+            print(f"DEBUG KPI: Error in orders query: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return jsonify({
+            "ok": True,
+            "kpis": {
+                "today_sales": float(today_sales),
+                "month_sales": float(month_sales),
+                "low_stock_count": int(low_stock_count),
+                "forecast_accuracy": round(forecast_accuracy, 2),
+                "total_orders": int(total_orders)
+            }
+        })
+    except Exception as e:
+        print(f"DEBUG KPI: Critical error in mgr_dashboard_kpis: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "kpis": {
+                "today_sales": 0,
+                "month_sales": 0,
+                "low_stock_count": 0,
+                "forecast_accuracy": 0,
+                "total_orders": 0
+            }
+        }), 500
 
 @manager_bp.get("/api/dashboard/charts")
 @manager_required

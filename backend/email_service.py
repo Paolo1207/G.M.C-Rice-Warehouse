@@ -127,8 +127,15 @@ class EmailService:
                 print("Email service not configured - skipping password reset email")
                 return False
                 
-            # Create reset link
-            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            # Create reset link - use request URL if available, else BASE_URL env var
+            from flask import request
+            base_url = os.getenv('BASE_URL')
+            if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                # Use request URL for Render deployment
+                try:
+                    base_url = request.host_url.rstrip('/')
+                except:
+                    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
             reset_link = f"{base_url}/{route_prefix}/reset-password?token={reset_token}"
             
             # Create email content
