@@ -2801,8 +2801,7 @@ def manager_api_reset_password():
             import os
             from email_service import email_service
             
-            # Create reset link
-            # Get base URL from request or environment
+            # Create reset link - get base URL from request or environment
             base_url = os.getenv('BASE_URL')
             if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
                 try:
