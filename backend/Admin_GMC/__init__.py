@@ -2537,130 +2537,161 @@ def api_analytics_overview():
 # @cache.cached(timeout=300)  # Temporarily disable cache for debugging
 def api_dashboard_kpis():
     """Get KPI data for dashboard"""
-    from datetime import datetime, date, timedelta
-    from sqlalchemy import func, and_, text
-    
-    # Get query parameters for branch filtering
-    branch_id = request.args.get('branch_id', type=int)
-    
-    # Get current date and month
-    today = date.today()
-    current_month = today.month
-    current_year = today.year
-    
-    # Base queries
-    sales_query = db.session.query(SalesTransaction)
-    inventory_query = db.session.query(InventoryItem)
-    forecast_query = db.session.query(ForecastData)
-    
-    # Apply branch filter if provided
-    if branch_id:
-        sales_query = sales_query.filter(SalesTransaction.branch_id == branch_id)
-        inventory_query = inventory_query.filter(InventoryItem.branch_id == branch_id)
-        forecast_query = forecast_query.filter(ForecastData.branch_id == branch_id)
-    
-    # Today's sales
-    today_sales = sales_query.filter(
-        func.date(SalesTransaction.transaction_date) == today
-    ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
-    
-    # Debug logging
-    print(f"DEBUG: Today's date: {today}")
-    print(f"DEBUG: Branch filter applied: {branch_id if branch_id else 'ALL BRANCHES'}")
-    print(f"DEBUG: Today's sales query result: {today_sales}")
-    print(f"DEBUG: Total sales transactions: {SalesTransaction.query.count()}")
-    
-    # This month's sales
-    month_sales = sales_query.filter(
-        and_(
-            func.extract('month', SalesTransaction.transaction_date) == current_month,
-            func.extract('year', SalesTransaction.transaction_date) == current_year
-        )
-    ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
-    
-    # Total sales (all time)
-    total_sales = sales_query.with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
-    
-    # Low stock count - items where stock is below warning level
-    low_stock_count = inventory_query.filter(
-        and_(
-            InventoryItem.warn_level.isnot(None),
-            InventoryItem.stock_kg <= InventoryItem.warn_level
-        )
-    ).count()
-    
-    # If no warning levels set, use a default threshold (10% of average stock)
-    if low_stock_count == 0:
-        avg_stock = inventory_query.with_entities(func.avg(InventoryItem.stock_kg)).scalar() or 0
-        default_threshold = avg_stock * 0.1  # 10% of average stock
-        low_stock_count = inventory_query.filter(
-            InventoryItem.stock_kg <= default_threshold
-        ).count()
-    
-    # Forecast accuracy (MAPE - Mean Absolute Percentage Error)
-    # Get last 30 days of forecasts and actual sales
-    thirty_days_ago = today - timedelta(days=30)
-    
-    # Get forecast data for last 30 days
-    forecasts = forecast_query.filter(
-        and_(
-            ForecastData.forecast_date >= thirty_days_ago,
-            ForecastData.forecast_date <= today
-        )
-    ).all()
-    
-    # Calculate MAPE
-    total_mape = 0
-    forecast_count = 0
-    
-    for forecast in forecasts:
-        # Get actual sales for the forecast date
-        actual_sales = sales_query.filter(
-            and_(
-                SalesTransaction.product_id == forecast.product_id,
-                func.date(SalesTransaction.transaction_date) == forecast.forecast_date
-            )
-        ).with_entities(func.sum(SalesTransaction.quantity_sold)).scalar() or 0
+    try:
+        from datetime import datetime, date, timedelta
+        from sqlalchemy import func, and_, text
         
-        if actual_sales > 0:
-            mape = abs(forecast.predicted_demand - actual_sales) / actual_sales * 100
-            total_mape += mape
-            forecast_count += 1
-    
-    # Calculate forecast accuracy, clamped between 0% and 100%
-    if forecast_count > 0:
-        avg_mape = total_mape / forecast_count
-        forecast_accuracy = max(0, min(100, 100 - avg_mape))  # Clamp between 0 and 100
+        # Get query parameters for branch filtering
+        branch_id = request.args.get('branch_id', type=int)
         
-        # Debug logging for forecast accuracy
-        print(f"DEBUG: Forecast accuracy calculation:")
-        print(f"  - Total forecasts: {forecast_count}")
-        print(f"  - Total MAPE: {total_mape:.2f}%")
-        print(f"  - Average MAPE: {avg_mape:.2f}%")
-        print(f"  - Raw accuracy: {100 - avg_mape:.2f}%")
-        print(f"  - Clamped accuracy: {forecast_accuracy:.2f}%")
-    else:
+        # Get current date and month
+        today = date.today()
+        current_month = today.month
+        current_year = today.year
+        
+        # Initialize default values
+        today_sales = 0
+        month_sales = 0
+        total_sales = 0
+        low_stock_count = 0
         forecast_accuracy = 0
-        print("DEBUG: No forecast data found for accuracy calculation")
-    
-    # Calculate Total Orders (all time for admin - all branches)
-    total_orders = sales_query.count()
-    
-    print(f"DEBUG: Total Orders calculation:")
-    print(f"  - Total orders (all branches): {total_orders}")
-    
-    
-    return jsonify({
-        "ok": True,
-        "kpis": {
-            "today_sales": float(today_sales),
-            "month_sales": float(month_sales),
-            "total_sales": float(total_sales),
-            "low_stock_count": int(low_stock_count),
-            "forecast_accuracy": round(forecast_accuracy, 2),
-            "total_orders": int(total_orders)
-        }
-    })
+        total_orders = 0
+        
+        try:
+            # Base queries
+            sales_query = db.session.query(SalesTransaction)
+            inventory_query = db.session.query(InventoryItem)
+            forecast_query = db.session.query(ForecastData)
+            
+            # Apply branch filter if provided
+            if branch_id:
+                sales_query = sales_query.filter(SalesTransaction.branch_id == branch_id)
+                inventory_query = inventory_query.filter(InventoryItem.branch_id == branch_id)
+                forecast_query = forecast_query.filter(ForecastData.branch_id == branch_id)
+            
+            # Today's sales
+            today_sales = sales_query.filter(
+                func.date(SalesTransaction.transaction_date) == today
+            ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+            
+            # This month's sales
+            month_sales = sales_query.filter(
+                and_(
+                    func.extract('month', SalesTransaction.transaction_date) == current_month,
+                    func.extract('year', SalesTransaction.transaction_date) == current_year
+                )
+            ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+            
+            # Total sales (all time)
+            total_sales = sales_query.with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
+            
+            # Total Orders (all time for admin - all branches)
+            total_orders = sales_query.count()
+            
+        except Exception as e:
+            print(f"DEBUG KPI: Error in sales/inventory queries: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        try:
+            # Low stock count - items where stock is below warning level
+            low_stock_count = inventory_query.filter(
+                and_(
+                    InventoryItem.warn_level.isnot(None),
+                    InventoryItem.stock_kg <= InventoryItem.warn_level
+                )
+            ).count()
+            
+            # If no warning levels set, use a default threshold (10% of average stock)
+            if low_stock_count == 0:
+                avg_stock = inventory_query.with_entities(func.avg(InventoryItem.stock_kg)).scalar() or 0
+                if avg_stock > 0:
+                    default_threshold = avg_stock * 0.1  # 10% of average stock
+                    low_stock_count = inventory_query.filter(
+                        InventoryItem.stock_kg <= default_threshold
+                    ).count()
+        except Exception as e:
+            print(f"DEBUG KPI: Error calculating low stock: {e}")
+            low_stock_count = 0
+        
+        try:
+            # Forecast accuracy (MAPE - Mean Absolute Percentage Error)
+            # Get last 30 days of forecasts and actual sales
+            thirty_days_ago = today - timedelta(days=30)
+            
+            # Get forecast data for last 30 days
+            forecasts = forecast_query.filter(
+                and_(
+                    ForecastData.forecast_date >= thirty_days_ago,
+                    ForecastData.forecast_date <= today
+                )
+            ).all()
+            
+            # Calculate MAPE
+            total_mape = 0
+            forecast_count = 0
+            
+            for forecast in forecasts:
+                try:
+                    # Get actual sales for the forecast date
+                    actual_sales = sales_query.filter(
+                        and_(
+                            SalesTransaction.product_id == forecast.product_id,
+                            func.date(SalesTransaction.transaction_date) == forecast.forecast_date
+                        )
+                    ).with_entities(func.sum(SalesTransaction.quantity_sold)).scalar() or 0
+                    
+                    if actual_sales > 0:
+                        mape = abs(forecast.predicted_demand - actual_sales) / actual_sales * 100
+                        total_mape += mape
+                        forecast_count += 1
+                except Exception as e:
+                    print(f"DEBUG KPI: Error processing forecast {forecast.id}: {e}")
+                    continue
+            
+            # Calculate forecast accuracy, clamped between 0% and 100%
+            if forecast_count > 0:
+                avg_mape = total_mape / forecast_count
+                forecast_accuracy = max(0, min(100, 100 - avg_mape))  # Clamp between 0 and 100
+            else:
+                forecast_accuracy = 0
+        except Exception as e:
+            print(f"DEBUG KPI: Error calculating forecast accuracy: {e}")
+            forecast_accuracy = 0
+        
+        # Debug logging
+        print(f"DEBUG KPI: Today's date: {today}")
+        print(f"DEBUG KPI: Branch filter: {branch_id if branch_id else 'ALL BRANCHES'}")
+        print(f"DEBUG KPI: Today's sales: {today_sales}, Month sales: {month_sales}, Total sales: {total_sales}")
+        print(f"DEBUG KPI: Low stock: {low_stock_count}, Orders: {total_orders}, Accuracy: {forecast_accuracy}")
+        
+        return jsonify({
+            "ok": True,
+            "kpis": {
+                "today_sales": float(today_sales),
+                "month_sales": float(month_sales),
+                "total_sales": float(total_sales),
+                "low_stock_count": int(low_stock_count),
+                "forecast_accuracy": round(forecast_accuracy, 2),
+                "total_orders": int(total_orders)
+            }
+        })
+    except Exception as e:
+        print(f"DEBUG KPI: Critical error in api_dashboard_kpis: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "kpis": {
+                "today_sales": 0,
+                "month_sales": 0,
+                "total_sales": 0,
+                "low_stock_count": 0,
+                "forecast_accuracy": 0,
+                "total_orders": 0
+            }
+        }), 500
 
 @admin_bp.get("/api/dashboard/charts")
 def api_dashboard_charts():
@@ -3392,7 +3423,13 @@ def api_reset_password():
             from email_service import email_service
             
             # Create reset link
-            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            # Get base URL from request or environment
+            base_url = os.getenv('BASE_URL')
+            if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                try:
+                    base_url = request.host_url.rstrip('/')
+                except:
+                    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
             reset_link = f"{base_url}/admin/reset-password?token={reset_token}"
             
             # Send reset email
@@ -3413,7 +3450,13 @@ def api_reset_password():
         except Exception as email_error:
             print(f"Email service error: {email_error}")
             # Fallback for demo mode
-            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            # Get base URL from request or environment
+            base_url = os.getenv('BASE_URL')
+            if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                try:
+                    base_url = request.host_url.rstrip('/')
+                except:
+                    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
             reset_link = f"{base_url}/admin/reset-password?token={reset_token}"
             
             return jsonify({
@@ -3520,7 +3563,13 @@ def handle_email_change_request(user, new_email):
             # Check if email service is configured
             if not email_service.is_configured:
                 print("Email service not configured - providing demo link")
-                base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+                # Get base URL from request or environment
+                base_url = os.getenv('BASE_URL')
+                if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                    try:
+                        base_url = request.host_url.rstrip('/')
+                    except:
+                        base_url = os.getenv('BASE_URL', 'http://localhost:5000')
                 verification_link = f"{base_url}/admin/verify-email?token={verification_token}"
                 
                 return jsonify({
@@ -3545,7 +3594,13 @@ def handle_email_change_request(user, new_email):
                 })
             else:
                 # If email fails, provide manual verification link for demo
-                base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+                # Get base URL from request or environment
+                base_url = os.getenv('BASE_URL')
+                if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                    try:
+                        base_url = request.host_url.rstrip('/')
+                    except:
+                        base_url = os.getenv('BASE_URL', 'http://localhost:5000')
                 verification_link = f"{base_url}/admin/verify-email?token={verification_token}"
                 
                 return jsonify({

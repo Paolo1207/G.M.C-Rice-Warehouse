@@ -42,8 +42,15 @@ class EmailService:
                 print("Email service not configured - skipping email send")
                 return False
                 
-            # Create verification link
-            base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            # Create verification link - use request URL if available, else BASE_URL env var
+            from flask import request
+            base_url = os.getenv('BASE_URL')
+            if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                # Use request URL for Render deployment
+                try:
+                    base_url = request.host_url.rstrip('/')
+                except:
+                    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
             verification_link = f"{base_url}/{route_prefix}/verify-email?token={verification_token}"
             
             # Create email content
