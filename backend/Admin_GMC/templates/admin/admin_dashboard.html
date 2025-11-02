@@ -829,6 +829,9 @@
             const labels = data.map(item => item.date);
             const salesData = data.map(item => item.sales);
 
+            // Determine selected period to reflect in the chart title
+            const selectedPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+
             window.salesTrendChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -858,7 +861,7 @@
                         },
                         title: { 
                             display: true, 
-                            text: 'Sales Trend (Last 30 Days)',
+                            text: `Sales Trend (Last ${selectedPeriod} Days)`,
                             font: { size: 14, weight: 'bold' }
                         },
                         tooltip: {

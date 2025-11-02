@@ -198,7 +198,7 @@ def mgr_inventory_create():
         return jsonify({"ok": True, "item": item_to_dict(item)}), 201
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"ok": False, "error": "Duplicate branch/product (uq_branch_product)"}), 409
+        return jsonify({"ok": False, "error": "Duplicate branch/product/batch (uq_branch_product_batch). Try a different batch code."}), 409
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -285,7 +285,7 @@ def mgr_inventory_update(item_id: int):
         return jsonify({"ok": True, "item": item_to_dict(it)}), 200
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"ok": False, "error": "Unique constraint (branch/product)"}), 409
+        return jsonify({"ok": False, "error": "Duplicate branch/product/batch (uq_branch_product_batch). Try a different batch code."}), 409
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -665,6 +665,13 @@ def mgr_analytics_overview():
     branch_id = request.args.get("branch_id", type=int) or _current_manager_branch_id()
     if not branch_id:
         return jsonify({"ok": False, "error": "branch_id is required"}), 400
+    
+    # Verify branch exists and belongs to manager
+    branch = Branch.query.get(branch_id)
+    if not branch:
+        return jsonify({"ok": False, "error": f"Branch {branch_id} not found"}), 404
+    
+    print(f"DEBUG ANALYTICS: Fetching analytics for branch_id={branch_id} (branch: {branch.name})")
 
     today = date.today()
     seven_days_ago = today - timedelta(days=7)
@@ -735,10 +742,16 @@ def mgr_analytics_overview():
     actual_map = {pid: float(q or 0) for pid, q in actual_per_product}
     pred_map = {pid: float(p or 0) for pid, p in per_product}
 
-    # names
-    names = {p.id: p.name for p in Product.query.filter(Product.id.in_(product_ids)).all()} if product_ids else {}
+    # Get product names - only for products in this branch's inventory or forecasts
+    # First get all products that have inventory in this branch
+    branch_product_ids = set([it.product_id for it in InventoryItem.query.filter(InventoryItem.branch_id == branch_id).all()])
+    # Add products from forecasts
+    branch_product_ids.update(product_ids)
+    names = {p.id: p.name for p in Product.query.filter(Product.id.in_(list(branch_product_ids))).all()} if branch_product_ids else {}
 
     product_accuracy = []
+    total_accuracy_sum = 0.0
+    total_accuracy_count = 0
     for pid in product_ids:
         pred = pred_map.get(pid, 0.0)
         act = actual_map.get(pid, 0.0)
@@ -753,6 +766,15 @@ def mgr_analytics_overview():
             "actual": round(act, 2),
             "accuracy": round(acc, 2),
         })
+        if act > 0:
+            total_accuracy_sum += acc
+            total_accuracy_count += 1
+    
+    # Calculate overall accuracy
+    overall_accuracy = round(total_accuracy_sum / total_accuracy_count, 2) if total_accuracy_count > 0 else 0.0
+    
+    # Calculate date period for last 7 days
+    accuracy_period = f"{seven_days_ago.strftime('%b %d')} - {today.strftime('%b %d')}"
 
     # 3) Stock movement (7d): stock_in from RestockLog, stock_out from SalesTransaction
     # stock in (by date)
@@ -835,7 +857,7 @@ def mgr_analytics_overview():
         week_buckets[idx] += float(amt or 0)
     weekly_sales_4w = {"labels": week_labels, "sales": [round(v, 2) for v in week_buckets]}
 
-    # 7) Branch risks: forecast next 7 days vs stock
+    # 7) Branch risks: forecast next 7 days vs stock (only for products in this branch)
     next7 = today + timedelta(days=7)
     f_next = (
         db.session.query(ForecastData.product_id, func.sum(ForecastData.predicted_demand).label('pred'))
@@ -845,13 +867,22 @@ def mgr_analytics_overview():
         .group_by(ForecastData.product_id)
         .all()
     )
-    inv_map = {it.product_id: float(it.stock_kg or 0) for it in InventoryItem.query.filter(InventoryItem.branch_id == branch_id).all()}
+    # Get inventory map for this branch only
+    inv_items = InventoryItem.query.filter(InventoryItem.branch_id == branch_id).all()
+    inv_map = {it.product_id: float(it.stock_kg or 0) for it in inv_items}
+    # Ensure product names are available for all products in this branch's inventory
+    branch_inv_product_ids = [it.product_id for it in inv_items if it.product_id]
+    if branch_inv_product_ids:
+        branch_product_names = {p.id: p.name for p in Product.query.filter(Product.id.in_(branch_inv_product_ids)).all()}
+        names.update(branch_product_names)
+    
     branch_risks = []
     for pid, pred in f_next:
         stock = inv_map.get(pid, 0.0)
         gap = float(pred or 0) - stock
+        # Only show risks for products with positive gaps (shortage risk)
         if gap > 0:
-            risk_level = "High" if gap > stock else "Medium"
+            risk_level = "High" if gap > stock else ("Medium" if gap > stock * 0.5 else "Low")
             risk_score = round(min(100.0, (gap / (stock + 1e-6)) * 100.0), 2)
             action = "Increase stock" if risk_level == "High" else "Monitor & adjust"
             name = names.get(pid) if pid in names else (Product.query.get(pid).name if Product.query.get(pid) else f"Product {pid}")
@@ -867,6 +898,8 @@ def mgr_analytics_overview():
     return jsonify({
         "ok": True,
         "analytics": {
+            "overall_accuracy": overall_accuracy,
+            "accuracy_period": accuracy_period,
             "forecast_vs_actual_7d": forecast_vs_actual_7d,
             "product_accuracy": product_accuracy,
             "stock_movement_7d": stock_movement_7d,
@@ -2607,14 +2640,27 @@ def manager_api_update_current_user():
                     print(f"DEBUG EMAIL CHANGE: Email service failed: {result['error']}")
                     return jsonify({"ok": False, "error": result['error']}), 400
             else:
-                # Demo mode - return demo link
+                # Demo mode - create verification record and return demo link
                 print("DEBUG EMAIL CHANGE: Using demo mode")
                 import secrets
+                from datetime import datetime, timedelta
+                
+                # Create a verification record even in demo mode so it can be completed
                 verification_token = "demo_token_" + secrets.token_hex(16)
+                email_verification = EmailVerification(
+                    user_id=user.id,
+                    new_email=new_email,
+                    verification_token=verification_token,
+                    expires_at=datetime.utcnow() + timedelta(hours=24)
+                )
+                db.session.add(email_verification)
+                db.session.commit()
+                print(f"DEBUG EMAIL CHANGE: Created demo verification record with token: {verification_token[:20]}...")
+                
                 demo_link = f"http://localhost:5000/manager/verify-email?token={verification_token}"
                 return jsonify({
                     "ok": True,
-                    "message": "Email change requested. Please check your new email for verification.",
+                    "message": "Email change requested. Please verify your new email using the link provided.",
                     "requires_verification": True,
                     "demo_link": demo_link
                 })
@@ -3081,14 +3127,85 @@ def manager_verify_email():
             <html><body><h1>Invalid Verification Link</h1><p>No verification token provided.</p></body></html>
         """)
     
-    # Handle demo token
+    # Handle demo token - find the pending verification and complete it
     if token.startswith('demo_token_'):
+        print(f"DEBUG VERIFICATION: Processing demo token: {token[:30]}...")
+        # First, try to find the verification record by token
+        pending_verification = EmailVerification.query.filter_by(
+            verification_token=token,
+            is_verified=False
+        ).first()
+        
+        # If not found by token, try to find by user session
+        if not pending_verification:
+            from flask import session
+            user_id = None
+            if 'user' in session:
+                user_id = session['user'].get('id')
+                print(f"DEBUG VERIFICATION: Looking up by user_id: {user_id}")
+            
+            if user_id:
+                # Find the most recent pending verification for this user
+                pending_verification = EmailVerification.query.filter_by(
+                    user_id=user_id,
+                    is_verified=False
+                ).order_by(EmailVerification.created_at.desc()).first()
+        
+        if pending_verification:
+            print(f"DEBUG VERIFICATION: Found pending verification for email: {pending_verification.new_email}")
+            user_id = pending_verification.user_id
+            try:
+                user = User.query.get(user_id)
+                if user:
+                    old_email = user.email
+                    print(f"DEBUG VERIFICATION: Updating email from {old_email} to {pending_verification.new_email}")
+                    user.email = pending_verification.new_email
+                    pending_verification.is_verified = True
+                    db.session.commit()
+                    
+                    # Update session
+                    from flask import session
+                    if 'user' in session:
+                        session['user']['email'] = user.email
+                        session.modified = True
+                    
+                    # Log activity
+                    ActivityLogger.log_email_change(user.id, old_email, user.email, success=True)
+                    
+                    print(f"DEBUG VERIFICATION: Successfully updated email to {user.email}")
+                    return render_template_string("""
+                        <html>
+                        <head>
+                            <title>Email Verified - GMC Manager</title>
+                            <meta http-equiv="refresh" content="3;url=/manager-login">
+                        </head>
+                        <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+                            <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                                <h2 style="color: #28a745; margin-bottom: 20px;">✅ Email Successfully Verified!</h2>
+                                <p style="color: #666; margin-bottom: 10px;">Your email has been updated to:</p>
+                                <p style="color: #2196F3; font-size: 18px; font-weight: bold; margin-bottom: 20px;">{{ new_email }}</p>
+                                <p style="color: #999; font-size: 14px; margin-bottom: 20px;">For security, please log in again with your new email.</p>
+                                <p style="color: #999; font-size: 12px;">You will be redirected to login in 3 seconds...</p>
+                                <p style="margin-top: 20px;"><a href="/manager-login" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Login Now</a></p>
+                            </div>
+                        </body>
+                        </html>
+                    """, new_email=user.email)
+                else:
+                    print(f"DEBUG VERIFICATION: User not found for user_id: {user_id}")
+            except Exception as e:
+                import traceback
+                print(f"DEBUG DEMO VERIFICATION ERROR: {e}")
+                print(f"DEBUG DEMO VERIFICATION TRACEBACK: {traceback.format_exc()}")
+                db.session.rollback()
+        
+        # Fallback if no pending verification found
         return render_template_string("""
             <html>
             <head><title>Email Verified - GMC Manager</title></head>
             <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center;">
-                <h2 style="color: #2196F3;">✅ Email Successfully Verified!</h2>
-                <p>Your email has been verified in demo mode.</p>
+                <h2 style="color: #ffc107;">⚠️ Demo Verification</h2>
+                <p>This is a demo token. Please complete the email change in settings.</p>
                 <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Return to Settings</a></p>
             </body>
             </html>
@@ -3136,7 +3253,56 @@ def manager_verify_email():
     
     old_email = user.email
     
+    # Check if email is already updated (might have been updated elsewhere)
+    if user.email == email_verification.new_email:
+        print("DEBUG VERIFICATION: Email already updated to new_email, marking as verified")
+        # Email is already updated, just mark verification as complete
+        if not email_verification.is_verified:
+            email_verification.is_verified = True
+            db.session.commit()
+        
+        # Update session
+        if 'user' in session:
+            session['user']['email'] = user.email
+            session.modified = True
+        
+        return render_template_string("""
+            <html>
+            <head>
+                <title>Email Verified - GMC Manager</title>
+                <meta http-equiv="refresh" content="3;url=/manager-login">
+            </head>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                    <h2 style="color: #28a745; margin-bottom: 20px;">✅ Email Successfully Verified!</h2>
+                    <p style="color: #666; margin-bottom: 10px;">Your email has been updated to:</p>
+                    <p style="color: #2196F3; font-size: 18px; font-weight: bold; margin-bottom: 20px;">{{ new_email }}</p>
+                    <p style="color: #999; font-size: 14px; margin-bottom: 20px;">For security, please log in again with your new email.</p>
+                    <p style="color: #999; font-size: 12px;">You will be redirected to login in 3 seconds...</p>
+                    <p style="margin-top: 20px;"><a href="/manager-login" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Login Now</a></p>
+                </div>
+            </body>
+            </html>
+        """, new_email=user.email)
+    
     try:
+        # Check if trying to set email that already exists for another user (unique constraint)
+        existing_user = User.query.filter_by(email=email_verification.new_email).first()
+        if existing_user and existing_user.id != user.id:
+            print(f"DEBUG VERIFICATION: Email {email_verification.new_email} already exists for another user")
+            return render_template_string("""
+                <html>
+                <head><title>Verification Error - GMC Manager</title></head>
+                <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: #f8f9fa;">
+                    <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h2 style="color: #dc3545; margin-bottom: 20px;">❌ Error</h2>
+                        <p style="color: #666; margin-bottom: 20px;">This email is already in use by another account.</p>
+                        <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Return to Settings</a></p>
+                    </div>
+                </body>
+                </html>
+            """)
+        
         # Update user email
         user.email = email_verification.new_email
         
@@ -3144,29 +3310,101 @@ def manager_verify_email():
         email_verification.is_verified = True
         
         db.session.commit()
+        print(f"DEBUG VERIFICATION: Successfully updated email from {old_email} to {user.email}")
         
         # Update session
-        session['user']['email'] = user.email
-        session.modified = True
+        if 'user' in session:
+            session['user']['email'] = user.email
+            session.modified = True
         
         # Log the activity
-        ActivityLogger.log_email_change(user.email, old_email, user.email, success=True)
+        ActivityLogger.log_email_change(user.id, old_email, user.email, success=True)
         
         return render_template_string("""
             <html>
-            <head><title>Email Verified - GMC Manager</title></head>
-            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center;">
-                <h2 style="color: #2196F3;">✅ Email Successfully Verified!</h2>
-                <p>Your email has been updated to: <strong>{{ new_email }}</strong></p>
-                <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Return to Settings</a></p>
+            <head>
+                <title>Email Verified - GMC Manager</title>
+                <meta http-equiv="refresh" content="3;url=/manager-login">
+            </head>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+                <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                    <h2 style="color: #28a745; margin-bottom: 20px;">✅ Email Successfully Verified!</h2>
+                    <p style="color: #666; margin-bottom: 10px;">Your email has been updated to:</p>
+                    <p style="color: #2196F3; font-size: 18px; font-weight: bold; margin-bottom: 20px;">{{ new_email }}</p>
+                    <p style="color: #999; font-size: 14px; margin-bottom: 20px;">For security, please log in again with your new email.</p>
+                    <p style="color: #999; font-size: 12px;">You will be redirected to login in 3 seconds...</p>
+                    <p style="margin-top: 20px;"><a href="/manager-login" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Login Now</a></p>
+                </div>
             </body>
             </html>
         """, new_email=user.email)
     except Exception as e:
         db.session.rollback()
+        import traceback
+        from sqlalchemy.exc import IntegrityError
+        error_trace = traceback.format_exc()
         print(f"DEBUG EMAIL VERIFICATION: Error = {e}")
+        print(f"DEBUG EMAIL VERIFICATION: Traceback = {error_trace}")
+        
+        # Check if email was already updated (maybe by another request)
+        # Refresh user from DB to see current state
+        db.session.refresh(user)
+        if user.email == email_verification.new_email:
+            print("DEBUG VERIFICATION: Email already matches after error, treating as success")
+            # Mark verification as complete if not already
+            if not email_verification.is_verified:
+                try:
+                    email_verification.is_verified = True
+                    db.session.commit()
+                except:
+                    db.session.rollback()
+            
+            return render_template_string("""
+                <html>
+                <head>
+                    <title>Email Verified - GMC Manager</title>
+                    <meta http-equiv="refresh" content="3;url=/manager-login">
+                </head>
+                <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                        <h2 style="color: #28a745; margin-bottom: 20px;">✅ Email Successfully Verified!</h2>
+                        <p style="color: #666; margin-bottom: 10px;">Your email has been updated to:</p>
+                        <p style="color: #2196F3; font-size: 18px; font-weight: bold; margin-bottom: 20px;">{{ new_email }}</p>
+                        <p style="color: #999; font-size: 14px; margin-bottom: 20px;">For security, please log in again with your new email.</p>
+                        <p style="color: #999; font-size: 12px;">You will be redirected to login in 3 seconds...</p>
+                        <p style="margin-top: 20px;"><a href="/manager-login" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Go to Login Now</a></p>
+                    </div>
+                </body>
+                </html>
+            """, new_email=user.email)
+        
+        # Handle specific database errors
+        if isinstance(e, IntegrityError) and "unique constraint" in str(e).lower():
+            return render_template_string("""
+                <html>
+                <head><title>Verification Error - GMC Manager</title></head>
+                <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: #f8f9fa;">
+                    <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        <h2 style="color: #dc3545; margin-bottom: 20px;">❌ Error</h2>
+                        <p style="color: #666; margin-bottom: 20px;">This email is already in use by another account.</p>
+                        <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Return to Settings</a></p>
+                    </div>
+                </body>
+                </html>
+            """)
+        
         return render_template_string("""
-            <html><body><h1>Error</h1><p>Failed to verify email. Please try again.</p></body></html>
+            <html>
+            <head><title>Verification Error - GMC Manager</title></head>
+            <body style="font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; background: #f8f9fa;">
+                <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h2 style="color: #dc3545; margin-bottom: 20px;">❌ Error</h2>
+                    <p style="color: #666; margin-bottom: 20px;">Failed to verify email. Please try again.</p>
+                    <p style="color: #999; font-size: 12px; margin-bottom: 20px;">If the problem persists, please contact support.</p>
+                    <p><a href="/manager/settings" style="background: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">Return to Settings</a></p>
+                </div>
+            </body>
+            </html>
         """)
 
 def handle_email_change_request(user, new_email, email_service):

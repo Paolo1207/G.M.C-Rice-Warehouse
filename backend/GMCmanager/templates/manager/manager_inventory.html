@@ -153,6 +153,14 @@
                                 <div class="hint">This is a hint text to help user.</div>
                             </div>
                             <div class="form-group">
+                                <label for="batchCode">Batch Code <span class="required">*</span></label>
+                                <input type="text" id="batchCode" name="batchCode" placeholder="BATCH-001" required
+                                       pattern="[A-Za-z0-9\-_]+" 
+                                       title="Batch code can contain letters, numbers, hyphens, and underscores">
+                                <div class="hint">Ex: BATCH-001</div>
+                                <div class="hint">Required to allow multiple batches of the same product.</div>
+                            </div>
+                            <div class="form-group">
                                 <label for="grn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
                                 <input type="text" id="grn" name="grn" placeholder="QWERTY56787">
                                 <div class="hint">Ex: QWERTY56787</div>
@@ -226,6 +234,12 @@
                                 <input type="text" id="editBarcode" name="barcode" placeholder="QWERTY0987">
                             </div>
                             <div class="form-group">
+                                <label for="editBatchCode">Batch Code <small>(optional)</small></label>
+                                <input type="text" id="editBatchCode" name="batchCode" placeholder="Leave empty to keep current"
+                                       pattern="[A-Za-z0-9\-_]+" 
+                                       title="Batch code can contain letters, numbers, hyphens, and underscores">
+                            </div>
+                            <div class="form-group">
                                 <label for="editGrn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
                                 <input type="text" id="editGrn" name="grn" placeholder="QWERTY56787">
                             </div>
@@ -288,6 +302,14 @@
                                 </select>
                             </div>
                             <div class="form-group">
+                                <label for="restockBatchSelect">Batch Code</label>
+                                <select id="restockBatchSelect" style="display:none;">
+                                    <option value="">-- Create New Batch --</option>
+                                </select>
+                                <input id="restockBatchInput" placeholder="Enter new batch code (e.g., BATCH-001)" style="display:none;">
+                                <small id="restockBatchHint" style="display:block;margin-top:5px;color:#666;font-size:.85em;">Select product to load batch codes</small>
+                            </div>
+                            <div class="form-group">
                                 <label for="restockQuantity">Quantity (kg)</label>
                                 <input type="number" id="restockQuantity" name="quantity" placeholder="Enter quantity in kg" min="0.1" step="0.1" required>
                             </div>
@@ -345,13 +367,18 @@
         function initInventory() {
             loadInventoryData();
             setupEventListeners();
+            // Real-time updates: respond to app-wide inventory updates and poll periodically
+            window.addEventListener('inventoryDataUpdated', () => loadInventoryData());
+            setInterval(() => loadInventoryData(), 30000);
         }
 
         // --- Helpers ---
         function formatDate(dateString) {
-            if (!dateString) return '';
+            if (!dateString) return '--';
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return '--';
             const options = { year: 'numeric', month: 'short', day: 'numeric' };
-            return new Date(dateString).toLocaleDateString('en-US', options);
+            return d.toLocaleDateString('en-US', options);
         }
 
         function showToast(message, type = 'info') {
@@ -375,7 +402,7 @@
                 quantity: Number(it.stock ?? 0),
                 unit: 'kg',
                 status: it.status || (Number(it.stock ?? 0) <= 0 ? 'out' : 'available'),
-                lastUpdated: it.updated_at || it.created_at || null
+                lastUpdated: it.updated_at || it.last_updated || it.modified_at || it.created_at || null
             };
         }
 
@@ -523,10 +550,12 @@
                     stock_kg: fd.get('recordedStock') === '' ? 0 : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? 0 : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || null,
-                    batch_code: (fd.get('grn') || '').trim() || null
+                    batch_code: (fd.get('batchCode') || '').trim() || null,
+                    grn: (fd.get('grn') || '').trim() || null
                 };
 
                 if (!payload.product_name) { showToast('Product name required', 'error'); return; }
+                if (!payload.batch_code) { showToast('Batch code is required', 'error'); return; }
 
                 await createProduct(payload);
             closeStockModal();
@@ -555,7 +584,8 @@
                 document.getElementById('editDescription').value = it.desc || '';
                 document.getElementById('editRecordedStock').value = Number(it.stock ?? 0);
                 document.getElementById('editPurchasingPrice').value = Number(it.price ?? 0);
-                document.getElementById('editGrn').value = it.batch || '';
+                document.getElementById('editBatchCode').value = it.batch || '';
+                document.getElementById('editGrn').value = it.grn || '';
                 document.getElementById('editWarningThreshold').value = it.warn ?? '';
                 document.getElementById('editAutoOrderLevel').value = it.auto ?? '';
 
@@ -587,7 +617,7 @@
                     stock_kg: fd.get('recordedStock') === '' ? undefined : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? undefined : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || undefined,
-                    batch_code: (fd.get('grn') || '').trim() || undefined
+                    batch_code: (fd.get('batchCode') || '').trim() || undefined
                 };
 
                 Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -679,6 +709,8 @@
             document.getElementById('restockForm').reset();
         }
 
+        let _managerInvItems = [];
+
         async function loadRestockProducts() {
             try {
                 const res = await fetch('/manager/api/inventory');
@@ -690,13 +722,25 @@
                 const select = document.getElementById('restockProduct');
                 select.innerHTML = '<option value="">Choose a product...</option>';
                 
-                (json.items || []).forEach(item => {
+                _managerInvItems = json.items || [];
+
+                _managerInvItems.forEach(item => {
                     const option = document.createElement('option');
                     option.value = item.id;  // This is the inventory item ID, not product ID
                     option.textContent = `${item.product_name} (${item.stock || 0} kg)`;
                     select.appendChild(option);
                     console.log('DEBUG: Added option:', item.id, item.product_name);
                 });
+
+                // Reset batch UI on modal open
+                const batchSel = document.getElementById('restockBatchSelect');
+                const batchInp = document.getElementById('restockBatchInput');
+                const batchHint = document.getElementById('restockBatchHint');
+                if (batchSel && batchInp && batchHint) {
+                    batchSel.style.display = 'none';
+                    batchInp.style.display = 'none';
+                    batchHint.textContent = 'Select product to load batch codes';
+                }
             } catch (e) {
                 console.error(e);
                 showToast('Failed to load products', 'error');
@@ -719,6 +763,21 @@
                     return;
                 }
 
+                // Include batch code value (dropdown or input)
+                const batchSel = document.getElementById('restockBatchSelect');
+                const batchInp = document.getElementById('restockBatchInput');
+                let batchCode = '';
+                if (batchSel && batchSel.style.display !== 'none' && batchSel.value) {
+                    batchCode = batchSel.value;
+                } else if (batchInp && batchInp.style.display !== 'none' && batchInp.value.trim()) {
+                    batchCode = batchInp.value.trim();
+                }
+                if (!batchCode) {
+                    showToast('Please select or enter a batch code', 'error');
+                    return;
+                }
+                payload.batch_code = batchCode;
+
                 const res = await fetch('/manager/api/inventory/restock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -734,6 +793,80 @@
             } catch (e) {
                 console.error(e);
                 showToast(e.message || 'Restock failed', 'error');
+            }
+        }
+
+        // ------- Batch code support (load existing or allow new) -------
+        const restockSelect = document.getElementById('restockProduct');
+        const restockBatchSelect = document.getElementById('restockBatchSelect');
+        const restockBatchInput  = document.getElementById('restockBatchInput');
+        const restockBatchHint   = document.getElementById('restockBatchHint');
+
+        restockSelect.addEventListener('change', async function() {
+            await loadManagerBatchCodes(this.value);
+        });
+
+        if (restockBatchSelect) {
+            restockBatchSelect.addEventListener('change', function() {
+                if (this.value === '') {
+                    restockBatchInput.style.display = 'block';
+                    restockBatchInput.required = true;
+                    restockBatchHint.textContent = 'Enter the new batch code';
+                } else {
+                    restockBatchInput.style.display = 'none';
+                    restockBatchInput.required = false;
+                    restockBatchInput.value = '';
+                    restockBatchHint.textContent = 'Selected batch code';
+                }
+            });
+        }
+
+        async function loadManagerBatchCodes(invItemId) {
+            if (!invItemId) {
+                if (restockBatchSelect && restockBatchInput && restockBatchHint) {
+                    restockBatchSelect.style.display = 'none';
+                    restockBatchInput.style.display  = 'none';
+                    restockBatchHint.textContent     = 'Select product to load batch codes';
+                }
+                return;
+            }
+
+            try {
+                let invItem = (_managerInvItems || []).find(x => String(x.id) === String(invItemId));
+                if (!invItem) {
+                    const r = await fetch(`/manager/api/inventory/${encodeURIComponent(invItemId)}`);
+                    const j = await r.json();
+                    if (r.ok && j.ok) invItem = j.item;
+                }
+
+                const productId = invItem?.product_id;
+                if (!productId) {
+                    restockBatchSelect.style.display = 'none';
+                    restockBatchInput.style.display  = 'block';
+                    restockBatchHint.textContent     = 'Enter batch code manually';
+                    return;
+                }
+
+                // Use admin endpoint that returns distinct batch codes by product
+                const resp = await fetch(`/admin/api/products/${productId}/batch-codes`);
+                const data = await resp.json();
+
+                if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+                    restockBatchSelect.innerHTML = '<option value="">-- Create New Batch --</option>' +
+                        data.batch_codes.map(code => `<option value="${code}">${code}</option>`).join('');
+                    restockBatchSelect.style.display = 'block';
+                    restockBatchInput.style.display  = 'none';
+                    restockBatchHint.textContent     = `Select existing batch code or create new`;
+                } else {
+                    restockBatchSelect.style.display = 'none';
+                    restockBatchInput.style.display  = 'block';
+                    restockBatchHint.textContent     = 'No existing batch codes. Enter a new batch code.';
+                }
+            } catch (err) {
+                console.error('Batch code load error:', err);
+                restockBatchSelect.style.display = 'none';
+                restockBatchInput.style.display  = 'block';
+                restockBatchHint.textContent     = 'Enter batch code manually';
             }
         }
 

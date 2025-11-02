@@ -226,11 +226,35 @@ def api_create_product():
 @admin_bp.get("/api/branches")
 def api_list_branches():
     """Get all branches"""
-    branches = Branch.query.all()
-    return jsonify({
-        "ok": True,
-        "branches": [branch.to_dict() for branch in branches]
-    })
+    try:
+        branches = Branch.query.all()
+        branches_data = []
+        for branch in branches:
+            try:
+                branches_data.append(branch.to_dict())
+            except Exception as e:
+                print(f"DEBUG: Error serializing branch {branch.id}: {e}")
+                # Return basic branch info if to_dict fails
+                branches_data.append({
+                    "id": branch.id,
+                    "name": branch.name or "Unknown",
+                    "location": branch.location or "N/A",
+                    "status": branch.status or "operational",
+                    "total_stock_kg": 0
+                })
+        return jsonify({
+            "ok": True,
+            "branches": branches_data
+        })
+    except Exception as e:
+        print(f"DEBUG: Error in api_list_branches: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "branches": []
+        }), 500
 
 @admin_bp.get("/api/branches/<int:branch_id>/inventory")
 def api_branch_inventory(branch_id):

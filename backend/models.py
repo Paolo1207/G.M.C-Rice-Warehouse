@@ -12,16 +12,39 @@ class Branch(db.Model):
     inventory_items = db.relationship("InventoryItem", back_populates="branch", cascade="all,delete-orphan")
     
     def to_dict(self):
-        # Calculate total stock for this branch
-        total_stock_kg = sum(item.stock_kg or 0 for item in self.inventory_items)
-        
-        return {
-            "id": self.id,
-            "name": self.name,
-            "location": self.location,
-            "status": self.status,
-            "total_stock_kg": round(total_stock_kg, 2)
-        }
+        """Convert branch to dictionary, safely calculating total stock"""
+        try:
+            # Calculate total stock for this branch
+            # Use a safe approach to handle lazy loading issues
+            total_stock_kg = 0
+            try:
+                # Try to access inventory_items safely
+                if self.inventory_items:
+                    total_stock_kg = sum(float(item.stock_kg or 0) for item in self.inventory_items)
+            except Exception as e:
+                # If lazy loading fails, query directly
+                from sqlalchemy import func
+                from extensions import db
+                result = db.session.query(func.sum(InventoryItem.stock_kg)).filter_by(branch_id=self.id).scalar()
+                total_stock_kg = float(result or 0)
+            
+            return {
+                "id": self.id,
+                "name": self.name or "Unknown",
+                "location": self.location or "N/A",
+                "status": self.status or "operational",
+                "total_stock_kg": round(total_stock_kg, 2)
+            }
+        except Exception as e:
+            # Fallback to basic info if anything fails
+            print(f"DEBUG Branch.to_dict error for branch {self.id}: {e}")
+            return {
+                "id": self.id,
+                "name": self.name or "Unknown",
+                "location": self.location or "N/A",
+                "status": self.status or "operational",
+                "total_stock_kg": 0
+            }
 
 class Product(db.Model):
     __tablename__ = "products"
@@ -70,7 +93,8 @@ class InventoryItem(db.Model):
     logs = db.relationship("RestockLog", back_populates="inventory_item", cascade="all,delete-orphan")
 
     __table_args__ = (
-        db.UniqueConstraint("branch_id", "product_id", name="uq_branch_product"),
+        # Allow multiple inventory rows for the same product in a branch as long as batch differs
+        db.UniqueConstraint("branch_id", "product_id", "batch_code", name="uq_branch_product_batch"),
     )
 
     # helper

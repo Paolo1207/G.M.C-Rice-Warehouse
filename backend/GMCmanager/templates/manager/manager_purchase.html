@@ -347,6 +347,7 @@
     let itemCounter = 0;
     let managerBranchId = null;
     let availableRiceVarieties = [];
+    let currentStockByKey = {}; // current inventory in kg per variety key for the branch
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', initPurchase);
@@ -404,6 +405,9 @@
                   price: item.price || getDefaultPriceForVariety(item.product_name)
                 });
               }
+              // Capture current stock in kg from possible fields
+              const stockKg = (item.quantity_kg ?? item.stock_kg ?? item.stock ?? item.quantity ?? 0);
+              currentStockByKey[key] = parseFloat(stockKg) || 0;
             }
           });
           
@@ -430,6 +434,7 @@
             { name: 'Brown Rice', key: 'brown-rice', price: 55 },
             { name: 'Sticky Rice', key: 'sticky-rice', price: 50 }
           ];
+          currentStockByKey = {};
         }
       } catch (error) {
         console.error('Error loading rice varieties:', error);
@@ -445,6 +450,7 @@
           { name: 'Brown Rice', key: 'brown-rice', price: 55 },
           { name: 'Sticky Rice', key: 'sticky-rice', price: 50 }
         ];
+        currentStockByKey = {};
       }
     }
 
@@ -527,8 +533,8 @@
             </div>
 
             <div class="form-group">
-              <label for="${itemId}_halfKiloSold">Sold: ½ Kilo (count)</label>
-              <input type="number" id="${itemId}_halfKiloSold" min="0" step="1" placeholder="e.g. 4" onchange="computeItemTotals('${itemId}')">
+              <label for="${itemId}_halfKiloSold">Sold: ½ Kilo (kg)</label>
+              <input type="number" id="${itemId}_halfKiloSold" min="0" step="0.01" placeholder="e.g. 0.5" onchange="computeItemTotals('${itemId}')">
             </div>
           </div>
 
@@ -657,7 +663,9 @@
       
       if (!variety || !dateStr) return;
       
-      const initial = getInitialInventoryFor(variety, dateStr);
+      // Prefer live API stock for the branch; fallback to previous entries
+      const apiStock = currentStockByKey[variety];
+      const initial = (apiStock != null ? apiStock : getInitialInventoryFor(variety, dateStr));
       initialEl.value = toFixedOrEmpty(initial);
       computeItemTotals(itemId);
     }
@@ -668,10 +676,11 @@
       const added = parseFloatOrZero(document.getElementById(`${itemId}_addedStocks`).value);
       const kilosSold = parseFloatOrZero(document.getElementById(`${itemId}_kilosSold`).value);
       const sacksSold = parseFloatOrZero(document.getElementById(`${itemId}_sacksSold`).value);
-      const halfKiloSold = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
+      // Treat the half-kilo field as kilograms directly so decimals like 0.6 are valid
+      const halfKiloKg = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
       const sackWeight = parseFloatOrZero(document.getElementById(`${itemId}_sackWeightKg`).value) || 50;
 
-      const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + (halfKiloSold * 0.5));
+      const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + halfKiloKg);
       const totalAmount = totalSoldKg * Math.max(0, price);
       const estimatedRemaining = initial + added - totalSoldKg;
 
@@ -786,13 +795,13 @@
         const added = parseFloatOrZero(document.getElementById(`${itemId}_addedStocks`).value);
         const kilosSold = parseFloatOrZero(document.getElementById(`${itemId}_kilosSold`).value);
         const sacksSold = parseFloatOrZero(document.getElementById(`${itemId}_sacksSold`).value);
-        const halfKiloSold = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
+        const halfKiloKg = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
         const sackWeight = parseFloatOrZero(document.getElementById(`${itemId}_sackWeightKg`).value) || 50;
         const actualRemainingStr = document.getElementById(`${itemId}_actualRemaining`).value;
         const actualRemaining = actualRemainingStr === '' ? null : parseFloatOrZero(actualRemainingStr);
         const remarks = document.getElementById(`${itemId}_remarks`).value || '';
 
-        const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + (halfKiloSold * 0.5));
+        const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + halfKiloKg);
         const totalAmount = totalSoldKg * Math.max(0, price);
         const estimatedRemaining = initial + added - totalSoldKg;
         const discrepancy = actualRemaining == null ? null : (actualRemaining - estimatedRemaining);
@@ -806,7 +815,7 @@
         addedStocks: round2(added),
         kilosSold: round2(kilosSold),
         sacksSold: round2(sacksSold),
-        halfKiloSold: round2(halfKiloSold),
+        halfKiloSold: round2(halfKiloKg),
         sackWeightKg: round2(sackWeight),
         totalSoldKg: round2(totalSoldKg),
         totalAmount: round2(totalAmount),

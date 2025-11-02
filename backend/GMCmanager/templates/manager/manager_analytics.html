@@ -67,8 +67,8 @@
               <div class="accuracy-icon"><i class="fas fa-bullseye"></i></div>
               <div class="accuracy-info">
                 <h4>Overall Accuracy</h4>
-                <p class="accuracy-value">92%</p>
-                <p class="accuracy-period">July 1-7</p>
+                <p class="accuracy-value" id="overallAccuracyValue">--</p>
+                <p class="accuracy-period" id="accuracyPeriod">Loading...</p>
               </div>
             </div>
             <div class="chart-container">
@@ -161,27 +161,134 @@
   <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function () { initAnalytics(); });
+    // Store chart instances for updating
+    let chartInstances = {
+      forecastAccuracy: null,
+      stockMovement: null,
+      categoryStock: null,
+      topProducts: null,
+      weeklySales: null,
+      riskHeatmap: null
+    };
+
+    let refreshInterval = null;
+
+    document.addEventListener('DOMContentLoaded', function () { 
+      initAnalytics();
+      // Set up auto-refresh every 30 seconds
+      refreshInterval = setInterval(() => {
+        refreshAnalytics();
+      }, 30000);
+      // Listen for data update events
+      document.addEventListener('inventoryDataUpdated', refreshAnalytics);
+      document.addEventListener('salesDataUpdated', refreshAnalytics);
+    });
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', function() {
+      if (refreshInterval) clearInterval(refreshInterval);
+      // Destroy all charts
+      Object.values(chartInstances).forEach(chart => {
+        if (chart) chart.destroy();
+      });
+    });
 
     async function initAnalytics() {
       updateBranchTitle();
+      const { branchId, branchName } = getBranchParams();
+      if (!branchId) {
+        console.error('No branch ID found in URL parameters');
+        showError('Branch ID is missing. Please access this page from the dashboard or login with a branch selected.');
+        // Try to get branch from manager session
+        try {
+          const whoami = await fetch('/whoami');
+          const userData = await whoami.json();
+          if (userData.ok && userData.user && userData.user.branch_id) {
+            const detectedBranchId = userData.user.branch_id;
+            console.log(`Detected branch ID from session: ${detectedBranchId}`);
+            await loadAnalyticsData(detectedBranchId);
+          }
+        } catch (e) {
+          console.error('Could not detect branch from session:', e);
+        }
+        return;
+      }
+      console.log(`Initializing analytics for branch: ${branchId} (${branchName || 'Unknown'})`);
+      await loadAnalyticsData(branchId);
+    }
+
+    async function refreshAnalytics() {
       const { branchId } = getBranchParams();
       if (!branchId) return;
-      const data = await fetchBranchAnalytics(branchId);
-      if (!data) return;
-      const a = data.analytics || {};
-      renderForecastAccuracy(a);
-      renderInventoryTrends(a);
-      renderSalesTrends(a);
-      renderRiskVisualization(a);
+      await loadAnalyticsData(branchId);
+    }
+
+    async function loadAnalyticsData(branchId) {
+      try {
+        if (!branchId) {
+          showError('Branch ID is required. Please select a branch.');
+          return;
+        }
+        
+        // Show loading state
+        document.getElementById('overallAccuracyValue').textContent = 'Loading...';
+        document.getElementById('accuracyPeriod').textContent = 'Fetching data...';
+        
+        const data = await fetchBranchAnalytics(branchId);
+        if (!data || !data.ok) {
+          const errorMsg = data?.error || 'Failed to fetch analytics data';
+          console.error('Failed to fetch analytics:', errorMsg);
+          showError(errorMsg);
+          return;
+        }
+        const a = data.analytics || {};
+        console.log(`Analytics data loaded for branch ${branchId}:`, {
+          forecast_count: a.forecast_vs_actual_7d?.length || 0,
+          product_accuracy_count: a.product_accuracy?.length || 0,
+          top_products_count: a.top_products_month?.length || 0,
+          risks_count: a.branch_risks?.length || 0
+        });
+        renderForecastAccuracy(a);
+        renderInventoryTrends(a);
+        renderSalesTrends(a);
+        renderRiskVisualization(a);
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        showError('An error occurred while loading analytics data. Please try again.');
+      }
+    }
+
+    function showError(message) {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      errorDiv.style.cssText = 'background: #ffebee; color: #c62828; padding: 15px; margin: 20px; border-radius: 5px; border-left: 4px solid #c62828;';
+      errorDiv.textContent = message;
+      const container = document.querySelector('.analytics-container');
+      const existingError = container.querySelector('.error-message');
+      if (existingError) existingError.remove();
+      container.insertBefore(errorDiv, container.firstChild);
+      setTimeout(() => errorDiv.remove(), 5000);
     }
 
     // Fetch analytics for branch
     async function fetchBranchAnalytics(branchId) {
       try {
+        if (!branchId) {
+          console.error('No branch ID provided');
+          return null;
+        }
         const resp = await fetch(`/manager/api/analytics?branch_id=${branchId}`);
+        if (!resp.ok) {
+          console.error(`Failed to fetch analytics: ${resp.status} ${resp.statusText}`);
+          return null;
+        }
         const data = await resp.json();
-        return data.ok ? data : null;
+        if (!data.ok) {
+          console.error('Analytics API returned error:', data.error);
+          return null;
+        }
+        console.log(`Analytics loaded for branch ${branchId}:`, data.analytics);
+        return data;
       } catch (e) {
         console.error('Failed to fetch manager analytics', e);
         return null;
@@ -197,42 +304,75 @@
 
     // Forecast Accuracy
     function renderForecastAccuracy(analytics) {
+      // Update overall accuracy and period
+      const overallAccuracy = analytics.overall_accuracy || 0;
+      const accuracyPeriod = analytics.accuracy_period || 'Loading...';
+      document.getElementById('overallAccuracyValue').textContent = `${overallAccuracy.toFixed(1)}%`;
+      document.getElementById('accuracyPeriod').textContent = accuracyPeriod;
+
       const fva = analytics.forecast_vs_actual_7d || [];
       const labels = fva.map(x => x.date);
       const forecast = fva.map(x => x.forecast || 0);
       const actual = fva.map(x => x.actual || 0);
+      
+      // Destroy existing chart if it exists
+      if (chartInstances.forecastAccuracy) {
+        chartInstances.forecastAccuracy.destroy();
+      }
+      
       const ctx = document.getElementById('forecastAccuracyChart').getContext('2d');
-      new Chart(ctx, {
+      chartInstances.forecastAccuracy = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets: [
-          { label: 'Forecasted', data: forecast, borderColor: 'rgb(75, 192, 192)', tension: 0.1 },
-          { label: 'Actual',     data: actual,   borderColor: 'rgb(255, 99, 132)', tension: 0.1 }
+          { label: 'Forecasted', data: forecast, borderColor: 'rgb(75, 192, 192)', tension: 0.1, fill: false },
+          { label: 'Actual',     data: actual,   borderColor: 'rgb(255, 99, 132)', tension: 0.1, fill: false }
         ]},
-        options: { responsive: true, plugins: { title: { display: true, text: 'Forecast vs Actual Sales (Qty)' } } }
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: true,
+          plugins: { 
+            title: { display: true, text: 'Forecast vs Actual Sales (Qty)' },
+            legend: { display: true, position: 'top' }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
       });
 
       const products = analytics.product_accuracy || [];
       const tbody = document.getElementById('productAccuracyBody');
       tbody.innerHTML = '';
-      products.forEach(item => {
-        const row = document.createElement('tr');
-        const trend = 'up';
-        row.innerHTML = `
-          <td>${item.name || ('Product ' + item.product_id)}</td>
-          <td>${(item.forecasted || 0).toLocaleString()}</td>
-          <td>${(item.actual || 0).toLocaleString()}</td>
-          <td>${(item.accuracy || 0).toFixed(1)}%</td>
-          <td><i class="fas fa-arrow-${trend} ${trend === 'up' ? 'positive' : 'negative'}"></i></td>
-        `;
-        tbody.appendChild(row);
-      });
+      if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No product accuracy data available</td></tr>';
+      } else {
+        products.forEach(item => {
+          const trend = (item.actual || 0) > (item.forecasted || 0) ? 'up' : 'down';
+          const trendClass = trend === 'up' ? 'positive' : 'negative';
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${item.name || ('Product ' + item.product_id)}</td>
+            <td>${(item.forecasted || 0).toLocaleString()}</td>
+            <td>${(item.actual || 0).toLocaleString()}</td>
+            <td>${(item.accuracy || 0).toFixed(1)}%</td>
+            <td><i class="fas fa-arrow-${trend} ${trendClass}"></i></td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
     }
 
     // Inventory Trends
     function renderInventoryTrends(analytics) {
       const sm = analytics.stock_movement_7d || { labels: [], stock_in: [], stock_out: [] };
+      
+      // Destroy existing chart if it exists
+      if (chartInstances.stockMovement) {
+        chartInstances.stockMovement.destroy();
+      }
+      
       const stockMovementCtx = document.getElementById('stockMovementChart').getContext('2d');
-      new Chart(stockMovementCtx, {
+      chartInstances.stockMovement = new Chart(stockMovementCtx, {
         type: 'bar',
         data: {
           labels: sm.labels,
@@ -241,68 +381,143 @@
             { label: 'Stock Out (kg)', data: sm.stock_out, backgroundColor: 'rgba(255,99,132,0.2)', borderColor: 'rgb(255,99,132)', borderWidth: 1 }
           ]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Daily Stock Movement (kg)' } } }
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: true,
+          plugins: { title: { display: true, text: 'Daily Stock Movement (kg)' } },
+          scales: { y: { beginAtZero: true } }
+        }
       });
 
       const cats = analytics.category_levels || [];
+      
+      // Destroy existing chart if it exists
+      if (chartInstances.categoryStock) {
+        chartInstances.categoryStock.destroy();
+      }
+      
       const categoryStockCtx = document.getElementById('categoryStockChart').getContext('2d');
-      new Chart(categoryStockCtx, {
+      chartInstances.categoryStock = new Chart(categoryStockCtx, {
         type: 'doughnut',
         data: {
-          labels: cats.map(c => c.category),
-          datasets: [{ data: cats.map(c => c.stock_kg || 0), backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)'] }]
+          labels: cats.map(c => c.category || 'Uncategorized'),
+          datasets: [{ 
+            data: cats.map(c => c.stock_kg || 0), 
+            backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)','rgb(255,159,64)','rgb(201,203,207)'] 
+          }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Stock Distribution by Category (kg)' } } }
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: true,
+          plugins: { title: { display: true, text: 'Stock Distribution by Category (kg)' } }
+        }
       });
     }
 
     // Sales Trends
     function renderSalesTrends(analytics) {
       const tops = analytics.top_products_month || [];
+      
+      // Destroy existing chart if it exists
+      if (chartInstances.topProducts) {
+        chartInstances.topProducts.destroy();
+      }
+      
       const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
-      new Chart(topProductsCtx, {
+      chartInstances.topProducts = new Chart(topProductsCtx, {
         type: 'pie',
         data: {
-          labels: tops.map(t => t.name),
-          datasets: [{ data: tops.map(t => t.quantity || 0), backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)'] }]
+          labels: tops.length > 0 ? tops.map(t => t.name || 'Unknown') : ['No Data'],
+          datasets: [{ 
+            data: tops.length > 0 ? tops.map(t => t.quantity || 0) : [1], 
+            backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)','rgb(255,159,64)','rgb(201,203,207)'] 
+          }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Top 5 Bestselling Items (Qty)' } } }
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: true,
+          plugins: { title: { display: true, text: 'Top 5 Bestselling Items (Qty)' } }
+        }
       });
 
       const weekly = analytics.weekly_sales_4w || { labels: [], sales: [] };
+      
+      // Destroy existing chart if it exists
+      if (chartInstances.weeklySales) {
+        chartInstances.weeklySales.destroy();
+      }
+      
       const weeklySalesCtx = document.getElementById('weeklySalesChart').getContext('2d');
-      new Chart(weeklySalesCtx, {
+      chartInstances.weeklySales = new Chart(weeklySalesCtx, {
         type: 'bar',
-        data: { labels: weekly.labels, datasets: [{ label: 'Sales (₱)', data: weekly.sales, backgroundColor: 'rgba(75,192,192,0.2)', borderColor: 'rgb(75,192,192)', borderWidth: 1 }] },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Weekly Sales Performance (₱)' } } }
+        data: { 
+          labels: weekly.labels.length > 0 ? weekly.labels : ['Week 1', 'Week 2', 'Week 3', 'Week 4'], 
+          datasets: [{ 
+            label: 'Sales (₱)', 
+            data: weekly.sales.length > 0 ? weekly.sales : [0, 0, 0, 0], 
+            backgroundColor: 'rgba(75,192,192,0.2)', 
+            borderColor: 'rgb(75,192,192)', 
+            borderWidth: 1 
+          }] 
+        },
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: true,
+          plugins: { title: { display: true, text: 'Weekly Sales Performance (₱)' } },
+          scales: { y: { beginAtZero: true } }
+        }
       });
     }
 
     // Risk Visualization
     function renderRiskVisualization(analytics) {
       const risks = analytics.branch_risks || [];
+      
+      // Destroy existing chart if it exists
+      if (chartInstances.riskHeatmap) {
+        chartInstances.riskHeatmap.destroy();
+      }
+      
       const riskHeatmapCtx = document.getElementById('riskHeatmap').getContext('2d');
-      new Chart(riskHeatmapCtx, {
+      chartInstances.riskHeatmap = new Chart(riskHeatmapCtx, {
         type: 'bar',
         data: {
-          labels: risks.map(r => r.product_name || ('Product ' + r.product_id)),
-          datasets: [{ label: 'Risk Score', data: risks.map(r => r.risk_score || 0), backgroundColor: ['rgb(255,99,132)','rgb(255,159,64)','rgb(255,205,86)','rgb(75,192,192)','rgb(54,162,235)'] }]
+          labels: risks.length > 0 ? risks.map(r => r.product_name || ('Product ' + r.product_id)) : ['No Risks'],
+          datasets: [{ 
+            label: 'Risk Score', 
+            data: risks.length > 0 ? risks.map(r => r.risk_score || 0) : [0], 
+            backgroundColor: risks.map(r => {
+              const score = r.risk_score || 0;
+              if (score >= 70) return 'rgb(255,99,132)'; // High risk - red
+              if (score >= 40) return 'rgb(255,159,64)'; // Medium risk - orange
+              return 'rgb(255,205,86)'; // Low risk - yellow
+            })
+          }]
         },
-        options: { responsive: true, plugins: { title: { display: true, text: 'Product Risk Levels' } } }
+        options: { 
+          responsive: true, 
+          maintainAspectRatio: true,
+          plugins: { title: { display: true, text: 'Product Risk Levels' } },
+          scales: { y: { beginAtZero: true, max: 100 } }
+        }
       });
 
       const tbody = document.getElementById('riskTableBody');
       tbody.innerHTML = '';
-      risks.forEach(item => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${item.product_name || ('Product ' + item.product_id)}</td>
-          <td><span class="risk-level ${item.risk_level.toLowerCase()}">${item.risk_level}</span></td>
-          <td>Shortage: ${Number(item.gap_kg || 0).toLocaleString()} kg</td>
-          <td>${item.action}</td>
-        `;
-        tbody.appendChild(row);
-      });
+      if (risks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No risk items found</td></tr>';
+      } else {
+        risks.forEach(item => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${item.product_name || ('Product ' + item.product_id)}</td>
+            <td><span class="risk-level ${item.risk_level.toLowerCase()}">${item.risk_level}</span></td>
+            <td>${item.gap_kg > 0 ? 'Shortage: ' : item.gap_kg < 0 ? 'Overstock: ' : 'Balanced: '}${Math.abs(Number(item.gap_kg || 0)).toLocaleString()} kg</td>
+            <td>${item.action || 'Monitor'}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
     }
 
     function exportAnalytics() {
