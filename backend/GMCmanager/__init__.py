@@ -2802,13 +2802,13 @@ def manager_api_reset_password():
             from email_service import email_service
             
             # Create reset link
-                # Get base URL from request or environment
-                base_url = os.getenv('BASE_URL')
-                if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
-                    try:
-                        base_url = request.host_url.rstrip('/')
-                    except:
-                        base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            # Get base URL from request or environment
+            base_url = os.getenv('BASE_URL')
+            if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                try:
+                    base_url = request.host_url.rstrip('/')
+                except:
+                    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
             reset_link = f"{base_url}/manager/reset-password?token={reset_token}"
             
             # Send reset email with branch information
@@ -2831,13 +2831,13 @@ def manager_api_reset_password():
             print(f"Email service error: {email_error}")
             # Fallback for demo mode
             import os
-                # Get base URL from request or environment
-                base_url = os.getenv('BASE_URL')
-                if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
-                    try:
-                        base_url = request.host_url.rstrip('/')
-                    except:
-                        base_url = os.getenv('BASE_URL', 'http://localhost:5000')
+            # Get base URL from request or environment
+            base_url = os.getenv('BASE_URL')
+            if not base_url or base_url.startswith('http://localhost') or base_url.startswith('http://127.0.0.1'):
+                try:
+                    base_url = request.host_url.rstrip('/')
+                except:
+                    base_url = os.getenv('BASE_URL', 'http://localhost:5000')
             reset_link = f"{base_url}/manager/reset-password?token={reset_token}"
             
             return jsonify({
