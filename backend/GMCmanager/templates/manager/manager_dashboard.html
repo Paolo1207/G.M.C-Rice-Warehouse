@@ -288,9 +288,11 @@
     async function loadKPIData() {
       try {
         // Get branch_id from template variables or URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
         const branchId = {{ branch_id if branch_id else 'null' }} || 
-                        new URLSearchParams(window.location.search).get('branch') || 
-                        new URLSearchParams(window.location.search).get('branch_id');
+                        parseInt(urlParams.get('branch_id')) || 
+                        parseInt(urlParams.get('branch')) ||
+                        null;
         
         // Use manager-specific API endpoint with branch_id
         let apiUrl = '/manager/api/dashboard/kpis';
@@ -299,6 +301,10 @@
         }
         
         console.log('Loading KPIs for branch:', branchId, 'URL:', apiUrl);
+        console.log('  - Template branch_id:', {{ branch_id if branch_id else 'null' }});
+        console.log('  - URL branch_id:', urlParams.get('branch_id'));
+        console.log('  - URL branch:', urlParams.get('branch'));
+        console.log('  - Final branchId used:', branchId);
         
         const response = await fetch(apiUrl, {
           credentials: 'include'
