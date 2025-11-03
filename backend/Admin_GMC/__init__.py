@@ -463,15 +463,57 @@ def api_list_products_by_branch():
         return jsonify({"ok": False, "error": "Branch not found"}), 404
 
     q = (request.args.get("q") or "").strip().lower()
-    query = InventoryItem.query.filter_by(branch_id=branch.id).join(Product)
+    from sqlalchemy.orm import load_only
+    query = (
+        InventoryItem.query
+        .options(
+            load_only(
+                InventoryItem.id,
+                InventoryItem.branch_id,
+                InventoryItem.product_id,
+                InventoryItem.stock_kg,
+                InventoryItem.unit_price,
+                InventoryItem.batch_code,
+                InventoryItem.warn_level,
+                InventoryItem.auto_level,
+                InventoryItem.margin,
+            )
+        )
+        .filter_by(branch_id=branch.id)
+        .join(Product)
+    )
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
 
     items = query.all()
+    # Build a dict manually to avoid touching undefined DB columns like grn_number
+    out_items = []
+    for it in items:
+        try:
+            out_items.append({
+                "id": it.id,
+                "branch_id": it.branch_id,
+                "product_id": it.product_id,
+                "product_name": it.product.name if it.product else None,
+                "variant": it.product.name if it.product else None,
+                "category": it.product.category if it.product else None,
+                "barcode": it.product.barcode if it.product else None,
+                "sku": it.product.sku if it.product else None,
+                "desc": it.product.description if it.product else None,
+                "stock": it.stock_kg,
+                "price": it.unit_price,
+                "batch": it.batch_code,
+                "warn": it.warn_level,
+                "auto": it.auto_level,
+                "margin": it.margin,
+                "status": ("out" if (it.stock_kg or 0) <= 0 else ("low" if (it.warn_level is not None and (it.stock_kg or 0) < it.warn_level) else "available")),
+            })
+        except Exception as e:
+            print(f"DEBUG: serialize inventory item {it.id} failed: {e}")
     return jsonify({
         "ok": True,
         "branch": {"id": branch.id, "name": branch.name},
-        "items": [i.to_dict() for i in items]
+        "items": out_items
     })
 
 
