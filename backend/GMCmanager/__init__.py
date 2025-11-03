@@ -1119,12 +1119,17 @@ def mgr_forecast_generate():
         today = datetime.now().date()
         forecast_data = []
         
-        # Get products from manager's inventory
+        # Get products from manager's inventory (avoid grn_number column)
+        from sqlalchemy.orm import load_only
         if product_id:
             products = [Product.query.get(product_id)]
         else:
             # Get inventory items with optional category filter
-            query = InventoryItem.query.filter_by(branch_id=branch_id)
+            query = (
+                db.session.query(InventoryItem)
+                .options(load_only(InventoryItem.id, InventoryItem.branch_id, InventoryItem.product_id))
+                .filter_by(branch_id=branch_id)
+            )
             if category:
                 query = query.join(Product).filter(Product.category == category)
             inventory_items = query.all()
@@ -1153,11 +1158,14 @@ def mgr_forecast_generate():
                     'quantity_sold': sale.quantity_sold
                 })
             
-            # If no sales data, create some dummy data based on inventory
+            # If no sales data, create some dummy data based on inventory (avoid grn_number column)
             if not historical_data:
-                inventory_item = InventoryItem.query.filter_by(
-                    branch_id=branch_id, product_id=product.id
-                ).first()
+                inventory_item = (
+                    db.session.query(InventoryItem)
+                    .options(load_only(InventoryItem.id, InventoryItem.branch_id, InventoryItem.product_id, InventoryItem.stock_kg))
+                    .filter_by(branch_id=branch_id, product_id=product.id)
+                    .first()
+                )
                 
                 if inventory_item:
                     # Create dummy sales data based on current stock
