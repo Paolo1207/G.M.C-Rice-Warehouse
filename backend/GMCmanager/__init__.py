@@ -562,12 +562,18 @@ def mgr_dashboard_kpis():
         from sqlalchemy import func, and_, or_
         
         # Get manager's branch ID - prioritize URL parameter over session
-        branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id() or 1
+        url_branch_id = request.args.get('branch_id', type=int)
+        session_branch_id = _current_manager_branch_id()
+        branch_id = url_branch_id or session_branch_id or 1
         if not branch_id:
             return jsonify({"ok": False, "error": "Manager branch not found"}), 400
         
-        print(f"DEBUG: Manager API called with branch_id: {branch_id}")
-        print(f"DEBUG: Request args: {dict(request.args)}")
+        print(f"DEBUG KPI: Manager dashboard KPIs called")
+        print(f"  - URL branch_id: {url_branch_id}")
+        print(f"  - Session branch_id: {session_branch_id}")
+        print(f"  - Using branch_id: {branch_id}")
+        print(f"  - Request args: {dict(request.args)}")
+        print(f"  - Session user: {session.get('user', {}).get('branch_id')}")
         
         # Initialize default values
         today_sales = 0
@@ -633,13 +639,36 @@ def mgr_dashboard_kpis():
         
         try:
             # Calculate Total Orders for this specific branch
+            # Count distinct transactions (grouped by transaction_date + branch_id) or total records
+            # For now, count all SalesTransaction records as each product sale is an order item
             total_orders = db.session.query(SalesTransaction).filter(
                 SalesTransaction.branch_id == branch_id
             ).count()
+            
+            # Debug: also check how many transactions exist
+            all_transactions = db.session.query(SalesTransaction).all()
+            print(f"DEBUG KPI: Total orders query for branch_id={branch_id}:")
+            print(f"  - Total orders count: {total_orders}")
+            print(f"  - All transactions in DB: {len(all_transactions)}")
+            if all_transactions:
+                sample = all_transactions[0]
+                print(f"  - Sample transaction branch_id: {sample.branch_id}, date: {sample.transaction_date}")
+            
+            # Double-check: query by date range to see recent transactions
+            today = date.today()
+            recent_count = db.session.query(SalesTransaction).filter(
+                and_(
+                    SalesTransaction.branch_id == branch_id,
+                    func.date(SalesTransaction.transaction_date) >= today - timedelta(days=7)
+                )
+            ).count()
+            print(f"  - Recent transactions (last 7 days) for branch {branch_id}: {recent_count}")
+            
         except Exception as e:
             print(f"DEBUG KPI: Error in orders query: {e}")
             import traceback
             traceback.print_exc()
+            total_orders = 0
         
         return jsonify({
             "ok": True,
