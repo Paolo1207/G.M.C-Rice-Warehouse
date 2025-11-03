@@ -110,7 +110,7 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h3><i class="fas fa-box"></i> Add new product</h3>
-                            <button class="close-btn" onclick="closeStockModal()">&times;</button>
+                            <button class="close-btn" onclick="closeStockModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
                         </div>
                         <div class="modal-actions" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
                             <button class="btn secondary" type="button" onclick="addCustomField()"><i class="fas fa-plus"></i> Add Custom Field</button>
@@ -209,7 +209,7 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h3><i class="fas fa-pen"></i> Edit product</h3>
-                            <button class="close-btn" onclick="closeEditModal()">&times;</button>
+                            <button class="close-btn" onclick="closeEditModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
                         </div>
                         <form id="editProductForm">
                             <input type="hidden" id="editItemId" name="__id">
@@ -276,7 +276,7 @@
                     <div class="modal-content" style="border-top:4px solid #1a365d">
                         <div class="modal-header">
                             <h3 style="color:#1a365d"><i class="fas fa-eye"></i> Product details</h3>
-                            <button class="close-btn" onclick="closeViewModal()">&times;</button>
+                            <button class="close-btn" onclick="closeViewModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
                         </div>
 
                         <div class="grid-3col gap-16" id="viewFields"></div>
@@ -292,7 +292,7 @@
                     <div class="modal-content" style="border-top:4px solid #1a365d">
                         <div class="modal-header">
                             <h3 style="color:#1a365d"><i class="fas fa-boxes"></i> Restock Product</h3>
-                            <button class="close-btn" onclick="closeRestockModal()">&times;</button>
+                            <button class="close-btn" onclick="closeRestockModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
                         </div>
                         <form id="restockForm" onsubmit="handleRestockSubmit(event)">
                             <div class="form-group">

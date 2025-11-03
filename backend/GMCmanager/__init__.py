@@ -303,7 +303,28 @@ def mgr_product_batch_codes(product_id: int):
 @manager_required
 def mgr_inventory_update(item_id: int):
     data = request.get_json(silent=True) or {}
-    it = InventoryItem.query.get_or_404(item_id)
+    # Avoid loading undefined grn_number column on Render
+    from sqlalchemy.orm import load_only
+    it = (
+        db.session.query(InventoryItem)
+        .options(
+            load_only(
+                InventoryItem.id,
+                InventoryItem.branch_id,
+                InventoryItem.product_id,
+                InventoryItem.stock_kg,
+                InventoryItem.unit_price,
+                InventoryItem.batch_code,
+                InventoryItem.warn_level,
+                InventoryItem.auto_level,
+                InventoryItem.margin,
+            )
+        )
+        .filter(InventoryItem.id == item_id)
+        .first()
+    )
+    if not it:
+        return jsonify({"ok": False, "error": "Inventory item not found"}), 404
 
     try:
         # inventory fields
@@ -350,7 +371,16 @@ def mgr_inventory_update(item_id: int):
 @manager_bp.route("/api/inventory/<int:item_id>", methods=["DELETE"])
 @manager_required
 def mgr_inventory_delete(item_id: int):
-    it = InventoryItem.query.get_or_404(item_id)
+    # Avoid loading undefined grn_number column
+    from sqlalchemy.orm import load_only
+    it = (
+        db.session.query(InventoryItem)
+        .options(load_only(InventoryItem.id))
+        .filter(InventoryItem.id == item_id)
+        .first()
+    )
+    if not it:
+        return jsonify({"ok": False, "error": "Inventory item not found"}), 404
     try:
         db.session.delete(it)
         db.session.commit()
@@ -370,7 +400,23 @@ def mgr_inventory_restock(item_id: int):
     Also accepts "quantity" as alias of "qty".
     """
     from datetime import datetime
-    it = InventoryItem.query.get_or_404(item_id)
+    # Avoid loading undefined grn_number column
+    from sqlalchemy.orm import load_only
+    it = (
+        db.session.query(InventoryItem)
+        .options(
+            load_only(
+                InventoryItem.id,
+                InventoryItem.branch_id,
+                InventoryItem.product_id,
+                InventoryItem.stock_kg,
+            )
+        )
+        .filter(InventoryItem.id == item_id)
+        .first()
+    )
+    if not it:
+        return jsonify({"ok": False, "error": "Inventory item not found"}), 404
     data = request.get_json(silent=True) or {}
 
     try:
@@ -488,7 +534,16 @@ def mgr_inventory_restock_general():
 @manager_bp.route("/api/inventory/<int:item_id>/logs", methods=["GET"])
 @manager_required
 def mgr_inventory_logs(item_id: int):
-    it = InventoryItem.query.get_or_404(item_id)
+    # Avoid loading undefined grn_number column
+    from sqlalchemy.orm import load_only
+    it = (
+        db.session.query(InventoryItem)
+        .options(load_only(InventoryItem.id))
+        .filter(InventoryItem.id == item_id)
+        .first()
+    )
+    if not it:
+        return jsonify({"ok": False, "error": "Inventory item not found"}), 404
     # ensure newest first; your model's to_dict should include date/supplier/note
     logs = RestockLog.query.filter_by(inventory_item_id=it.id) \
                            .order_by(RestockLog.created_at.desc()) \
