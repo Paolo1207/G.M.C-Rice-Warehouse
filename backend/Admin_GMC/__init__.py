@@ -227,14 +227,28 @@ def api_create_product():
 def api_list_branches():
     """Get all branches"""
     try:
+        from sqlalchemy import func
+        from models import InventoryItem
         branches = Branch.query.all()
         branches_data = []
         for branch in branches:
             try:
-                branches_data.append(branch.to_dict())
+                # Compute total stock directly via aggregate to avoid lazy loading issues
+                total_stock = (
+                    db.session.query(func.coalesce(func.sum(InventoryItem.stock_kg), 0.0))
+                    .filter(InventoryItem.branch_id == branch.id)
+                    .scalar()
+                ) or 0.0
+                b = {
+                    "id": branch.id,
+                    "name": branch.name or "Unknown",
+                    "location": branch.location or "N/A",
+                    "status": branch.status or "operational",
+                    "total_stock_kg": float(total_stock)
+                }
+                branches_data.append(b)
             except Exception as e:
-                print(f"DEBUG: Error serializing branch {branch.id}: {e}")
-                # Return basic branch info if to_dict fails
+                print(f"DEBUG: Error calculating total stock for branch {branch.id}: {e}")
                 branches_data.append({
                     "id": branch.id,
                     "name": branch.name or "Unknown",
@@ -1114,18 +1128,42 @@ def api_sales_trend():
 @admin_bp.get("/api/sales/top_products")
 def api_sales_top_products():
     from sqlalchemy import func, and_
-    from models import Product
+    from models import Product, InventoryItem
     days = request.args.get('days', 30, type=int)
     branch_id = request.args.get('branch_id', type=int)
     end = datetime.utcnow()
     start = end - timedelta(days=days)
-    q = db.session.query(Product.name, func.sum(SalesTransaction.quantity_sold).label('qty'), func.sum(SalesTransaction.total_amount).label('amt'))
+    # Total sold and sales revenue
+    q = db.session.query(Product.id, Product.name, func.sum(SalesTransaction.quantity_sold).label('qty'), func.sum(SalesTransaction.total_amount).label('amt'))
     q = q.join(Product, Product.id == SalesTransaction.product_id)
     q = q.filter(and_(SalesTransaction.transaction_date >= start, SalesTransaction.transaction_date <= end))
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
     q = q.group_by(Product.id, Product.name).order_by(func.sum(SalesTransaction.quantity_sold).desc()).limit(10)
     rows = q.all()
-    return jsonify({"ok": True, "rows": [{"name": n, "quantity": float(q or 0), "sales": float(a or 0)} for n, q, a in rows]})
+
+    # Current inventory per product (end-of-period), branch-filtered
+    inv_q = db.session.query(
+        InventoryItem.product_id,
+        func.coalesce(func.sum(InventoryItem.stock_kg), 0.0).label('stock')
+    )
+    if branch_id:
+        inv_q = inv_q.filter(InventoryItem.branch_id == branch_id)
+    inv_q = inv_q.group_by(InventoryItem.product_id)
+    inv_map = {pid: float(stock or 0) for pid, stock in inv_q.all()}
+
+    result = []
+    for pid, name, qty, amt in rows:
+        end_stock = inv_map.get(pid, 0.0)
+        before_kg = float(qty or 0) + end_stock  # approximate: stock before sales in the window
+        result.append({
+            "name": name,
+            "quantity": float(qty or 0),
+            "sales": float(amt or 0),
+            "before": before_kg,
+            "after": end_stock
+        })
+
+    return jsonify({"ok": True, "rows": result})
 
 @admin_bp.get("/api/sales/export")
 def api_sales_export():

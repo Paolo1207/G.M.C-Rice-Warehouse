@@ -216,7 +216,7 @@
                 </div>
                 <table class="performance-table">
                     <thead>
-                        <tr><th>Rank</th><th>Rice Variant</th><th>Qty (kg)</th><th>Sales (₱)</th></tr>
+                        <tr><th>Rank</th><th>Rice Variant</th><th>Qty (kg)</th><th>Before (kg)</th><th>After (kg)</th><th>Sales (₱)</th></tr>
                     </thead>
                     <tbody id="topProductsBody"></tbody>
                 </table>
@@ -444,7 +444,7 @@
         tb.innerHTML = '';
         (j.rows||[]).forEach((r,idx)=>{
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${idx+1}</td><td>${r.name}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>₱${Number(r.sales||0).toLocaleString()}</td>`;
+          tr.innerHTML = `<td>${idx+1}</td><td>${r.name}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>${Number(r.before||0).toLocaleString()}</td><td>${Number(r.after||0).toLocaleString()}</td><td>₱${Number(r.sales||0).toLocaleString()}</td>`;
           tb.appendChild(tr);
         });
       }
