@@ -265,6 +265,23 @@
         }, 500);
         dashboardInitialized = true;
       }
+      
+      // Listen for purchase/sales updates and refresh dashboard
+      window.addEventListener('purchaseDataUpdated', () => {
+        console.log('Purchase data updated, refreshing dashboard KPIs...');
+        loadKPIData();
+        loadSalesTrendData();
+      });
+      window.addEventListener('salesDataUpdated', () => {
+        console.log('Sales data updated, refreshing dashboard...');
+        loadKPIData();
+        loadSalesTrendData();
+      });
+      
+      // Auto-refresh KPIs every 30 seconds
+      setInterval(() => {
+        loadKPIData();
+      }, 30000);
     });
 
     // Load KPI data from API
@@ -310,6 +327,9 @@
       console.log('Loading all chart data...');
       chartsInitialized = true;
       
+      // Reset charts initialized flag when period changes so charts can reload
+      chartsInitialized = false;
+      
       // Load charts sequentially to prevent conflicts
       await loadSalesTrendData();
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -335,8 +355,13 @@
         const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`);
         const data = await response.json();
         
-        if (data.ok) {
-          updateSalesTrendChart(data.charts.sales_trend);
+        console.log('Sales Trend API response:', data);
+        
+        if (data.ok && data.charts && data.charts.sales_trend) {
+          console.log('Sales trend data:', data.charts.sales_trend);
+          updateSalesTrendChart(data.charts.sales_trend, salesTrendPeriod);
+        } else {
+          console.error('Sales trend API returned error:', data.error || 'Unknown error');
         }
       } catch (error) {
         console.error('Error loading sales trend data:', error);
@@ -411,16 +436,10 @@
       
       // Setup filter event listeners
       setupFilterListeners();
-      
-      // Auto refresh every 5 minutes
-      setInterval(async () => {
-        await loadKPIData();
-        await loadChartData();
-      }, 300000);
     }
 
     // Update Sales Trend Chart
-    function updateSalesTrendChart(data) {
+    function updateSalesTrendChart(data, periodDays = 30) {
       const ctx = document.getElementById('salesTrendChart');
       if (!ctx) {
         console.error('Sales trend chart canvas not found');
@@ -442,14 +461,25 @@
         window.salesTrendChart = null;
       }
 
-      // Handle empty data
-      if (!data || data.length === 0) {
+      // Handle empty data - ensure we have valid structure
+      if (!data || !Array.isArray(data) || data.length === 0) {
         console.log('No sales trend data, using fallback');
         data = [{ date: 'No Data', sales: 0 }];
       }
 
-      const labels = data.map(item => item.date);
-      const salesData = data.map(item => item.sales);
+      // Map data correctly - backend returns { date, sales, quantity }
+      const labels = data.map(item => {
+        // Format date for display (YYYY-MM-DD -> MM/DD)
+        if (item.date) {
+          const dateParts = item.date.split('-');
+          if (dateParts.length === 3) {
+            return `${dateParts[1]}/${dateParts[2]}`;
+          }
+          return item.date;
+        }
+        return 'No Data';
+      });
+      const salesData = data.map(item => parseFloat(item.sales || item.total_sales || 0));
 
       console.log('Sales trend labels:', labels);
       console.log('Sales trend data:', salesData);
@@ -490,7 +520,7 @@
             },
             title: { 
               display: true, 
-              text: 'Sales Trend (Last 30 Days)',
+              text: `Sales Trend (Last ${periodDays} Days)`,
               font: { size: 14, weight: 'bold' }
             },
             tooltip: {
