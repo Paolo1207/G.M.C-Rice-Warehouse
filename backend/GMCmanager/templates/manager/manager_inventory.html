@@ -710,6 +710,7 @@
         }
 
         let _managerInvItems = [];
+        let _managerProducts = [];
 
         async function loadRestockProducts() {
             try {
@@ -723,13 +724,19 @@
                 select.innerHTML = '<option value="">Choose a product...</option>';
                 
                 _managerInvItems = json.items || [];
-
+                // Build unique product list for this branch
+                const prodMap = new Map();
                 _managerInvItems.forEach(item => {
+                    if (!prodMap.has(item.product_id)) {
+                        prodMap.set(item.product_id, item.product_name);
+                    }
+                });
+                _managerProducts = Array.from(prodMap.entries()).map(([id, name]) => ({ id, name }));
+                _managerProducts.forEach(p => {
                     const option = document.createElement('option');
-                    option.value = item.id;  // This is the inventory item ID, not product ID
-                    option.textContent = `${item.product_name} (${item.stock || 0} kg)`;
+                    option.value = p.id; // product_id
+                    option.textContent = p.name;
                     select.appendChild(option);
-                    console.log('DEBUG: Added option:', item.id, item.product_name);
                 });
 
                 // Reset batch UI on modal open
@@ -751,32 +758,36 @@
             event.preventDefault();
             try {
                 const fd = new FormData(event.target);
+                const selectedProductId = fd.get('product_id');
+                const selectedBatchCode = (restockBatchSelect && restockBatchSelect.style.display !== 'none') ? restockBatchSelect.value : (restockBatchInput && restockBatchInput.style.display !== 'none' ? restockBatchInput.value.trim() : '');
+
+                // Find existing inventory item by product+batch in this branch
+                let targetItem = (_managerInvItems || []).find(it => String(it.product_id) === String(selectedProductId) && it.batch === selectedBatchCode);
+
                 const payload = {
-                    product_id: fd.get('product_id'),
+                    product_id: targetItem ? targetItem.id : null, // backend expects inventory_item_id in product_id
                     quantity: Number(fd.get('quantity')),
                     supplier: (fd.get('supplier') || '').trim(),
                     note: (fd.get('note') || '').trim() || null
                 };
 
-                if (!payload.product_id || !payload.quantity || !payload.supplier) {
+                if (!selectedProductId || !payload.quantity || !payload.supplier) {
                     showToast('Please fill all required fields', 'error');
                     return;
                 }
 
                 // Include batch code value (dropdown or input)
-                const batchSel = document.getElementById('restockBatchSelect');
-                const batchInp = document.getElementById('restockBatchInput');
-                let batchCode = '';
-                if (batchSel && batchSel.style.display !== 'none' && batchSel.value) {
-                    batchCode = batchSel.value;
-                } else if (batchInp && batchInp.style.display !== 'none' && batchInp.value.trim()) {
-                    batchCode = batchInp.value.trim();
-                }
+                let batchCode = selectedBatchCode;
                 if (!batchCode) {
                     showToast('Please select or enter a batch code', 'error');
                     return;
                 }
                 payload.batch_code = batchCode;
+
+                if (!payload.product_id) {
+                    showToast('Selected batch does not exist for this product in this branch.', 'error');
+                    return;
+                }
 
                 const res = await fetch('/manager/api/inventory/restock', {
                     method: 'POST',
@@ -821,8 +832,8 @@
             });
         }
 
-        async function loadManagerBatchCodes(invItemId) {
-            if (!invItemId) {
+        async function loadManagerBatchCodes(productId) {
+            if (!productId) {
                 if (restockBatchSelect && restockBatchInput && restockBatchHint) {
                     restockBatchSelect.style.display = 'none';
                     restockBatchInput.style.display  = 'none';
@@ -832,35 +843,20 @@
             }
 
             try {
-                let invItem = (_managerInvItems || []).find(x => String(x.id) === String(invItemId));
-                if (!invItem) {
-                    const r = await fetch(`/manager/api/inventory/${encodeURIComponent(invItemId)}`);
-                    const j = await r.json();
-                    if (r.ok && j.ok) invItem = j.item;
-                }
-
-                const productId = invItem?.product_id;
-                if (!productId) {
-                    restockBatchSelect.style.display = 'none';
-                    restockBatchInput.style.display  = 'block';
-                    restockBatchHint.textContent     = 'Enter batch code manually';
-                    return;
-                }
-
-                // Use admin endpoint that returns distinct batch codes by product
-                const resp = await fetch(`/admin/api/products/${productId}/batch-codes`);
+                // Use manager endpoint filtered by branch
+                const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch') || new URLSearchParams(window.location.search).get('branch_id');
+                const resp = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
                 const data = await resp.json();
 
                 if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
-                    restockBatchSelect.innerHTML = '<option value="">-- Create New Batch --</option>' +
-                        data.batch_codes.map(code => `<option value="${code}">${code}</option>`).join('');
+                    restockBatchSelect.innerHTML = data.batch_codes.map(code => `<option value="${code}">${code}</option>`).join('');
                     restockBatchSelect.style.display = 'block';
                     restockBatchInput.style.display  = 'none';
-                    restockBatchHint.textContent     = `Select existing batch code or create new`;
+                    restockBatchHint.textContent     = `Select batch code for this product`;
                 } else {
                     restockBatchSelect.style.display = 'none';
                     restockBatchInput.style.display  = 'block';
-                    restockBatchHint.textContent     = 'No existing batch codes. Enter a new batch code.';
+                    restockBatchHint.textContent     = 'No existing batches in this branch. Enter new batch (not supported yet).';
                 }
             } catch (err) {
                 console.error('Batch code load error:', err);

@@ -219,7 +219,20 @@ def mgr_inventory_list():
             else:
                 branch_id = 1  # Default to branch 1 for testing
         
-        q = InventoryItem.query
+        from sqlalchemy.orm import load_only
+        q = InventoryItem.query.options(
+            load_only(
+                InventoryItem.id,
+                InventoryItem.branch_id,
+                InventoryItem.product_id,
+                InventoryItem.stock_kg,
+                InventoryItem.unit_price,
+                InventoryItem.batch_code,
+                InventoryItem.warn_level,
+                InventoryItem.auto_level,
+                InventoryItem.margin,
+            )
+        )
         if branch_id:
             q = q.filter(InventoryItem.branch_id == branch_id)
 
@@ -245,8 +258,44 @@ def mgr_inventory_list():
 @manager_bp.route("/api/inventory/<int:item_id>", methods=["GET"])
 @manager_required
 def mgr_inventory_get(item_id: int):
-    it = InventoryItem.query.get_or_404(item_id)
+    from sqlalchemy.orm import load_only
+    it = (
+        InventoryItem.query.options(
+            load_only(
+                InventoryItem.id,
+                InventoryItem.branch_id,
+                InventoryItem.product_id,
+                InventoryItem.stock_kg,
+                InventoryItem.unit_price,
+                InventoryItem.batch_code,
+                InventoryItem.warn_level,
+                InventoryItem.auto_level,
+                InventoryItem.margin,
+            )
+        )
+        .filter(InventoryItem.id == item_id)
+        .first_or_404()
+    )
     return jsonify({"ok": True, "item": item_to_dict(it)}), 200
+
+@manager_bp.get("/api/products/<int:product_id>/batch-codes")
+@manager_required
+def mgr_product_batch_codes(product_id: int):
+    """Return distinct batch codes for a product within the manager's branch."""
+    try:
+        branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
+        from sqlalchemy import func
+        q = db.session.query(InventoryItem.batch_code).filter(
+            InventoryItem.product_id == product_id,
+            InventoryItem.batch_code.isnot(None),
+            InventoryItem.batch_code != ''
+        )
+        if branch_id:
+            q = q.filter(InventoryItem.branch_id == branch_id)
+        codes = [row[0] for row in q.distinct().all() if row[0]]
+        return jsonify({"ok": True, "batch_codes": codes})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e), "batch_codes": []}), 500
 
 
 # UPDATE: patch inventory/product fields
