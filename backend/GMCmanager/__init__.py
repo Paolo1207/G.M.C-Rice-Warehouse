@@ -885,8 +885,13 @@ def mgr_analytics_overview():
     pred_map = {pid: float(p or 0) for pid, p in per_product}
 
     # Get product names - only for products in this branch's inventory or forecasts
-    # First get all products that have inventory in this branch
-    branch_product_ids = set([it.product_id for it in InventoryItem.query.filter(InventoryItem.branch_id == branch_id).all()])
+    # First get all products that have inventory in this branch (avoid grn_number column)
+    from sqlalchemy.orm import load_only
+    branch_product_ids = set([it.product_id for it in 
+        db.session.query(InventoryItem)
+        .options(load_only(InventoryItem.product_id))
+        .filter(InventoryItem.branch_id == branch_id)
+        .all()])
     # Add products from forecasts
     branch_product_ids.update(product_ids)
     names = {p.id: p.name for p in Product.query.filter(Product.id.in_(list(branch_product_ids))).all()} if branch_product_ids else {}
@@ -919,8 +924,11 @@ def mgr_analytics_overview():
     accuracy_period = f"{seven_days_ago.strftime('%b %d')} - {today.strftime('%b %d')}"
 
     # 3) Stock movement (7d): stock_in from RestockLog, stock_out from SalesTransaction
-    # stock in (by date)
-    inv_ids = [it.id for it in InventoryItem.query.with_entities(InventoryItem.id).filter(InventoryItem.branch_id == branch_id).all()]
+    # stock in (by date) - avoid grn_number column
+    inv_ids = [it.id for it in 
+        db.session.query(InventoryItem.id)
+        .filter(InventoryItem.branch_id == branch_id)
+        .all()]
     in_rows = []
     if inv_ids:
         in_rows = (
@@ -1009,8 +1017,13 @@ def mgr_analytics_overview():
         .group_by(ForecastData.product_id)
         .all()
     )
-    # Get inventory map for this branch only
-    inv_items = InventoryItem.query.filter(InventoryItem.branch_id == branch_id).all()
+    # Get inventory map for this branch only (avoid grn_number column)
+    inv_items = (
+        db.session.query(InventoryItem)
+        .options(load_only(InventoryItem.product_id, InventoryItem.stock_kg))
+        .filter(InventoryItem.branch_id == branch_id)
+        .all()
+    )
     inv_map = {it.product_id: float(it.stock_kg or 0) for it in inv_items}
     # Ensure product names are available for all products in this branch's inventory
     branch_inv_product_ids = [it.product_id for it in inv_items if it.product_id]
@@ -2281,11 +2294,14 @@ def mgr_purchases_recent():
         # Get product name
         product_name = sale.product.name if sale.product else "Unknown Product"
         
-        # Get current inventory for this product
-        inventory_item = InventoryItem.query.filter_by(
-            branch_id=branch_id,
-            product_id=sale.product_id
-        ).first()
+        # Get current inventory for this product (avoid grn_number column)
+        from sqlalchemy.orm import load_only
+        inventory_item = (
+            db.session.query(InventoryItem)
+            .options(load_only(InventoryItem.id, InventoryItem.stock_kg, InventoryItem.unit_price))
+            .filter_by(branch_id=branch_id, product_id=sale.product_id)
+            .first()
+        )
         
         current_stock = float(inventory_item.stock_kg) if inventory_item else 0.0
         unit_price = float(inventory_item.unit_price) if inventory_item and inventory_item.unit_price else 0.0
@@ -2385,11 +2401,14 @@ def mgr_sales_bulk():
             
             db.session.add(transaction)
             
-            # Update inventory - reduce stock by quantity sold
-            inventory_item = InventoryItem.query.filter_by(
-                branch_id=branch_id,
-                product_id=product.id
-            ).first()
+            # Update inventory - reduce stock by quantity sold (avoid grn_number column)
+            from sqlalchemy.orm import load_only
+            inventory_item = (
+                db.session.query(InventoryItem)
+                .options(load_only(InventoryItem.id, InventoryItem.stock_kg))
+                .filter_by(branch_id=branch_id, product_id=product.id)
+                .first()
+            )
             
             if inventory_item:
                 # Reduce inventory stock
