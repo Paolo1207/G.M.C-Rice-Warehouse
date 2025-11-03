@@ -45,7 +45,9 @@ class ManagerNotificationSystem {
             
             // If no branch in URL, get from API
             if (!this.branchId) {
-                const response = await fetch('/manager/api/branches');
+                const response = await fetch('/manager/api/branches', {
+                    credentials: 'include'
+                });
                 const data = await response.json();
                 if (data.ok && data.branches && data.branches.length > 0) {
                     this.branchId = data.branches[0].id;
@@ -73,7 +75,9 @@ class ManagerNotificationSystem {
 
     async checkForNewNotifications() {
         try {
-            const response = await fetch('/manager/api/notifications/unread-count');
+            const response = await fetch('/manager/api/notifications/unread-count', {
+                credentials: 'include'
+            });
             const data = await response.json();
             
             if (data.ok && data.unread_count > 0) {
@@ -261,7 +265,9 @@ window.triggerNotificationCheck = function() {
 // Helper function to check current notification state (for debugging)
 window.checkNotificationState = async function() {
     try {
-        const response = await fetch('/manager/api/notifications/unread-count');
+        const response = await fetch('/manager/api/notifications/unread-count', {
+            credentials: 'include'
+        });
         const data = await response.json();
         console.log('Current notification state:', data);
         
