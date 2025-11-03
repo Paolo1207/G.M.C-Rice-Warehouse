@@ -659,7 +659,29 @@ def api_restock_inventory_item(inventory_id: int):
     if qty is None or qty <= 0:
         return jsonify({"ok": False, "error": "quantity must be a positive number"}), 400
 
-    inv: InventoryItem = InventoryItem.query.get_or_404(inventory_id)
+    # Avoid selecting undefined DB columns (e.g., grn_number) on deployments where
+    # the column isn't present yet. Load only the fields we need.
+    from sqlalchemy.orm import load_only
+    inv: InventoryItem = (
+        db.session.query(InventoryItem)
+        .options(
+            load_only(
+                InventoryItem.id,
+                InventoryItem.branch_id,
+                InventoryItem.product_id,
+                InventoryItem.stock_kg,
+                InventoryItem.unit_price,
+                InventoryItem.warn_level,
+                InventoryItem.auto_level,
+                InventoryItem.margin,
+                InventoryItem.batch_code,
+            )
+        )
+        .filter(InventoryItem.id == inventory_id)
+        .first()
+    )
+    if not inv:
+        return jsonify({"ok": False, "error": "Inventory item not found"}), 404
     batch_code = (data.get("batch_code") or "").strip()
     
     if not batch_code:
@@ -698,7 +720,6 @@ def api_restock_inventory_item(inventory_id: int):
             auto_level=inv.auto_level,
             margin=inv.margin,
             batch_code=batch_code,
-            grn_number=inv.grn_number,
         )
         db.session.add(new_inv)
         db.session.flush()  # Get the ID
@@ -737,7 +758,38 @@ def api_restock_inventory_item(inventory_id: int):
         db.session.rollback()
         return jsonify({"ok": False, "error": "Integrity error", "detail": str(e.orig)}), 400
 
-    return jsonify({"ok": True, "item": inv.to_dict(), "log": log.to_dict()}), 201
+    # Re-fetch lightweight view for response without touching missing columns
+    fresh = (
+        db.session.query(InventoryItem)
+        .options(load_only(
+            InventoryItem.id,
+            InventoryItem.branch_id,
+            InventoryItem.product_id,
+            InventoryItem.stock_kg,
+            InventoryItem.unit_price,
+            InventoryItem.warn_level,
+            InventoryItem.auto_level,
+            InventoryItem.margin,
+            InventoryItem.batch_code,
+        ))
+        .filter(InventoryItem.id == target_inv.id)
+        .first()
+    )
+    item_dict = {
+        "id": fresh.id,
+        "branch_id": fresh.branch_id,
+        "product_id": fresh.product_id,
+        "product_name": fresh.product.name if fresh.product else None,
+        "variant": fresh.product.name if fresh.product else None,
+        "stock": fresh.stock_kg,
+        "price": fresh.unit_price,
+        "batch": fresh.batch_code,
+        "warn": fresh.warn_level,
+        "auto": fresh.auto_level,
+        "margin": fresh.margin,
+        "status": ("out" if (fresh.stock_kg or 0) <= 0 else ("low" if (fresh.warn_level is not None and (fresh.stock_kg or 0) < fresh.warn_level) else "available")),
+    }
+    return jsonify({"ok": True, "item": item_dict, "log": log.to_dict()}), 201
 
 
 # =========================================================
