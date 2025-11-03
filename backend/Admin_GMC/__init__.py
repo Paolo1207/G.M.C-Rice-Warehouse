@@ -152,7 +152,8 @@ def api_create_product():
     auto_level = _to_float(data.get("auto"))
     margin     = (data.get("margin") or "").strip() or None
     batch_code = (data.get("batch")  or data.get("batch_code") or "").strip() or None
-    grn_number = (data.get("grn") or "").strip() or None
+    # NOTE: Some deployments don't have grn_number column; avoid using it server-side
+    grn_number = None
 
     # Check if this exact combination already exists (branch + product + batch_code)
     inv = InventoryItem.query.filter_by(
@@ -172,7 +173,6 @@ def api_create_product():
             auto_level=auto_level,
             margin=margin,
             batch_code=batch_code,
-            grn_number=grn_number,
         )
         db.session.add(inv)
     else:
@@ -182,7 +182,6 @@ def api_create_product():
         if warn_level is not None: inv.warn_level = warn_level
         if auto_level is not None: inv.auto_level = auto_level
         if margin is not None:     inv.margin = margin
-        if grn_number is not None: inv.grn_number = grn_number
 
     try:
         db.session.commit()
@@ -799,7 +798,15 @@ def api_restock_inventory_item(inventory_id: int):
 @admin_bp.get("/api/inventory/<int:inventory_id>/logs")
 def api_get_inventory_logs(inventory_id: int):
     from models import RestockLog
-    inv: InventoryItem = InventoryItem.query.get_or_404(inventory_id)
+    from sqlalchemy.orm import load_only
+    inv = (
+        db.session.query(InventoryItem)
+        .options(load_only(InventoryItem.id))
+        .filter(InventoryItem.id == inventory_id)
+        .first()
+    )
+    if not inv:
+        return jsonify({"ok": False, "error": "Inventory item not found"}), 404
     logs = (
         RestockLog.query
         .filter_by(inventory_item_id=inv.id)
