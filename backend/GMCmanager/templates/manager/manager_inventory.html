@@ -545,13 +545,12 @@
                     barcode: (fd.get('barcode') || '').trim() || null,
                     sku: (fd.get('sku') || '').trim() || null,
                     desc: (fd.get('description') || '').trim() || null,
-                    warn_level: fd.get('warningThreshold') === '' ? null : Number(fd.get('warningThreshold')),
-                    auto_level: fd.get('autoOrderLevel') === '' ? null : Number(fd.get('autoOrderLevel')),
+                    warn: fd.get('warningThreshold') === '' ? null : Number(fd.get('warningThreshold')),
+                    auto: fd.get('autoOrderLevel') === '' ? null : Number(fd.get('autoOrderLevel')),
                     stock_kg: fd.get('recordedStock') === '' ? 0 : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? 0 : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || null,
-                    batch_code: (fd.get('batchCode') || '').trim() || null,
-                    grn: (fd.get('grn') || '').trim() || null
+                    batch_code: (fd.get('batchCode') || '').trim() || null
                 };
 
                 if (!payload.product_name) { showToast('Product name required', 'error'); return; }
@@ -612,12 +611,12 @@
                     barcode: (fd.get('barcode') || '').trim() || undefined,
                     sku: (fd.get('sku') || '').trim() || undefined,
                     desc: (fd.get('description') || '').trim() || undefined,
-                    warn_level: fd.get('warningThreshold') === '' ? undefined : Number(fd.get('warningThreshold')),
-                    auto_level: fd.get('autoOrderLevel') === '' ? undefined : Number(fd.get('autoOrderLevel')),
+                    warn: fd.get('warningThreshold') === '' ? undefined : Number(fd.get('warningThreshold')),
+                    auto: fd.get('autoOrderLevel') === '' ? undefined : Number(fd.get('autoOrderLevel')),
                     stock_kg: fd.get('recordedStock') === '' ? undefined : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? undefined : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || undefined,
-                    batch_code: (fd.get('batchCode') || '').trim() || undefined
+                    batch: (fd.get('batchCode') || '').trim() || undefined
                 };
 
                 Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -759,13 +758,14 @@
             try {
                 const fd = new FormData(event.target);
                 const selectedProductId = fd.get('product_id');
-                const selectedBatchCode = (restockBatchSelect && restockBatchSelect.style.display !== 'none') ? restockBatchSelect.value : (restockBatchInput && restockBatchInput.style.display !== 'none' ? restockBatchInput.value.trim() : '');
+                // Admin parity: require existing batch; hide input when none
+                const selectedBatchCode = (restockBatchSelect && restockBatchSelect.style.display !== 'none') ? restockBatchSelect.value : '';
 
                 // Find existing inventory item by product+batch in this branch
                 let targetItem = (_managerInvItems || []).find(it => String(it.product_id) === String(selectedProductId) && it.batch === selectedBatchCode);
 
                 const payload = {
-                    product_id: targetItem ? targetItem.id : null, // backend expects inventory_item_id in product_id
+                    inventory_item_id: targetItem ? targetItem.id : null,
                     quantity: Number(fd.get('quantity')),
                     supplier: (fd.get('supplier') || '').trim(),
                     note: (fd.get('note') || '').trim() || null
@@ -777,14 +777,10 @@
                 }
 
                 // Include batch code value (dropdown or input)
-                let batchCode = selectedBatchCode;
-                if (!batchCode) {
-                    showToast('Please select or enter a batch code', 'error');
-                    return;
-                }
-                payload.batch_code = batchCode;
+                if (!selectedBatchCode) { showToast('Please select a batch code', 'error'); return; }
+                payload.batch_code = selectedBatchCode;
 
-                if (!payload.product_id) {
+                if (!payload.inventory_item_id) {
                     showToast('Selected batch does not exist for this product in this branch.', 'error');
                     return;
                 }
@@ -854,9 +850,10 @@
                     restockBatchInput.style.display  = 'none';
                     restockBatchHint.textContent     = `Select batch code for this product`;
                 } else {
+                    // Admin parity: if no batches exist, hide the field entirely
                     restockBatchSelect.style.display = 'none';
-                    restockBatchInput.style.display  = 'block';
-                    restockBatchHint.textContent     = 'No existing batches in this branch. Enter new batch (not supported yet).';
+                    restockBatchInput.style.display  = 'none';
+                    restockBatchHint.textContent     = 'No batches for this product in this branch';
                 }
             } catch (err) {
                 console.error('Batch code load error:', err);
