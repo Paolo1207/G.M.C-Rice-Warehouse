@@ -1536,22 +1536,30 @@ def mgr_forecast_risk():
     try:
         risk_analysis = []
         
-        # Get products from manager's inventory
+        # Get products from manager's inventory (avoid grn_number column)
+        from sqlalchemy.orm import load_only
         if product_id:
             products = [Product.query.get(product_id)]
         else:
-            inventory_items = InventoryItem.query.filter_by(branch_id=branch_id).all()
+            inventory_items = (
+                db.session.query(InventoryItem)
+                .options(load_only(InventoryItem.id, InventoryItem.branch_id, InventoryItem.product_id))
+                .filter_by(branch_id=branch_id)
+                .all()
+            )
             products = [item.product for item in inventory_items if item.product]
         
         for product in products:
             if not product:
                 continue
             
-            # Get current inventory
-            inventory_item = InventoryItem.query.filter_by(
-                branch_id=branch_id, 
-                product_id=product.id
-            ).first()
+            # Get current inventory (avoid grn_number column)
+            inventory_item = (
+                db.session.query(InventoryItem)
+                .options(load_only(InventoryItem.id, InventoryItem.branch_id, InventoryItem.product_id, InventoryItem.stock_kg, InventoryItem.warn_level))
+                .filter_by(branch_id=branch_id, product_id=product.id)
+                .first()
+            )
             
             if not inventory_item:
                 continue
