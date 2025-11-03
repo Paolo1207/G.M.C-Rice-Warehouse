@@ -310,7 +310,9 @@
       div.onclick = () => toggleNotification(div);
       
       const icon = type === 'alert' ? 'fa-exclamation-triangle' : 'fa-bullhorn';
-      const timeAgo = getTimeAgo(notification.created_at);
+      const createdAt = toLocalDate(notification.created_at);
+      const timeAgo = getTimeAgo(createdAt);
+      const absoluteTime = formatAbsolute(createdAt);
       
       div.innerHTML = `
         <div class="notification-icon">
@@ -319,7 +321,7 @@
         <div class="notification-content">
           <h4>${formatNotificationType(notification.type)}</h4>
           <p>${notification.message}</p>
-          <span class="notification-time">${timeAgo}</span>
+          <span class="notification-time">${timeAgo} • ${absoluteTime}</span>
         </div>
         <div class="notification-actions">
           <button class="btn-icon" onclick="markAsRead(event, this, ${notification.id})" title="Mark as Read">
@@ -346,10 +348,20 @@
       return typeMap[type] || type;
     }
 
+    // Parse server date safely as UTC if timezone is missing, then convert to local Date
+    function toLocalDate(dateString) {
+      if (!dateString) return new Date();
+      // If string already has timezone (Z or +/-HH:MM), let Date parse it
+      const hasTZ = /Z|[+-]\d{2}:?\d{2}$/.test(dateString);
+      if (hasTZ) return new Date(dateString);
+      // Ensure ISO format and assume UTC
+      const iso = dateString.replace(' ', 'T');
+      return new Date(iso + 'Z');
+    }
+
     // Get time ago string
-    function getTimeAgo(dateString) {
+    function getTimeAgo(date) {
       const now = new Date();
-      const date = new Date(dateString);
       const diffMs = now - date;
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMs / 3600000);
@@ -359,6 +371,17 @@
       if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
       if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
       return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    }
+
+    // Format absolute timestamp in local time
+    function formatAbsolute(date) {
+      const now = new Date();
+      const sameDay = date.toDateString() === now.toDateString();
+      const optsDate = { year: 'numeric', month: 'short', day: 'numeric' };
+      const optsTime = { hour: 'numeric', minute: '2-digit' };
+      const time = date.toLocaleTimeString([], optsTime);
+      if (sameDay) return `Today, ${time}`;
+      return `${date.toLocaleDateString([], optsDate)} ${time}`;
     }
 
     // Start polling for new notifications
