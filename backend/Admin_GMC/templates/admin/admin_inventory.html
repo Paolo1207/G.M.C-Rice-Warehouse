@@ -436,9 +436,6 @@
         <label>Product</label>
         <select name="product" required>
           <option value="">Select a product...</option>
-          <option value="jasmine">Jasmine</option>
-          <option value="angelica">Angelica</option>
-          <option value="milagrosa">Milagrosa</option>
         </select>
       </div>
 
@@ -447,9 +444,9 @@
         <input name="quantity" type="number" placeholder="Enter quantity" required>
       </div>
 
-      <div class="form-group">
+      <div class="form-group" id="restock-batch-group" style="display:none;">
         <label>Batch Code</label>
-        <select name="batch_code" style="display: none;" required>
+        <select name="batch_code" style="display: none;">
           <option value="">Loading batch codes...</option>
         </select>
         <input name="batch_code_input" placeholder="Enter new batch code (e.g., BATCH-001)" style="display: none;">
@@ -558,13 +555,14 @@ const editProductModal = document.getElementById("editProductModal");
 const viewProductModal = document.getElementById("viewProductModal");
 
 /* Restock modal */
-const restockProductModal = document.getElementById("restockProductModal");
-const restockForm         = document.getElementById("restockForm");
-const restockSelect       = restockForm.querySelector('select[name="product"]');
-const restockQty          = restockForm.querySelector('input[name="quantity"]');
-const restockBatchCode    = restockForm.querySelector('select[name="batch_code"]');
+const restockProductModal   = document.getElementById("restockProductModal");
+const restockForm           = document.getElementById("restockForm");
+const restockSelect         = restockForm.querySelector('select[name="product"]');
+const restockQty            = restockForm.querySelector('input[name="quantity"]');
+const restockBatchGroup     = document.getElementById('restock-batch-group');
+const restockBatchCode      = restockForm.querySelector('select[name="batch_code"]');
 const restockBatchCodeInput = restockForm.querySelector('input[name="batch_code_input"]');
-const batchCodeHint       = document.getElementById("batch-code-hint");
+const batchCodeHint         = document.getElementById("batch-code-hint");
 const restockSupplier     = restockForm.querySelector('input[name="supplier"]');
 const restockDate         = restockForm.querySelector('input[name="date"]');
 const restockNotes        = restockForm.querySelector('input[name="notes"]');
@@ -1120,13 +1118,14 @@ function openRestockModal(preselectIdx = null){
   if (!currentBranch) return;
   const items = BRANCH_DATA[currentBranch].items;
 
-  restockSelect.innerHTML = items.map((it, i) =>
-    `<option value="${it.id}" data-idx="${i}">${it.variant}</option>`
-  ).join("");
+  // Build unique product list (product_id -> name)
+  const prodMap = new Map();
+  items.forEach((it)=>{ if (it.product_id && !prodMap.has(it.product_id)) prodMap.set(it.product_id, it.variant); });
+  restockSelect.innerHTML = '<option value="">Select a product...</option>' +
+    Array.from(prodMap.entries()).map(([pid,name])=>`<option value="${pid}">${name}</option>`).join('');
 
-  const initialIdx = (preselectIdx ?? 0);
-  const initialInvId = items[initialIdx]?.id ?? "";
-  restockSelect.value = String(initialInvId);
+  // Default selection
+  restockSelect.value = restockSelect.querySelector('option[value]')?.value || "";
 
   restockQty.value      = "";
   restockBatchCode.value = "";
@@ -1135,8 +1134,8 @@ function openRestockModal(preselectIdx = null){
   restockDate.value     = new Date().toISOString().slice(0,10);
   restockNotes.value    = "";
   
-  // Load batch codes for the initial product
-  loadBatchCodesForProduct(restockSelect.value);
+  // Load batch codes for the initial product_id
+  if (restockSelect.value) loadBatchCodesForProduct(restockSelect.value);
   
   showModal(restockProductModal);
 }
@@ -1147,9 +1146,9 @@ restockSelect.addEventListener("change", function() {
 });
 
 // Function to load batch codes for a product
-async function loadBatchCodesForProduct(invItemId) {
-  if (!invItemId) {
-    // Hide both inputs
+async function loadBatchCodesForProduct(productId) {
+  if (!productId) {
+    restockBatchGroup.style.display = 'none';
     restockBatchCode.style.display = 'none';
     restockBatchCodeInput.style.display = 'none';
     batchCodeHint.textContent = 'Select product to load batch codes';
@@ -1157,80 +1156,45 @@ async function loadBatchCodesForProduct(invItemId) {
   }
   
   try {
-    // First, get the product ID from the inventory item
-    const items = BRANCH_DATA[currentBranch]?.items || [];
-    const invItem = items.find(item => String(item.id) === String(invItemId));
-    
-    if (!invItem || !invItem.product_id) {
-      // No product ID found, show input field
-      restockBatchCode.style.display = 'none';
-      restockBatchCodeInput.style.display = 'block';
-      batchCodeHint.textContent = 'Enter new batch code for this product';
-      return;
-    }
-    
-    // Fetch batch codes from API
-    const response = await fetch(`/admin/api/products/${invItem.product_id}/batch-codes`);
+    const response = await fetch(`/admin/api/products/${productId}/batch-codes`);
     const data = await response.json();
     
     if (data.ok && data.batch_codes && data.batch_codes.length > 0) {
       // Populate dropdown with existing batch codes
       restockBatchCode.innerHTML = '';
-      
-      // Add option to create new batch
-      restockBatchCode.innerHTML += '<option value="">-- Create New Batch --</option>';
-      
-      // Add existing batch codes
-      data.batch_codes.forEach(code => {
-        restockBatchCode.innerHTML += `<option value="${code}">${code}</option>`;
-      });
-      
-      // Show dropdown, hide input
+      restockBatchCode.innerHTML += data.batch_codes.map(code => `<option value="${code}">${code}</option>`).join('');
+      restockBatchGroup.style.display = 'block';
       restockBatchCode.style.display = 'block';
       restockBatchCodeInput.style.display = 'none';
-      batchCodeHint.textContent = `Select from ${data.batch_codes.length} existing batch code(s) or create new`;
-      
-      // Reset input field
+      batchCodeHint.textContent = `Select existing batch code`;
       restockBatchCodeInput.value = '';
     } else {
-      // No batch codes exist, show input field
+      // No batch codes exist for this product -> hide the field entirely
+      restockBatchGroup.style.display = 'none';
       restockBatchCode.style.display = 'none';
-      restockBatchCodeInput.style.display = 'block';
-      batchCodeHint.textContent = 'This product has no existing batch codes. Enter a new batch code.';
+      restockBatchCodeInput.style.display = 'none';
+      batchCodeHint.textContent = 'No batch codes for this product';
     }
   } catch (error) {
     console.error('Error loading batch codes:', error);
-    // On error, default to input field
+    restockBatchGroup.style.display = 'none';
     restockBatchCode.style.display = 'none';
-    restockBatchCodeInput.style.display = 'block';
-    batchCodeHint.textContent = 'Enter batch code manually';
+    restockBatchCodeInput.style.display = 'none';
+    batchCodeHint.textContent = 'Batch code unavailable';
   }
 }
 
 // Handle dropdown change to show input when "Create New Batch" is selected
-restockBatchCode.addEventListener('change', function() {
-  if (this.value === '') {
-    // Show input field for new batch code
-    restockBatchCodeInput.style.display = 'block';
-    restockBatchCodeInput.required = true;
-    batchCodeHint.textContent = 'Enter the new batch code';
-  } else {
-    // Hide input field
-    restockBatchCodeInput.style.display = 'none';
-    restockBatchCodeInput.required = false;
-    restockBatchCodeInput.value = '';
-    batchCodeHint.textContent = 'Selected batch code';
-  }
-});
+// No need to toggle create-new; admin restock uses existing batch codes only. If none exist, field stays hidden.
 
 restockForm.addEventListener("submit", async (e)=>{
   e.preventDefault();
   if (!currentBranch) return;
 
-  const invId      = Number(restockSelect.value);
+  const selectedProductId = Number(restockSelect.value);
   const quantity   = Number(restockQty.value);
-  // Get batch code from either dropdown or input
-  const batchCode  = (restockBatchCode.value || restockBatchCodeInput.value).trim();
+  // Batch code only when shown
+  const batchCode  = (restockBatchGroup.style.display !== 'none' ? (restockBatchCode.value || '').trim() : '');
   const supplier   = restockSupplier.value.trim();
   const date        = restockDate.value;
   const notes      = restockNotes.value.trim();
@@ -1240,10 +1204,22 @@ restockForm.addEventListener("submit", async (e)=>{
     return;
   }
 
-  if (!batchCode) {
-    alert("Please select or enter a batch code.");
-    return;
+  // Find correct inventory item by product + batch (or first matching product if no batches)
+  const items = BRANCH_DATA[currentBranch]?.items || [];
+  let invId = null;
+  if (batchCode) {
+    const match = items.find(it => Number(it.product_id) === selectedProductId && (it.batch || '') === batchCode);
+    if (match) invId = match.id;
+  } else {
+    const match = items.find(it => Number(it.product_id) === selectedProductId && (!it.batch || it.batch === ''));
+    if (match) invId = match.id;
+    else {
+      // fallback to any item of this product
+      const any = items.find(it => Number(it.product_id) === selectedProductId);
+      if (any) invId = any.id;
+    }
   }
+  if (!invId) { alert('Could not resolve inventory item for this product/batch.'); return; }
 
   try {
     const res = await fetch(`/admin/api/inventory/${encodeURIComponent(invId)}/restock`, {
@@ -1251,7 +1227,7 @@ restockForm.addEventListener("submit", async (e)=>{
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         quantity,
-        batch_code: batchCode,
+        batch_code: batchCode || null,
         supplier: supplier || "Admin",
         date: date || null,
         notes: notes || "Restock"
