@@ -689,7 +689,9 @@ async function openInventoryModal(branch){
 
 /* Pull items from your Flask API into BRANCH_DATA */
 async function hydrateFromServer(branch_name){
-  const res = await fetch(`/admin/api/products/branch?branch_name=${encodeURIComponent(branch_name)}`);
+  const res = await fetch(`/admin/api/products/branch?branch_name=${encodeURIComponent(branch_name)}`, {
+    credentials: 'include'
+  });
   if (!res.ok) throw new Error("fetch failed");
   const data = await res.json();
   if (!data.ok) return;
@@ -707,7 +709,9 @@ async function hydrateLogsForBranch(branch_name){
   const promises = br.items
     .filter(it => !!it.id)
     .map(async (it) => {
-      const r = await fetch(`/admin/api/inventory/${encodeURIComponent(it.id)}/logs`);
+      const r = await fetch(`/admin/api/inventory/${encodeURIComponent(it.id)}/logs`, {
+        credentials: 'include'
+      });
       if (!r.ok) return [];
       const j = await r.json().catch(()=>({ ok:false }));
       if (!j.ok) return [];
@@ -865,20 +869,37 @@ document.getElementById("addProductForm").addEventListener("submit", async (e)=>
   };
 
   if (!payload.product_name) { alert("Product name is required."); return; }
+  if (!payload.batch) { alert("Batch code is required."); return; }
 
   try {
+    console.log('Creating product with payload:', payload);
     const res  = await fetch("/admin/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify(payload)
     });
     const data = await res.json().catch(()=>({}));
-    if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
+    
+    if (!res.ok || data.ok === false) {
+      console.error('Create product error:', data);
+      throw new Error(data.error || res.statusText || 'Failed to create product');
+    }
 
-    await refreshInventoryFromAPI(branch_name);
+    console.log('Product created successfully:', data);
+    
+    // Reset form and close modal
+    e.target.reset();
     document.querySelector('#addProductModal .close-btn[data-close="#addProductModal"]')?.click();
+    
+    // Refresh inventory from server
+    await refreshInventoryFromAPI(branch_name);
+    
+    // Show success message
+    alert('Product added successfully!');
   } catch (err) {
-    console.warn("API add failed, falling back to mock. Error:", err);
+    console.error("API add failed. Error:", err);
+    alert("Failed to add product: " + err.message);
     const qty = Number(payload.stock_kg || 0);
     const item = {
       variant: payload.product_name,
@@ -1024,6 +1045,7 @@ document.getElementById("editProductForm").addEventListener("submit", async (e)=
     const res = await fetch(`/admin/api/products/${encodeURIComponent(invId)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify(payload)
     });
     const data = await res.json().catch(()=>({}));
@@ -1085,7 +1107,8 @@ function onDeleteItem(e){
 async function performDelete(inventoryId) {
   try {
     const res = await fetch(`/admin/api/products/${encodeURIComponent(inventoryId)}`, { 
-      method: "DELETE" 
+      method: "DELETE",
+      credentials: 'include'
     });
     
     const data = await res.json();
@@ -1156,7 +1179,9 @@ async function loadBatchCodesForProduct(productId) {
   }
   
   try {
-    const response = await fetch(`/admin/api/products/${productId}/batch-codes`);
+    const response = await fetch(`/admin/api/products/${productId}/batch-codes`, {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (data.ok && data.batch_codes && data.batch_codes.length > 0) {
@@ -1225,6 +1250,7 @@ restockForm.addEventListener("submit", async (e)=>{
     const res = await fetch(`/admin/api/inventory/${encodeURIComponent(invId)}/restock`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify({
         quantity,
         batch_code: batchCode || null,
@@ -1306,7 +1332,9 @@ function exportCSV(){
 ========================================================= */
 async function loadBranches() {
   try {
-    const response = await fetch('/admin/api/branches');
+    const response = await fetch('/admin/api/branches', {
+      credentials: 'include'
+    });
     const data = await response.json();
     
     if (data.ok && data.branches) {
@@ -1420,7 +1448,9 @@ async function exportAllBranches() {
     }
     
     // Fetch all branches and their inventory
-    const branchesRes = await fetch('/admin/api/branches');
+    const branchesRes = await fetch('/admin/api/branches', {
+      credentials: 'include'
+    });
     const branchesData = await branchesRes.json();
     
     if (!branchesData.ok) {
@@ -1443,7 +1473,9 @@ async function exportAllBranches() {
     
     // Fetch all inventories in parallel for speed
     const invPromises = branches.map(branch => 
-      fetch(`/admin/api/branches/${branch.id}/inventory?page_size=1000`)
+      fetch(`/admin/api/branches/${branch.id}/inventory?page_size=1000`, {
+        credentials: 'include'
+      })
         .then(res => res.json())
         .catch(err => ({ ok: false, error: err.message }))
     );
