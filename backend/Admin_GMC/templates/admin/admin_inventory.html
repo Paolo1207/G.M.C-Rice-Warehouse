@@ -689,16 +689,26 @@ async function openInventoryModal(branch){
 
 /* Pull items from your Flask API into BRANCH_DATA */
 async function hydrateFromServer(branch_name){
+  console.log(`DEBUG: hydrateFromServer called for branch '${branch_name}'`);
   const res = await fetch(`/admin/api/products/branch?branch_name=${encodeURIComponent(branch_name)}`, {
     credentials: 'include'
   });
-  if (!res.ok) throw new Error("fetch failed");
+  if (!res.ok) {
+    console.error(`DEBUG: hydrateFromServer failed: ${res.status} ${res.statusText}`);
+    throw new Error("fetch failed");
+  }
   const data = await res.json();
-  if (!data.ok) return;
+  if (!data.ok) {
+    console.error(`DEBUG: hydrateFromServer API returned error:`, data);
+    return;
+  }
+  console.log(`DEBUG: hydrateFromServer received ${data.items?.length || 0} items from API`);
   const items = (data.items || []).map(mapServerItemToClient);
+  console.log(`DEBUG: hydrateFromServer mapped to ${items.length} client items`);
 
   BRANCH_DATA[branch_name] = BRANCH_DATA[branch_name] || { items: [], logs: [] };
   BRANCH_DATA[branch_name].items = items;
+  console.log(`DEBUG: hydrateFromServer stored ${items.length} items in BRANCH_DATA['${branch_name}']`);
 }
 
 /* Pull restock logs for every item in a branch and merge them */

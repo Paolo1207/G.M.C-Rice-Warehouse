@@ -528,6 +528,7 @@ def api_list_products_by_branch():
                 InventoryItem.stock_kg,
                 InventoryItem.unit_price,
                 InventoryItem.batch_code,
+                InventoryItem.grn_number,
                 InventoryItem.warn_level,
                 InventoryItem.auto_level,
                 InventoryItem.margin,
@@ -535,12 +536,15 @@ def api_list_products_by_branch():
         )
         .filter_by(branch_id=branch.id)
         .join(Product)
+        .order_by(Product.name, InventoryItem.batch_code)  # Order by product name and batch for consistent display
     )
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
 
     items = query.all()
-    # Build a dict manually to avoid touching undefined DB columns like grn_number
+    print(f"DEBUG: api_list_products_by_branch: Found {len(items)} inventory items for branch '{branch.name}' (id={branch.id})")
+    
+    # Build a dict manually with all fields including grn_number
     out_items = []
     for it in items:
         try:
@@ -555,15 +559,25 @@ def api_list_products_by_branch():
                 "sku": it.product.sku if it.product else None,
                 "desc": it.product.description if it.product else None,
                 "stock": it.stock_kg,
+                "stock_kg": it.stock_kg,
                 "price": it.unit_price,
+                "unit_price": it.unit_price,
                 "batch": it.batch_code,
+                "batch_code": it.batch_code,
+                "grn": getattr(it, 'grn_number', None),
+                "grn_number": getattr(it, 'grn_number', None),
                 "warn": it.warn_level,
+                "warn_level": it.warn_level,
                 "auto": it.auto_level,
+                "auto_level": it.auto_level,
                 "margin": it.margin,
                 "status": ("out" if (it.stock_kg or 0) <= 0 else ("low" if (it.warn_level is not None and (it.stock_kg or 0) < it.warn_level) else "available")),
             })
+            print(f"DEBUG: Added item: product='{it.product.name if it.product else None}', batch='{it.batch_code}', stock={it.stock_kg}")
         except Exception as e:
             print(f"DEBUG: serialize inventory item {it.id} failed: {e}")
+            import traceback
+            traceback.print_exc()
     return jsonify({
         "ok": True,
         "branch": {"id": branch.id, "name": branch.name},
