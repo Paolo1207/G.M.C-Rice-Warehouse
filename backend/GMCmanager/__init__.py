@@ -174,14 +174,43 @@ def mgr_inventory_create():
 
     stock_kg   = _to_float(data.get("stock_kg")) or 0.0
     unit_price = _to_float(data.get("unit_price")) or 0.0
+    batch_code = (data.get("batch_code") or "").strip() or None
+    grn_number = (data.get("grn_number") or data.get("grn") or "").strip() or None
 
+    # Check if this exact combination already exists (branch + product + batch_code)
+    # Handle NULL batch_code properly - PostgreSQL treats NULL as distinct in unique constraints
+    from sqlalchemy import and_
+    if batch_code:
+        existing_item = InventoryItem.query.filter_by(
+            branch_id=branch.id, 
+            product_id=product.id, 
+            batch_code=batch_code
+        ).first()
+    else:
+        # For NULL batch_code, check explicitly
+        existing_item = InventoryItem.query.filter(
+            and_(
+                InventoryItem.branch_id == branch.id,
+                InventoryItem.product_id == product.id,
+                InventoryItem.batch_code.is_(None)
+            )
+        ).first()
+    
+    if existing_item:
+        # If same batch code exists, return error
+        return jsonify({
+            "ok": False, 
+            "error": f"Product '{product_name}' with batch code '{batch_code or '(none)'}' already exists in this branch. Please use a different batch code or update the existing item."
+        }), 409
+
+    # Create new inventory item
     item = InventoryItem(
         branch_id=branch.id,
         product_id=product.id,
         stock_kg=stock_kg,
         unit_price=unit_price,
-        batch_code=(data.get("batch_code") or None),
-        grn_number=(data.get("grn_number") or data.get("grn") or "").strip() or None,
+        batch_code=batch_code,
+        grn_number=grn_number,
         warn_level=_to_float(data.get("warn_level")),
         auto_level=_to_float(data.get("auto_level")),
         margin=(data.get("margin") or None),
@@ -200,7 +229,7 @@ def mgr_inventory_create():
     try:
         db.session.commit()
         return jsonify({"ok": True, "item": item_to_dict(item)}), 201
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": "Duplicate branch/product/batch (uq_branch_product_batch). Try a different batch code."}), 409
     except Exception as e:
