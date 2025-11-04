@@ -3766,16 +3766,16 @@ def api_change_password():
 
 @admin_bp.post("/api/auth/reset")
 def api_reset_password():
-    """Send password reset link"""
+    """Send password reset link - NO CSRF REQUIRED (login page has no session)"""
+    # IMPORTANT: This endpoint does NOT require CSRF validation
+    # Login pages don't have active sessions, so CSRF tokens cannot be validated
+    # This is safe because password reset only sends a link via email - no data changes
     try:
-        # CSRF validation - DISABLED for password reset from login page
-        # Login pages don't have sessions, so CSRF tokens can't be validated
-        # This is safe because we're only sending a reset link, not changing anything
         print("=" * 50)
         print("DEBUG ADMIN PASSWORD RESET: Endpoint called")
-        print("DEBUG ADMIN PASSWORD RESET: CSRF validation is DISABLED")
+        print("DEBUG ADMIN PASSWORD RESET: CSRF validation is COMPLETELY DISABLED")
         print(f"DEBUG ADMIN PASSWORD RESET: Request method = {request.method}")
-        print(f"DEBUG ADMIN PASSWORD RESET: Request headers = {dict(request.headers)}")
+        print(f"DEBUG ADMIN PASSWORD RESET: Request URL = {request.url}")
         print("=" * 50)
         
         data = request.get_json()
