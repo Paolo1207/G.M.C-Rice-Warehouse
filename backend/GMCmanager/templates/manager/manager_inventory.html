@@ -92,6 +92,7 @@
                             <tr>
                                 <th>Product Name</th>
                                 <th>Category</th>
+                                <th>Batch Code</th>
                                 <th>Quantity</th>
                                 <th>Price</th>
                                 <th>Status</th>
@@ -398,6 +399,7 @@
                 id: it.id,
                 name: it.product_name || '',
                 category: it.category || '',
+                batchCode: it.batch_code || it.batch || '',
                 quantity: Number(it.stock ?? 0),
                 price: Number(it.price ?? it.unit_price ?? 0),
                 status: it.status || (Number(it.stock ?? 0) <= 0 ? 'out' : 'available'),
@@ -491,9 +493,11 @@
             data.forEach(item => {
                 const row = document.createElement('tr');
                 const formattedPrice = item.price ? `₱${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₱0.00';
+                const batchDisplay = item.batchCode || '—';
                 row.innerHTML = `
                     <td>${item.name}</td>
-                    <td>${item.category}</td>
+                    <td>${item.category || '—'}</td>
+                    <td>${batchDisplay}</td>
                     <td>${item.quantity}</td>
                     <td>${formattedPrice}</td>
                     <td><span class="status-badge ${item.status}">${item.status}</span></td>
