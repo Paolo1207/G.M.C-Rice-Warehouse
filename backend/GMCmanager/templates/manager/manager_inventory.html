@@ -921,9 +921,9 @@
 
         // Export inventory (client-side CSV of current table)
         function exportInventory() {
-            const rows = [['Product Name','Category','Quantity','Price','Status']];
+            const rows = [['Product Name','Category','Batch Code','Quantity','Price','Status']];
             document.querySelectorAll('#inventoryTableBody tr').forEach(tr => {
-                const cols = Array.from(tr.children).slice(0,5).map(td => td.textContent.trim());
+                const cols = Array.from(tr.children).slice(0,6).map(td => td.textContent.trim());
                 rows.push(cols);
             });
             const csv = rows.map(r => r.map(v => /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v).join(',')).join('\n');
