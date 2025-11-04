@@ -378,17 +378,27 @@
       }
 
       try {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        // CSRF token is optional since backend has CSRF disabled
+        // But we'll still send it if available
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+        
+        const headers = {
+          'Content-Type': 'application/json'
+        };
+        // Only add CSRF token if it exists (optional)
+        if (csrfToken) {
+          headers['X-CSRFToken'] = csrfToken;
+        }
+        
         const response = await fetch('/manager/api/auth/change_password', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-          },
+          headers: headers,
           body: JSON.stringify({
             currentPassword: currentPassword,
             newPassword: newPassword
-          })
+          }),
+          credentials: 'include' // Ensure session cookies are sent
         });
         
         const data = await response.json();
