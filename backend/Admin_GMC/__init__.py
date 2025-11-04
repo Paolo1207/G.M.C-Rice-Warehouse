@@ -154,6 +154,9 @@ def api_create_product():
     batch_code = (data.get("batch")  or data.get("batch_code") or "").strip() or None
     grn_number = (data.get("grn_number") or data.get("grn") or "").strip() or None
 
+    # Debug logging
+    print(f"DEBUG: Creating inventory for product '{product_name}' (id={product.id}), branch '{branch.name}' (id={branch.id}), batch_code='{batch_code}'")
+
     # Check if this exact combination already exists (branch + product + batch_code)
     # Handle NULL batch_code properly - PostgreSQL treats NULL as distinct in unique constraints
     if batch_code:
@@ -162,6 +165,10 @@ def api_create_product():
             product_id=product.id, 
             batch_code=batch_code
         ).first()
+        if inv:
+            print(f"DEBUG: Found existing inventory item with same batch_code '{batch_code}' (id={inv.id})")
+        else:
+            print(f"DEBUG: No existing inventory found for batch_code '{batch_code}' - will create new")
     else:
         # For NULL batch_code, check explicitly
         from sqlalchemy import and_
@@ -172,9 +179,14 @@ def api_create_product():
                 InventoryItem.batch_code.is_(None)
             )
         ).first()
+        if inv:
+            print(f"DEBUG: Found existing inventory item with NULL batch_code (id={inv.id})")
+        else:
+            print(f"DEBUG: No existing inventory found for NULL batch_code - will create new")
     
     if not inv:
         # Create new inventory item for this batch
+        print(f"DEBUG: Creating NEW inventory item for batch_code '{batch_code}'")
         inv = InventoryItem(
             branch_id=branch.id,
             product_id=product.id,
@@ -189,6 +201,7 @@ def api_create_product():
         db.session.add(inv)
     else:
         # Update existing record with provided fields (if any)
+        print(f"DEBUG: UPDATING existing inventory item (id={inv.id})")
         if stock_kg is not None:   inv.stock_kg = stock_kg
         if unit_price is not None: inv.unit_price = unit_price
         if warn_level is not None: inv.warn_level = warn_level
