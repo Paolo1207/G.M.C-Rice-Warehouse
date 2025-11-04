@@ -3764,13 +3764,17 @@ def api_change_password():
             "error": str(e)
         }), 500
 
-@admin_bp.route("/api/auth/reset", methods=["POST", "OPTIONS"])  # Allow OPTIONS for CORS
+@admin_bp.route("/api/auth/reset", methods=["POST", "OPTIONS"])
 def api_reset_password():
-    """Send password reset link - NO CSRF REQUIRED (login page has no session)"""
-    # IMPORTANT: This endpoint does NOT require CSRF validation
-    # Login pages don't have active sessions, so CSRF tokens cannot be validated
-    # This is safe because password reset only sends a link via email - no data changes
+    """
+    Send password reset link - NO CSRF REQUIRED (login page has no session)
     
+    This endpoint is accessible from login pages which don't have active sessions.
+    CSRF validation is NOT required because:
+    1. Login pages don't have sessions, so CSRF tokens can't be validated
+    2. This only sends a reset link via email - no data changes
+    3. The reset link itself requires a valid token to actually reset the password
+    """
     # Handle OPTIONS preflight for CORS
     if request.method == "OPTIONS":
         response = make_response()
@@ -3779,14 +3783,17 @@ def api_reset_password():
         response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
         return response
     
+    # NO CSRF CHECK - This endpoint is intentionally accessible without CSRF
+    # for password reset from login pages
+    
     try:
-        print("=" * 50)
-        print("DEBUG ADMIN PASSWORD RESET: Endpoint called")
-        print("DEBUG ADMIN PASSWORD RESET: CSRF validation is COMPLETELY DISABLED")
-        print(f"DEBUG ADMIN PASSWORD RESET: Request method = {request.method}")
-        print(f"DEBUG ADMIN PASSWORD RESET: Request URL = {request.url}")
-        print(f"DEBUG ADMIN PASSWORD RESET: Request headers = {dict(request.headers)}")
-        print("=" * 50)
+        print("=" * 80)
+        print("DEBUG ADMIN PASSWORD RESET: Endpoint CALLED - NO CSRF CHECK")
+        print(f"DEBUG ADMIN PASSWORD RESET: Method = {request.method}")
+        print(f"DEBUG ADMIN PASSWORD RESET: URL = {request.url}")
+        print(f"DEBUG ADMIN PASSWORD RESET: Path = {request.path}")
+        print(f"DEBUG ADMIN PASSWORD RESET: Endpoint = {request.endpoint}")
+        print("=" * 80)
         
         data = request.get_json()
         print(f"DEBUG ADMIN PASSWORD RESET: Request data = {data}")
@@ -3798,11 +3805,10 @@ def api_reset_password():
         # Check if user exists
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Don't reveal if email exists or not for security
             return jsonify({
-                "ok": True,
-                "message": "If the email exists, a reset link has been sent"
-            })
+                "ok": False,
+                "error": "Email not found. Please check your email address and try again."
+            }), 404
         
         # Generate a secure reset token
         import secrets

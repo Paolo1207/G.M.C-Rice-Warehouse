@@ -3060,11 +3060,10 @@ def manager_api_reset_password():
         # Check if user exists
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Don't reveal if email exists or not for security
             return jsonify({
-                "ok": True,
-                "message": "If the email exists, a reset link has been sent"
-            })
+                "ok": False,
+                "error": "Email not found. Please check your email address and try again."
+            }), 404
         
         # Generate a secure reset token
         import secrets
