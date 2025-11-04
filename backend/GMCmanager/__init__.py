@@ -611,21 +611,28 @@ def mgr_dashboard_kpis():
             traceback.print_exc()
         
         try:
-            # Low stock count for this branch
+            # Low stock count for this branch (avoid grn_number column)
+            from sqlalchemy.orm import load_only
             # Check for items where stock is below warn_level (if set) or below 100kg (default threshold)
-            low_stock_count = db.session.query(InventoryItem).filter(
-                and_(
-                    InventoryItem.branch_id == branch_id,
-                    or_(
-                        and_(InventoryItem.warn_level.isnot(None), InventoryItem.stock_kg < InventoryItem.warn_level),
-                        and_(InventoryItem.warn_level.is_(None), InventoryItem.stock_kg < 100)
+            low_stock_count = (
+                db.session.query(InventoryItem)
+                .options(load_only(InventoryItem.id, InventoryItem.branch_id, InventoryItem.stock_kg, InventoryItem.warn_level))
+                .filter(
+                    and_(
+                        InventoryItem.branch_id == branch_id,
+                        or_(
+                            and_(InventoryItem.warn_level.isnot(None), InventoryItem.stock_kg < InventoryItem.warn_level),
+                            and_(InventoryItem.warn_level.is_(None), InventoryItem.stock_kg < 100)
+                        )
                     )
                 )
-            ).count()
+                .count()
+            )
         except Exception as e:
             print(f"DEBUG KPI: Error in inventory query: {e}")
             import traceback
             traceback.print_exc()
+            low_stock_count = 0
         
         try:
             # Forecast accuracy for this branch
@@ -636,6 +643,7 @@ def mgr_dashboard_kpis():
             print(f"DEBUG KPI: Error in forecast query: {e}")
             import traceback
             traceback.print_exc()
+            forecast_accuracy = 0
         
         try:
             # Calculate Total Orders for this specific branch
