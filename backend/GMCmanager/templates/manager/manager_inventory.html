@@ -667,7 +667,8 @@
                     V('Unit Price', it.price),
                     V('Warning Threshold', it.warn),
                     V('Auto Order Level', it.auto),
-                    V('Batch / GRN', it.batch),
+                    V('Batch Code', it.batch || ''),
+                    V('GRN Number', it.grn || it.grn_number || ''),
                     `
                     <div class="form-group col-span-3">
                         <label style="color:#1a365d">Description</label>

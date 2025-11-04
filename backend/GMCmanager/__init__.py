@@ -116,6 +116,9 @@ def item_to_dict(it: InventoryItem):
         "price": float(it.unit_price or 0),
         "unit": "kg",  # Default unit for rice products
         "batch": it.batch_code,
+        "batch_code": it.batch_code,
+        "grn": it.grn_number,
+        "grn_number": it.grn_number,
         "warn": float(it.warn_level) if it.warn_level is not None else None,
         "auto": float(it.auto_level) if it.auto_level is not None else None,
         "margin": it.margin,
@@ -178,6 +181,7 @@ def mgr_inventory_create():
         stock_kg=stock_kg,
         unit_price=unit_price,
         batch_code=(data.get("batch_code") or None),
+        grn_number=(data.get("grn_number") or data.get("grn") or "").strip() or None,
         warn_level=_to_float(data.get("warn_level")),
         auto_level=_to_float(data.get("auto_level")),
         margin=(data.get("margin") or None),
@@ -228,6 +232,7 @@ def mgr_inventory_list():
                 InventoryItem.stock_kg,
                 InventoryItem.unit_price,
                 InventoryItem.batch_code,
+                InventoryItem.grn_number,
                 InventoryItem.warn_level,
                 InventoryItem.auto_level,
                 InventoryItem.margin,
@@ -268,6 +273,7 @@ def mgr_inventory_get(item_id: int):
                 InventoryItem.stock_kg,
                 InventoryItem.unit_price,
                 InventoryItem.batch_code,
+                InventoryItem.grn_number,
                 InventoryItem.warn_level,
                 InventoryItem.auto_level,
                 InventoryItem.margin,
@@ -315,6 +321,7 @@ def mgr_inventory_update(item_id: int):
                 InventoryItem.stock_kg,
                 InventoryItem.unit_price,
                 InventoryItem.batch_code,
+                InventoryItem.grn_number,
                 InventoryItem.warn_level,
                 InventoryItem.auto_level,
                 InventoryItem.margin,
@@ -332,12 +339,14 @@ def mgr_inventory_update(item_id: int):
             it.stock_kg = _to_float(data["stock_kg"]) or 0.0
         if "unit_price" in data and data["unit_price"] != "":
             it.unit_price = _to_float(data["unit_price"]) or 0.0
-        if "batch_code" in data:
-            it.batch_code = (data["batch_code"] or None)
-        if "warn_level" in data:
-            it.warn_level = _to_float(data["warn_level"])
-        if "auto_level" in data:
-            it.auto_level = _to_float(data["auto_level"])
+        if "batch_code" in data or "batch" in data:
+            it.batch_code = (data.get("batch_code") or data.get("batch") or None)
+        if "grn_number" in data or "grn" in data:
+            it.grn_number = (data.get("grn_number") or data.get("grn") or "").strip() or None
+        if "warn_level" in data or "warn" in data:
+            it.warn_level = _to_float(data.get("warn_level") or data.get("warn"))
+        if "auto_level" in data or "auto" in data:
+            it.auto_level = _to_float(data.get("auto_level") or data.get("auto"))
         if "margin" in data:
             it.margin = (data["margin"] or None)
 

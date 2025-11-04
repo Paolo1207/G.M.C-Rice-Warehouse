@@ -152,8 +152,7 @@ def api_create_product():
     auto_level = _to_float(data.get("auto"))
     margin     = (data.get("margin") or "").strip() or None
     batch_code = (data.get("batch")  or data.get("batch_code") or "").strip() or None
-    # NOTE: Some deployments don't have grn_number column; avoid using it server-side
-    grn_number = None
+    grn_number = (data.get("grn_number") or data.get("grn") or "").strip() or None
 
     # Check if this exact combination already exists (branch + product + batch_code)
     inv = InventoryItem.query.filter_by(
@@ -173,6 +172,7 @@ def api_create_product():
             auto_level=auto_level,
             margin=margin,
             batch_code=batch_code,
+            grn_number=grn_number,
         )
         db.session.add(inv)
     else:
