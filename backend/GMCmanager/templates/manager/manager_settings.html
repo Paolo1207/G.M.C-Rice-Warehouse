@@ -399,7 +399,13 @@
           document.querySelector('.strength-bar').style.width = '0%';
           document.getElementById('strengthValue').textContent = 'None';
         } else {
-          showNotification(data.error || 'Error changing password', 'error');
+          // Check if it's a CSRF error and show a more helpful message
+          const errorMsg = data.error || 'Error changing password';
+          if (errorMsg.includes('CSRF') || errorMsg.includes('csrf')) {
+            showNotification('Session expired. Please refresh the page and try again.', 'error');
+          } else {
+            showNotification(errorMsg, 'error');
+          }
         }
       } catch (err) {
         console.error(err);
