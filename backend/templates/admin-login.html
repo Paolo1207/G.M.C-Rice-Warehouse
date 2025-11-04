@@ -355,12 +355,15 @@
                     },
                     body: JSON.stringify({
                         email: email
-                    })
+                    }),
+                    credentials: 'include' // Ensure session cookies are sent
                 });
                 
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Response data:', data);
                 
-                if (data.ok) {
+                if (response.ok && data.ok) {
                     messageDiv.innerHTML = '<div style="color: #2E7D32; padding: 0.5rem; background: #E8F5E9; border-radius: 5px; margin-top: 1rem;">✓ Please check your email for the password reset link.</div>';
                     submitBtn.textContent = 'Link Sent!';
                     
@@ -371,11 +374,18 @@
                         document.getElementById('successMessage').style.display = 'block';
                     }, 3000);
                 } else {
-                    messageDiv.innerHTML = `<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">${data.error || 'Error sending reset link. Please try again.'}</div>`;
+                    // Check if it's a CSRF error
+                    const errorMsg = data.error || 'Error sending reset link. Please try again.';
+                    if (errorMsg.includes('CSRF') || errorMsg.includes('csrf') || response.status === 403) {
+                        messageDiv.innerHTML = '<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">Session issue detected. Please refresh the page and try again.</div>';
+                    } else {
+                        messageDiv.innerHTML = `<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">${errorMsg}</div>`;
+                    }
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Send Reset Link';
                 }
             } catch (error) {
+                console.error('Fetch error:', error);
                 messageDiv.innerHTML = '<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">Failed to send reset link. Please try again.</div>';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Send Reset Link';
