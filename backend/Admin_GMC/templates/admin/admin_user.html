@@ -369,36 +369,6 @@
         }
       }
 
-      // Search functionality
-      function handleSearch() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
-        const filteredUsers = currentUsers.filter(user => {
-          return (
-            user.name.toLowerCase().includes(searchTerm) ||
-            user.warehouse_id.toLowerCase().includes(searchTerm) ||
-            user.location.toLowerCase().includes(searchTerm) ||
-            user.email.toLowerCase().includes(searchTerm)
-          );
-        });
-        updateUserTable(filteredUsers);
-      }
-
-      // Toggle branch field based on role
-      function toggleBranchField() {
-        const role = document.getElementById('userRole').value;
-        const branchLabel = document.getElementById('branchLabel');
-        const branchSelect = document.getElementById('userBranch');
-        
-        if (role === 'manager') {
-          branchLabel.style.display = 'block';
-          branchSelect.required = true;
-        } else {
-          branchLabel.style.display = 'none';
-          branchSelect.required = false;
-          branchSelect.value = ''; // Clear branch selection for admin
-        }
-      }
-
       function showAddUserModal() {
         isEditMode = false;
         document.getElementById('modalTitle').textContent = 'Add New User';
