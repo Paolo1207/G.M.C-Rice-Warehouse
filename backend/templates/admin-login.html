@@ -360,7 +360,22 @@
                 });
                 
                 console.log('Response status:', response.status);
-                const data = await response.json();
+                
+                // Handle non-JSON responses (like HTML error pages)
+                let data;
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    // If response is not JSON (e.g., HTML error page), create error object
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 200));
+                    data = {
+                        ok: false,
+                        error: response.status === 403 ? 'Session expired. Please refresh the page.' : 'Server error occurred'
+                    };
+                }
+                
                 console.log('Response data:', data);
                 
                 if (response.ok && data.ok) {
