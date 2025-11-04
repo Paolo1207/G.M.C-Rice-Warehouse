@@ -3768,14 +3768,18 @@ def api_change_password():
 def api_reset_password():
     """Send password reset link"""
     try:
-        # CSRF validation - temporarily disabled for password reset from login page
+        # CSRF validation - DISABLED for password reset from login page
         # Login pages don't have sessions, so CSRF tokens can't be validated
         # This is safe because we're only sending a reset link, not changing anything
-        print("DEBUG PASSWORD RESET: CSRF validation disabled for password reset")
-        # csrf_token = request.headers.get('X-CSRFToken')
-        # if not csrf_token or csrf_token != session.get('csrf_token'):
-        #     return jsonify({"ok": False, "error": "Invalid CSRF token"}), 403
+        print("=" * 50)
+        print("DEBUG ADMIN PASSWORD RESET: Endpoint called")
+        print("DEBUG ADMIN PASSWORD RESET: CSRF validation is DISABLED")
+        print(f"DEBUG ADMIN PASSWORD RESET: Request method = {request.method}")
+        print(f"DEBUG ADMIN PASSWORD RESET: Request headers = {dict(request.headers)}")
+        print("=" * 50)
+        
         data = request.get_json()
+        print(f"DEBUG ADMIN PASSWORD RESET: Request data = {data}")
         email = data.get('email')
         
         if not email:
