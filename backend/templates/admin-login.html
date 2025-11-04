@@ -391,8 +391,16 @@
                 } else {
                     // Check if it's a CSRF error
                     const errorMsg = data.error || 'Error sending reset link. Please try again.';
-                    if (errorMsg.includes('CSRF') || errorMsg.includes('csrf') || response.status === 403) {
-                        messageDiv.innerHTML = '<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">Session issue detected. Please refresh the page and try again.</div>';
+                    console.error('Password reset failed:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorMsg,
+                        fullData: data
+                    });
+                    
+                    // Show user-friendly error message
+                    if (response.status === 403 || errorMsg.toLowerCase().includes('csrf')) {
+                        messageDiv.innerHTML = '<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">⚠️ Server configuration issue. Please contact administrator or try again later.</div>';
                     } else {
                         messageDiv.innerHTML = `<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">${errorMsg}</div>`;
                     }
