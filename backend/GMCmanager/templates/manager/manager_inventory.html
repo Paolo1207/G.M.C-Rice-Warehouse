@@ -113,7 +113,6 @@
                             <button class="close-btn" onclick="closeStockModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
                         </div>
                         <div class="modal-actions" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                            <button class="btn secondary" type="button" onclick="addCustomField()"><i class="fas fa-plus"></i> Add Custom Field</button>
                             <button class="btn secondary" type="button" onclick="bulkUpload()"><i class="fas fa-upload"></i> Bulk Upload</button>
                         </div>
                         <form id="productForm" onsubmit="handleProductSubmit(event)">
@@ -550,7 +549,8 @@
                     stock_kg: fd.get('recordedStock') === '' ? 0 : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? 0 : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || null,
-                    batch_code: (fd.get('batchCode') || '').trim() || null
+                    batch_code: (fd.get('batchCode') || '').trim() || null,
+                    grn_number: (fd.get('grn') || '').trim() || null
                 };
 
                 if (!payload.product_name) { showToast('Product name required', 'error'); return; }
@@ -616,7 +616,8 @@
                     stock_kg: fd.get('recordedStock') === '' ? undefined : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? undefined : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || undefined,
-                    batch: (fd.get('batchCode') || '').trim() || undefined
+                    batch: (fd.get('batchCode') || '').trim() || undefined,
+                    grn: (fd.get('grn') || '').trim() || undefined
                 };
 
                 Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
