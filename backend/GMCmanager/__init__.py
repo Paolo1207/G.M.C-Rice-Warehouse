@@ -639,30 +639,37 @@ def mgr_dashboard_kpis():
         
         try:
             # Calculate Total Orders for this specific branch
-            # Count distinct transactions (grouped by transaction_date + branch_id) or total records
-            # For now, count all SalesTransaction records as each product sale is an order item
-            total_orders = db.session.query(SalesTransaction).filter(
+            # Count distinct transaction dates per branch (each purchase form submission creates
+            # multiple SalesTransaction records with the same transaction_date)
+            # This counts unique days with sales, which approximates orders
+            total_orders = db.session.query(
+                func.count(func.distinct(func.date(SalesTransaction.transaction_date)))
+            ).filter(
                 SalesTransaction.branch_id == branch_id
-            ).count()
+            ).scalar() or 0
             
             # Debug: also check how many transactions exist
-            all_transactions = db.session.query(SalesTransaction).all()
+            all_transactions = db.session.query(SalesTransaction).filter(
+                SalesTransaction.branch_id == branch_id
+            ).all()
             print(f"DEBUG KPI: Total orders query for branch_id={branch_id}:")
-            print(f"  - Total orders count: {total_orders}")
-            print(f"  - All transactions in DB: {len(all_transactions)}")
+            print(f"  - Total orders count (distinct dates): {total_orders}")
+            print(f"  - Total transaction records for branch: {len(all_transactions)}")
             if all_transactions:
                 sample = all_transactions[0]
                 print(f"  - Sample transaction branch_id: {sample.branch_id}, date: {sample.transaction_date}")
             
-            # Double-check: query by date range to see recent transactions
+            # Double-check: query distinct dates by date range to see recent orders
             today = date.today()
-            recent_count = db.session.query(SalesTransaction).filter(
+            recent_orders = db.session.query(
+                func.count(func.distinct(func.date(SalesTransaction.transaction_date)))
+            ).filter(
                 and_(
                     SalesTransaction.branch_id == branch_id,
                     func.date(SalesTransaction.transaction_date) >= today - timedelta(days=7)
                 )
-            ).count()
-            print(f"  - Recent transactions (last 7 days) for branch {branch_id}: {recent_count}")
+            ).scalar() or 0
+            print(f"  - Recent orders (distinct dates in last 7 days) for branch {branch_id}: {recent_orders}")
             
         except Exception as e:
             print(f"DEBUG KPI: Error in orders query: {e}")
