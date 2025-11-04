@@ -3765,17 +3765,28 @@ def api_change_password():
         }), 500
 
 @admin_bp.post("/api/auth/reset")
+@admin_bp.route("/api/auth/reset", methods=["POST", "OPTIONS"])  # Allow OPTIONS for CORS
 def api_reset_password():
     """Send password reset link - NO CSRF REQUIRED (login page has no session)"""
     # IMPORTANT: This endpoint does NOT require CSRF validation
     # Login pages don't have active sessions, so CSRF tokens cannot be validated
     # This is safe because password reset only sends a link via email - no data changes
+    
+    # Handle OPTIONS preflight for CORS
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        return response
+    
     try:
         print("=" * 50)
         print("DEBUG ADMIN PASSWORD RESET: Endpoint called")
         print("DEBUG ADMIN PASSWORD RESET: CSRF validation is COMPLETELY DISABLED")
         print(f"DEBUG ADMIN PASSWORD RESET: Request method = {request.method}")
         print(f"DEBUG ADMIN PASSWORD RESET: Request URL = {request.url}")
+        print(f"DEBUG ADMIN PASSWORD RESET: Request headers = {dict(request.headers)}")
         print("=" * 50)
         
         data = request.get_json()
