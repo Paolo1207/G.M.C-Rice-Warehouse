@@ -3764,7 +3764,6 @@ def api_change_password():
             "error": str(e)
         }), 500
 
-@admin_bp.post("/api/auth/reset")
 @admin_bp.route("/api/auth/reset", methods=["POST", "OPTIONS"])  # Allow OPTIONS for CORS
 def api_reset_password():
     """Send password reset link - NO CSRF REQUIRED (login page has no session)"""
@@ -3866,6 +3865,9 @@ def api_reset_password():
                 "demo_link": reset_link
             })
     except Exception as e:
+        print(f"DEBUG ADMIN PASSWORD RESET: Exception occurred: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             "ok": False,
             "error": str(e)
