@@ -3136,6 +3136,250 @@ def api_dashboard_recent_activity():
         "activities": activities
     })
 
+@admin_bp.get("/api/dashboard/alerts")
+def api_dashboard_alerts():
+    """Generate dynamic alerts based on system state"""
+    from datetime import datetime, timedelta
+    from sqlalchemy import func, and_, or_
+    from models import InventoryItem, SalesTransaction, Branch, RestockLog, Product
+    
+    alerts = []
+    now = datetime.utcnow()
+    
+    try:
+        # 1. LOW STOCK ALERTS (Critical) - Items below warn_level
+        low_stock_items = db.session.query(InventoryItem).filter(
+            and_(
+                InventoryItem.stock_kg > 0,
+                InventoryItem.stock_kg < InventoryItem.warn_level,
+                InventoryItem.warn_level.isnot(None)
+            )
+        ).all()
+        
+        if low_stock_items:
+            low_stock_count = len(low_stock_items)
+            product_names = [item.product.name if item.product else "Unknown" for item in low_stock_items[:3]]
+            product_list = ", ".join(product_names)
+            if low_stock_count > 3:
+                product_list += f" and {low_stock_count - 3} more"
+            
+            alerts.append({
+                "type": "critical",
+                "icon": "⚠️",
+                "title": "Low Stock Alert",
+                "description": f"{low_stock_count} item(s) below safety stock: {product_list}",
+                "time_ago": "Just now",
+                "count": low_stock_count
+            })
+        
+        # 2. OUT OF STOCK ALERTS (Critical) - Items with 0 stock
+        out_of_stock_items = db.session.query(InventoryItem).filter(
+            InventoryItem.stock_kg <= 0
+        ).all()
+        
+        if out_of_stock_items:
+            out_of_stock_count = len(out_of_stock_items)
+            product_names = [item.product.name if item.product else "Unknown" for item in out_of_stock_items[:3]]
+            product_list = ", ".join(product_names)
+            if out_of_stock_count > 3:
+                product_list += f" and {out_of_stock_count - 3} more"
+            
+            alerts.append({
+                "type": "critical",
+                "icon": "🚨",
+                "title": "Out of Stock",
+                "description": f"{out_of_stock_count} item(s) completely out of stock: {product_list}",
+                "time_ago": "Just now",
+                "count": out_of_stock_count
+            })
+        
+        # 3. HIGH STOCK / OVERSTOCK ALERTS (Warning) - Items significantly above auto_level
+        high_stock_items = db.session.query(InventoryItem).filter(
+            and_(
+                InventoryItem.auto_level.isnot(None),
+                InventoryItem.stock_kg > (InventoryItem.auto_level * 2)  # 2x above auto level
+            )
+        ).limit(5).all()
+        
+        if high_stock_items:
+            high_stock_count = len(high_stock_items)
+            product_names = [item.product.name if item.product else "Unknown" for item in high_stock_items[:2]]
+            product_list = ", ".join(product_names)
+            if high_stock_count > 2:
+                product_list += f" and {high_stock_count - 2} more"
+            
+            alerts.append({
+                "type": "warning",
+                "icon": "📦",
+                "title": "Overstock Alert",
+                "description": f"{high_stock_count} item(s) with excess inventory: {product_list}",
+                "time_ago": "Just now",
+                "count": high_stock_count
+            })
+        
+        # 4. SLOW MOVING INVENTORY (Warning) - Products not sold in last 7 days
+        seven_days_ago = now - timedelta(days=7)
+        recent_sales_product_ids = db.session.query(
+            func.distinct(SalesTransaction.product_id)
+        ).filter(
+            SalesTransaction.transaction_date >= seven_days_ago
+        ).all()
+        recent_product_ids = [pid[0] for pid in recent_sales_product_ids if pid[0]]
+        
+        if recent_product_ids:
+            slow_moving = db.session.query(InventoryItem).filter(
+                and_(
+                    InventoryItem.stock_kg > 0,
+                    ~InventoryItem.product_id.in_(recent_product_ids)
+                )
+            ).limit(5).all()
+        else:
+            # If no sales at all, check items with stock
+            slow_moving = db.session.query(InventoryItem).filter(
+                InventoryItem.stock_kg > 0
+            ).limit(5).all()
+        
+        if slow_moving:
+            product_names = [item.product.name if item.product else "Unknown" for item in slow_moving[:2]]
+            product_list = ", ".join(product_names)
+            if len(slow_moving) > 2:
+                product_list += f" and {len(slow_moving) - 2} more"
+            
+            alerts.append({
+                "type": "warning",
+                "icon": "📉",
+                "title": "Slow Moving Inventory",
+                "description": f"{len(slow_moving)} product(s) not sold in last 7 days: {product_list}",
+                "time_ago": "1h ago",
+                "count": len(slow_moving)
+            })
+        
+        # 5. DEMAND SPIKE (Info) - Products with unusually high sales in last 24 hours
+        one_day_ago = now - timedelta(days=1)
+        spike_threshold = 100  # kg threshold for spike detection
+        
+        recent_sales = db.session.query(
+            SalesTransaction.product_id,
+            func.sum(SalesTransaction.quantity_sold).label('total_sold')
+        ).filter(
+            SalesTransaction.transaction_date >= one_day_ago
+        ).group_by(SalesTransaction.product_id).having(
+            func.sum(SalesTransaction.quantity_sold) > spike_threshold
+        ).limit(3).all()
+        
+        if recent_sales:
+            spike_products = []
+            for product_id, total_sold in recent_sales:
+                product = db.session.query(Product).get(product_id)
+                if product:
+                    spike_products.append(f"{product.name} ({total_sold:.1f} kg)")
+            
+            if spike_products:
+                alerts.append({
+                    "type": "info",
+                    "icon": "📈",
+                    "title": "Demand Spike",
+                    "description": f"High demand detected: {', '.join(spike_products[:2])}",
+                    "time_ago": "2h ago",
+                    "count": len(spike_products)
+                })
+        
+        # 6. BRANCH STATUS ALERTS (Warning) - Branches in maintenance or closed
+        problem_branches = db.session.query(Branch).filter(
+            Branch.status.in_(['maintenance', 'closed'])
+        ).all()
+        
+        if problem_branches:
+            branch_names = [branch.name for branch in problem_branches]
+            alerts.append({
+                "type": "warning",
+                "icon": "🏢",
+                "title": "Branch Status Alert",
+                "description": f"Branch(es) with issues: {', '.join(branch_names)}",
+                "time_ago": "Just now",
+                "count": len(problem_branches)
+            })
+        
+        # 7. NO SALES ACTIVITY (Warning) - Branches with no sales in last 3 days
+        three_days_ago = now - timedelta(days=3)
+        branches_with_sales = db.session.query(
+            func.distinct(SalesTransaction.branch_id)
+        ).filter(
+            SalesTransaction.transaction_date >= three_days_ago
+        ).all()
+        active_branch_ids = [bid[0] for bid in branches_with_sales if bid[0]]
+        
+        if active_branch_ids:
+            inactive_branches = db.session.query(Branch).filter(
+                ~Branch.id.in_(active_branch_ids),
+                Branch.status == 'operational'
+            ).all()
+        else:
+            inactive_branches = db.session.query(Branch).filter(
+                Branch.status == 'operational'
+            ).all()
+        
+        if inactive_branches:
+            branch_names = [branch.name for branch in inactive_branches[:3]]
+            branch_list = ", ".join(branch_names)
+            if len(inactive_branches) > 3:
+                branch_list += f" and {len(inactive_branches) - 3} more"
+            
+            alerts.append({
+                "type": "warning",
+                "icon": "📊",
+                "title": "No Sales Activity",
+                "description": f"Branch(es) with no sales in 3 days: {branch_list}",
+                "time_ago": "3h ago",
+                "count": len(inactive_branches)
+            })
+        
+        # 8. MISSING THRESHOLDS (Info) - Items without warn_level or auto_level set
+        missing_thresholds = db.session.query(InventoryItem).filter(
+            or_(
+                InventoryItem.warn_level.is_(None),
+                InventoryItem.auto_level.is_(None)
+            ),
+            InventoryItem.stock_kg > 0
+        ).limit(10).all()
+        
+        if missing_thresholds:
+            alerts.append({
+                "type": "info",
+                "icon": "⚙️",
+                "title": "Missing Thresholds",
+                "description": f"{len(missing_thresholds)} item(s) need warn_level or auto_level configured",
+                "time_ago": "Just now",
+                "count": len(missing_thresholds)
+            })
+        
+        # Sort alerts by priority: critical > warning > info
+        priority_order = {"critical": 0, "warning": 1, "info": 2}
+        alerts.sort(key=lambda x: priority_order.get(x["type"], 3))
+        
+        # Limit to top 8 alerts
+        alerts = alerts[:8]
+        
+    except Exception as e:
+        print(f"Error generating alerts: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return at least one error alert
+        alerts = [{
+            "type": "warning",
+            "icon": "⚠️",
+            "title": "Alert System Error",
+            "description": "Unable to generate some alerts. Please check system logs.",
+            "time_ago": "Just now",
+            "count": 0
+        }]
+    
+    return jsonify({
+        "ok": True,
+        "alerts": alerts,
+        "total_count": len(alerts)
+    })
+
 def get_time_ago(dt):
     """Helper function to get human-readable time ago"""
     now = datetime.now()

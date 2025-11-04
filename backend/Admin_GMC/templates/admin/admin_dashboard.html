@@ -211,40 +211,16 @@
             <div class="dashboard-widget alerts-widget">
                 <div class="widget-header">
                     <h3>🚨 Alerts</h3>
-                    <span class="alert-count">5</span>
+                    <span class="alert-count" id="alert-count">0</span>
                 </div>
-                <div class="alerts-list">
-                    <div class="alert-item critical">
-                        <div class="alert-icon">⚠️</div>
+                <div class="alerts-list" id="alerts-list">
+                    <div class="alert-item loading">
+                        <div class="alert-icon">⏳</div>
                         <div class="alert-content">
-                            <div class="alert-title">Expiry Alert</div>
-                            <div class="alert-desc">15 items expiring in 7 days</div>
+                            <div class="alert-title">Loading alerts...</div>
+                            <div class="alert-desc">Fetching system alerts</div>
                         </div>
-                        <div class="alert-time">2h ago</div>
-                    </div>
-                    <div class="alert-item warning">
-                        <div class="alert-icon">📉</div>
-                        <div class="alert-content">
-                            <div class="alert-title">Stock Risk</div>
-                            <div class="alert-desc">Product XYZ below safety stock</div>
-                        </div>
-                        <div class="alert-time">4h ago</div>
-                    </div>
-                    <div class="alert-item info">
-                        <div class="alert-icon">📈</div>
-                        <div class="alert-content">
-                            <div class="alert-title">Demand Spike</div>
-                            <div class="alert-desc">Unusual demand for Product ABC</div>
-                        </div>
-                        <div class="alert-time">6h ago</div>
-                    </div>
-                    <div class="alert-item warning">
-                        <div class="alert-icon">🔧</div>
-                        <div class="alert-content">
-                            <div class="alert-title">System Maintenance</div>
-                            <div class="alert-desc">Scheduled maintenance in 2 hours</div>
-                        </div>
-                        <div class="alert-time">1h ago</div>
+                        <div class="alert-time">--:--</div>
                     </div>
                 </div>
             </div>
@@ -1127,11 +1103,73 @@
         });
         }
 
+        // Load Alerts data
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/admin/api/dashboard/alerts');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const alerts = data.alerts;
+                    const alertsList = document.getElementById('alerts-list');
+                    const alertCount = document.getElementById('alert-count');
+                    
+                    // Update count
+                    alertCount.textContent = data.total_count || alerts.length;
+                    
+                    // Clear loading state
+                    alertsList.innerHTML = '';
+                    
+                    if (alerts.length === 0) {
+                        alertsList.innerHTML = `
+                            <div class="alert-item info">
+                                <div class="alert-icon">✅</div>
+                                <div class="alert-content">
+                                    <div class="alert-title">All Clear</div>
+                                    <div class="alert-desc">No alerts at this time</div>
+                                </div>
+                                <div class="alert-time">Just now</div>
+                            </div>
+                        `;
+                    } else {
+                        // Add alerts
+                        alerts.forEach(alert => {
+                            const alertItem = document.createElement('div');
+                            alertItem.className = `alert-item ${alert.type}`;
+                            alertItem.innerHTML = `
+                                <div class="alert-icon">${alert.icon}</div>
+                                <div class="alert-content">
+                                    <div class="alert-title">${alert.title}</div>
+                                    <div class="alert-desc">${alert.description}</div>
+                                </div>
+                                <div class="alert-time">${alert.time_ago}</div>
+                            `;
+                            alertsList.appendChild(alertItem);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                const alertsList = document.getElementById('alerts-list');
+                alertsList.innerHTML = `
+                    <div class="alert-item warning">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Error</div>
+                            <div class="alert-desc">Failed to load alerts</div>
+                        </div>
+                        <div class="alert-time">--:--</div>
+                    </div>
+                `;
+            }
+        }
+
         // Initialize dashboard
         async function initializeDashboard() {
             await loadKPIData();
             await loadKeyMetrics();
             await loadRecentActivity();
+            await loadAlerts();
             await loadChartData();
             
             // Add filter event listeners
@@ -1142,6 +1180,7 @@
                 await loadKPIData();
                 await loadKeyMetrics();
                 await loadRecentActivity();
+                await loadAlerts();
                 await loadChartData();
             }, 300000);
         }

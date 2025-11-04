@@ -159,8 +159,8 @@
         <div class="user-header">
             <h2>👤 User Management</h2>
             <div class="user-filter-bar">
-                <input type="text" placeholder="Search by Name, Warehouse ID, or Location...">
-                <button class="add-user-btn">+ Add New User</button>
+                <input type="text" id="searchInput" placeholder="Search by Name, Warehouse ID, or Location...">
+                <button class="add-user-btn" onclick="showAddUserModal()">+ Add New User</button>
             </div>
         </div>
         <div class="user-directory-section">
@@ -188,8 +188,15 @@
                     <input type="hidden" id="userId" value="">
                     <label>Name:<input type="text" id="userName" required></label>
                     <label>Email:<input type="email" id="userEmail" required pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" title="Please enter a valid email address"></label>
-                    <label>Assigned Branch:
-                        <select id="userBranch" required>
+                    <label>Role:
+                        <select id="userRole" required onchange="toggleBranchField()">
+                            <option value="">Select Role</option>
+                            <option value="admin">Admin</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </label>
+                    <label id="branchLabel" style="display: none;">Assigned Branch:
+                        <select id="userBranch">
                             <option value="">Select Branch</option>
                             <option value="Marawoy">Marawoy</option>
                             <option value="Lipa">Lipa</option>
@@ -201,13 +208,6 @@
                         </select>
                     </label>
                     <label>Contact Number:<input type="text" id="userContact" placeholder="e.g., 0917-123-4567"></label>
-                    <label>Role:
-                        <select id="userRole" required>
-                            <option value="">Select Role</option>
-                            <option value="admin">Admin</option>
-                            <option value="manager">Manager</option>
-                        </select>
-                    </label>
                     <div class="user-form-actions">
                         <button type="submit" id="saveBtn">Save</button>
                         <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
@@ -235,10 +235,6 @@
                 <button class="confirm-delete-btn">Delete</button>
                 <button class="cancel-delete-btn">Cancel</button>
             </div>
-        </div>
-        <!-- Password Reset Option (UI only) -->
-        <div class="password-reset-section">
-            <button class="reset-password-btn">Reset Password via Gmail</button>
         </div>
     </div>
     <script>
@@ -305,10 +301,10 @@
       }
 
       function setupEventListeners() {
-        // Add new user button
-        const addUserBtn = document.querySelector('.add-user-btn');
-        if (addUserBtn) {
-          addUserBtn.addEventListener('click', showAddUserModal);
+        // Search input event listener
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+          searchInput.addEventListener('input', handleSearch);
         }
 
         // User form submission
@@ -335,12 +331,82 @@
         }
       }
 
+      // Search function
+      function handleSearch() {
+        const searchInput = document.getElementById('searchInput');
+        const query = searchInput.value.toLowerCase().trim();
+        
+        if (!query) {
+          updateUserTable(currentUsers);
+          return;
+        }
+        
+        const filteredUsers = currentUsers.filter(user => 
+          user.name.toLowerCase().includes(query) ||
+          user.warehouse_id.toLowerCase().includes(query) ||
+          user.location.toLowerCase().includes(query) ||
+          (user.contact_number && user.contact_number.toLowerCase().includes(query)) ||
+          user.role.toLowerCase().includes(query) ||
+          (user.email && user.email.toLowerCase().includes(query))
+        );
+        
+        updateUserTable(filteredUsers);
+      }
+
+      // Toggle branch field based on role
+      function toggleBranchField() {
+        const roleSelect = document.getElementById('userRole');
+        const branchLabel = document.getElementById('branchLabel');
+        const branchSelect = document.getElementById('userBranch');
+        
+        if (roleSelect.value === 'manager') {
+          branchLabel.style.display = 'block';
+          branchSelect.required = true;
+        } else {
+          branchLabel.style.display = 'none';
+          branchSelect.required = false;
+          branchSelect.value = ''; // Clear branch selection when not manager
+        }
+      }
+
+      // Search functionality
+      function handleSearch() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+        const filteredUsers = currentUsers.filter(user => {
+          return (
+            user.name.toLowerCase().includes(searchTerm) ||
+            user.warehouse_id.toLowerCase().includes(searchTerm) ||
+            user.location.toLowerCase().includes(searchTerm) ||
+            user.email.toLowerCase().includes(searchTerm)
+          );
+        });
+        updateUserTable(filteredUsers);
+      }
+
+      // Toggle branch field based on role
+      function toggleBranchField() {
+        const role = document.getElementById('userRole').value;
+        const branchLabel = document.getElementById('branchLabel');
+        const branchSelect = document.getElementById('userBranch');
+        
+        if (role === 'manager') {
+          branchLabel.style.display = 'block';
+          branchSelect.required = true;
+        } else {
+          branchLabel.style.display = 'none';
+          branchSelect.required = false;
+          branchSelect.value = ''; // Clear branch selection for admin
+        }
+      }
+
       function showAddUserModal() {
         isEditMode = false;
         document.getElementById('modalTitle').textContent = 'Add New User';
         document.getElementById('saveBtn').textContent = 'Save';
         document.getElementById('userForm').reset();
         document.getElementById('userId').value = '';
+        // Reset branch field visibility
+        toggleBranchField();
         const modal = document.getElementById('userModal');
         modal.style.display = 'flex';
         modal.style.position = 'fixed';
@@ -398,9 +464,13 @@
         document.getElementById('userId').value = user.id;
         document.getElementById('userName').value = user.name;
         document.getElementById('userEmail').value = user.email;
-        document.getElementById('userBranch').value = user.branch_name;
         document.getElementById('userContact').value = user.contact_number;
         document.getElementById('userRole').value = user.role;
+        // Set branch value and toggle visibility based on role
+        toggleBranchField();
+        if (user.role === 'manager') {
+          document.getElementById('userBranch').value = user.branch_name || '';
+        }
         const modal = document.getElementById('userModal');
         modal.style.display = 'flex';
         modal.style.position = 'fixed';
@@ -425,8 +495,20 @@
         const formData = {
           email: email,
           role: document.getElementById('userRole').value,
-          branch_name: document.getElementById('userBranch').value
         };
+        
+        // Only include branch_name if role is manager
+        const role = document.getElementById('userRole').value;
+        if (role === 'manager') {
+          const branchName = document.getElementById('userBranch').value;
+          if (!branchName) {
+            alert('Please select a branch for manager role.');
+            return;
+          }
+          formData.branch_name = branchName;
+        } else {
+          formData.branch_name = null; // Clear branch for admin
+        }
 
         try {
           let response;
