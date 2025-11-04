@@ -2321,6 +2321,59 @@ def mgr_delete_notification(notification_id):
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
 
+@manager_bp.route("/api/notifications/mark-all-read", methods=["PATCH"])
+@manager_required
+def mgr_mark_all_notifications_read():
+    """Mark all notifications as read for manager's branch"""
+    from models import Notification, db
+    
+    branch_id = _current_manager_branch_id()
+    if not branch_id:
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    try:
+        # Mark all unread notifications as read
+        updated = db.session.query(Notification).filter_by(
+            branch_id=branch_id,
+            status='unread'
+        ).update({'status': 'read'})
+        
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "message": f"{updated} notifications marked as read",
+            "updated_count": updated
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@manager_bp.route("/api/notifications/clear-all", methods=["DELETE"])
+@manager_required
+def mgr_clear_all_notifications():
+    """Delete all notifications for manager's branch"""
+    from models import Notification, db
+    
+    branch_id = _current_manager_branch_id()
+    if not branch_id:
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    try:
+        # Delete all notifications for this branch
+        deleted = db.session.query(Notification).filter_by(branch_id=branch_id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "message": f"{deleted} notifications deleted",
+            "deleted_count": deleted
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 @manager_bp.route("/api/purchases/recent", methods=["GET"])
 @manager_required
 def mgr_purchases_recent():

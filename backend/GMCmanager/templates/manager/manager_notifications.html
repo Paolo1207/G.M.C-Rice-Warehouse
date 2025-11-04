@@ -307,6 +307,7 @@
     function createNotificationElement(notification, type) {
       const div = document.createElement('div');
       div.className = `notification-item ${notification.status === 'unread' ? 'unread' : ''} ${type}`;
+      div.setAttribute('data-notification-id', notification.id);
       div.onclick = () => toggleNotification(div);
       
       const icon = type === 'alert' ? 'fa-exclamation-triangle' : 'fa-bullhorn';
@@ -405,7 +406,9 @@
           apiUrl += `?branch_id=${branchId}`;
         }
         
-        const response = await fetch(apiUrl);
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
         const data = await response.json();
         
         if (data.ok && data.unread_count > 0) {
@@ -606,14 +609,22 @@
       
       try {
         const response = await fetch(`/manager/api/notifications/${notificationId}/read`, {
-          method: 'PATCH'
+          method: 'PATCH',
+          credentials: 'include'
         });
         const data = await response.json();
         
         if (data.ok) {
-      const item = btn.closest('.notification-item');
-      item.classList.remove('unread');
-      toast('Notification marked as read', 'success');
+          const item = btn.closest('.notification-item');
+          item.classList.remove('unread');
+          
+          // If status filter is set to "unread", hide this notification
+          const statusFilter = document.getElementById('statusFilter')?.value;
+          if (statusFilter === 'unread') {
+            item.style.display = 'none';
+          }
+          
+          toast('Notification marked as read', 'success');
           
           // Clear popup tracking since user has read a notification
           sessionStorage.removeItem('lastNotificationPopup');
@@ -632,14 +643,19 @@
       
       try {
         const response = await fetch(`/manager/api/notifications/${notificationId}`, {
-          method: 'DELETE'
+          method: 'DELETE',
+          credentials: 'include'
         });
         const data = await response.json();
         
         if (data.ok) {
-      const item = btn.closest('.notification-item');
-      item.style.display = 'none';
-      toast('Notification archived', 'success');
+          const item = btn.closest('.notification-item');
+          item.style.display = 'none';
+          item.remove(); // Remove from DOM
+          toast('Notification archived', 'success');
+          
+          // Reload notifications to update the UI
+          await loadNotifications();
         } else {
           toast('Error archiving notification', 'error');
         }
@@ -651,41 +667,79 @@
 
     async function markAllAsRead() {
       try {
-        // Mark all unread notifications as read via API
-        const unreadItems = document.querySelectorAll('.notification-item.unread');
-        const promises = Array.from(unreadItems).map(item => {
-          const notificationId = item.dataset.notificationId;
-          if (notificationId) {
-            return fetch(`/manager/api/notifications/${notificationId}/read`, {
-              method: 'PATCH'
-            });
-          }
-          return Promise.resolve();
+        // Get branch_id for the API call
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        // Call bulk API endpoint to mark all as read
+        const response = await fetch('/manager/api/notifications/mark-all-read', {
+          method: 'PATCH',
+          credentials: 'include'
         });
+        const data = await response.json();
         
-        await Promise.all(promises);
-        
-        // Update UI
-        unreadItems.forEach(item => {
-          item.classList.remove('unread');
-        });
-        
-        // Clear popup tracking since all notifications are read
-        sessionStorage.removeItem('lastNotificationPopup');
-        sessionStorage.removeItem('lastUnreadCount');
-        
-      toast('All notifications marked as read', 'success');
+        if (data.ok) {
+          // Update UI - remove unread class from all items
+          const unreadItems = document.querySelectorAll('.notification-item.unread');
+          unreadItems.forEach(item => {
+            item.classList.remove('unread');
+            
+            // If status filter is set to "unread", hide these notifications
+            const statusFilter = document.getElementById('statusFilter')?.value;
+            if (statusFilter === 'unread') {
+              item.style.display = 'none';
+            }
+          });
+          
+          // Clear popup tracking since all notifications are read
+          sessionStorage.removeItem('lastNotificationPopup');
+          sessionStorage.removeItem('lastUnreadCount');
+          
+          toast(`All ${data.updated_count || 0} notifications marked as read`, 'success');
+        } else {
+          toast('Error marking all notifications as read: ' + (data.error || 'Unknown error'), 'error');
+        }
       } catch (error) {
         console.error('Error marking all notifications as read:', error);
         toast('Error marking all notifications as read', 'error');
       }
     }
 
-    function clearAllNotifications() {
-      if (!confirm('Clear all notifications?')) return;
-      document.querySelectorAll('.notification-item')
-        .forEach(n => n.style.display = 'none');
-      toast('All notifications cleared', 'success');
+    async function clearAllNotifications() {
+      if (!confirm('Are you sure you want to delete all notifications? This action cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        // Get branch_id for the API call
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        // Call bulk API endpoint to delete all notifications
+        const response = await fetch('/manager/api/notifications/clear-all', {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+          // Reload notifications (will show empty state)
+          await loadNotifications();
+          
+          // Clear popup tracking
+          sessionStorage.removeItem('lastNotificationPopup');
+          sessionStorage.removeItem('lastUnreadCount');
+          
+          toast(`All ${data.deleted_count || 0} notifications deleted`, 'success');
+        } else {
+          toast('Error clearing notifications: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        console.error('Error clearing notifications:', error);
+        toast('Error clearing notifications', 'error');
+      }
     }
 
     function toast(message, type='info') {
