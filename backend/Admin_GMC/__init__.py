@@ -155,11 +155,23 @@ def api_create_product():
     grn_number = (data.get("grn_number") or data.get("grn") or "").strip() or None
 
     # Check if this exact combination already exists (branch + product + batch_code)
-    inv = InventoryItem.query.filter_by(
-        branch_id=branch.id, 
-        product_id=product.id, 
-        batch_code=batch_code
-    ).first()
+    # Handle NULL batch_code properly - PostgreSQL treats NULL as distinct in unique constraints
+    if batch_code:
+        inv = InventoryItem.query.filter_by(
+            branch_id=branch.id, 
+            product_id=product.id, 
+            batch_code=batch_code
+        ).first()
+    else:
+        # For NULL batch_code, check explicitly
+        from sqlalchemy import and_
+        inv = InventoryItem.query.filter(
+            and_(
+                InventoryItem.branch_id == branch.id,
+                InventoryItem.product_id == product.id,
+                InventoryItem.batch_code.is_(None)
+            )
+        ).first()
     
     if not inv:
         # Create new inventory item for this batch
@@ -182,6 +194,7 @@ def api_create_product():
         if warn_level is not None: inv.warn_level = warn_level
         if auto_level is not None: inv.auto_level = auto_level
         if margin is not None:     inv.margin = margin
+        if grn_number is not None: inv.grn_number = grn_number
 
     try:
         db.session.commit()
@@ -203,7 +216,17 @@ def api_create_product():
         
     except IntegrityError as e:
         db.session.rollback()
-        return jsonify({"ok": False, "error": "Integrity error", "detail": str(e.orig)}), 400
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        # Check if it's the unique constraint violation
+        if 'uq_branch_product_batch' in error_msg or 'duplicate key' in error_msg.lower():
+            return jsonify({
+                "ok": False, 
+                "error": f"A product '{product_name}' with batch code '{batch_code or 'N/A'}' already exists in this branch. Please use a different batch code or edit the existing product."
+            }), 400
+        return jsonify({
+            "ok": False, 
+            "error": f"Database constraint violation. {error_msg}"
+        }), 400
 
     return jsonify({
         "ok": True,
