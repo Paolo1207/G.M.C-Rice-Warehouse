@@ -395,8 +395,15 @@
                         status: response.status,
                         statusText: response.statusText,
                         error: errorMsg,
-                        fullData: data
+                        fullData: data,
+                        responseURL: response.url,
+                        responseHeaders: Object.fromEntries(response.headers.entries())
                     });
+                    
+                    // Log the full response text if available
+                    if (data.error) {
+                        console.error('Server error message:', data.error);
+                    }
                     
                     // Show user-friendly error message
                     if (response.status === 403 || errorMsg.toLowerCase().includes('csrf')) {
