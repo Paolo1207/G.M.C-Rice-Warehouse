@@ -201,13 +201,32 @@ def api_create_product():
         db.session.add(inv)
     else:
         # Update existing record with provided fields (if any)
-        print(f"DEBUG: UPDATING existing inventory item (id={inv.id})")
-        if stock_kg is not None:   inv.stock_kg = stock_kg
-        if unit_price is not None: inv.unit_price = unit_price
-        if warn_level is not None: inv.warn_level = warn_level
-        if auto_level is not None: inv.auto_level = auto_level
-        if margin is not None:     inv.margin = margin
-        if grn_number is not None: inv.grn_number = grn_number
+        # IMPORTANT: Only update if the batch_code matches exactly - if user wants different batch, create new
+        existing_batch = inv.batch_code or None
+        new_batch = batch_code or None
+        if existing_batch != new_batch:
+            print(f"DEBUG: Existing item has batch_code '{existing_batch}' but user wants '{new_batch}' - creating NEW item instead")
+            # Create a new inventory item with the new batch code
+            inv = InventoryItem(
+                branch_id=branch.id,
+                product_id=product.id,
+                stock_kg=stock_kg or 0,
+                unit_price=unit_price or 0,
+                warn_level=warn_level,
+                auto_level=auto_level,
+                margin=margin,
+                batch_code=batch_code,
+                grn_number=grn_number,
+            )
+            db.session.add(inv)
+        else:
+            print(f"DEBUG: UPDATING existing inventory item (id={inv.id}) with matching batch_code")
+            if stock_kg is not None:   inv.stock_kg = stock_kg
+            if unit_price is not None: inv.unit_price = unit_price
+            if warn_level is not None: inv.warn_level = warn_level
+            if auto_level is not None: inv.auto_level = auto_level
+            if margin is not None:     inv.margin = margin
+            if grn_number is not None: inv.grn_number = grn_number
 
     try:
         db.session.commit()
