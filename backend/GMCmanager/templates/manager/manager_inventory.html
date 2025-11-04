@@ -780,36 +780,66 @@
             try {
                 const fd = new FormData(event.target);
                 const selectedProductId = fd.get('product_id');
-                // Admin parity: require existing batch; hide input when none
-                const selectedBatchCode = (restockBatchSelect && restockBatchSelect.style.display !== 'none') ? restockBatchSelect.value : '';
+                
+                if (!selectedProductId) {
+                    showToast('Please select a product', 'error');
+                    return;
+                }
 
-                // Find existing inventory item by product+batch in this branch
-                let targetItem = (_managerInvItems || []).find(it => String(it.product_id) === String(selectedProductId) && it.batch === selectedBatchCode);
+                const quantity = Number(fd.get('quantity'));
+                if (!quantity || quantity <= 0) {
+                    showToast('Please enter a valid quantity', 'error');
+                    return;
+                }
+
+                // Check if batch code fields are visible (batches exist for this product)
+                const batchesExist = restockBatchSelect && restockBatchSelect.style.display !== 'none';
+                const selectedBatchCode = batchesExist ? restockBatchSelect.value : null;
+
+                // Find existing inventory item:
+                // - If batches exist, find by product_id + batch_code
+                // - If no batches exist, find first inventory item for this product (or create logic for no-batch items)
+                let targetItem = null;
+                if (batchesExist) {
+                    // Batches exist - require batch selection
+                    if (!selectedBatchCode) {
+                        showToast('Please select a batch code', 'error');
+                        return;
+                    }
+                    targetItem = (_managerInvItems || []).find(it => 
+                        String(it.product_id) === String(selectedProductId) && 
+                        (it.batch || '') === (selectedBatchCode || '')
+                    );
+                    if (!targetItem) {
+                        showToast('Selected batch does not exist for this product in this branch.', 'error');
+                        return;
+                    }
+                } else {
+                    // No batches exist - find any inventory item for this product
+                    // If multiple items exist for same product (different batches), take the first one
+                    // In practice, if no batches shown, there should be only one inventory item per product
+                    targetItem = (_managerInvItems || []).find(it => 
+                        String(it.product_id) === String(selectedProductId)
+                    );
+                    if (!targetItem) {
+                        showToast('No inventory item found for this product in this branch.', 'error');
+                        return;
+                    }
+                }
 
                 const payload = {
-                    inventory_item_id: targetItem ? targetItem.id : null,
-                    quantity: Number(fd.get('quantity')),
+                    product_id: targetItem.id,  // Backend expects inventory_item_id in 'product_id' field
+                    quantity: quantity,
                     supplier: (fd.get('supplier') || '').trim() || null,
                     note: (fd.get('note') || '').trim() || null
                 };
 
-                if (!selectedProductId || !payload.quantity) {
-                    showToast('Please fill all required fields', 'error');
-                    return;
-                }
-
-                // Include batch code value (dropdown or input)
-                if (!selectedBatchCode) { showToast('Please select a batch code', 'error'); return; }
-                payload.batch_code = selectedBatchCode;
-
-                if (!payload.inventory_item_id) {
-                    showToast('Selected batch does not exist for this product in this branch.', 'error');
-                    return;
-                }
+                console.log('DEBUG: Restock payload:', payload);
 
                 const res = await fetch('/manager/api/inventory/restock', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify(payload)
                 });
 
@@ -820,7 +850,7 @@
                 showToast('Restock recorded successfully', 'success');
                 await loadInventoryData();
             } catch (e) {
-                console.error(e);
+                console.error('Restock error:', e);
                 showToast(e.message || 'Restock failed', 'error');
             }
         }

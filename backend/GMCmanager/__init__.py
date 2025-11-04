@@ -496,8 +496,9 @@ def mgr_inventory_restock_general():
         if quantity <= 0:
             return jsonify({"ok": False, "error": "Quantity must be positive"}), 400
         
+        # Supplier is optional (can be empty string or None)
         if not supplier:
-            return jsonify({"ok": False, "error": "Supplier is required"}), 400
+            supplier = None
         
         # Find the inventory item directly by ID and verify it belongs to manager's branch
         inventory_item = InventoryItem.query.filter_by(
