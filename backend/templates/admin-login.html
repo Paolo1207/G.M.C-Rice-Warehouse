@@ -412,6 +412,20 @@
                     // Log the full response text if available
                     if (data.error) {
                         console.error('Server error message:', data.error);
+                        console.error('Full error object:', JSON.stringify(data, null, 2));
+                    }
+                    
+                    // If we get a 403, log everything we can about the request
+                    if (response.status === 403) {
+                        console.error('403 Forbidden Details:', {
+                            url: response.url,
+                            status: response.status,
+                            statusText: response.statusText,
+                            headers: Object.fromEntries(response.headers.entries()),
+                            responseData: data,
+                            requestMethod: 'POST',
+                            requestURL: '/admin/api/auth/reset'
+                        });
                     }
                     
                     // Show user-friendly error message
