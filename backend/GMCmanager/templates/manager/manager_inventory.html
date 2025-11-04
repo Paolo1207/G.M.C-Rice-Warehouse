@@ -93,7 +93,7 @@
                                 <th>Product Name</th>
                                 <th>Category</th>
                                 <th>Quantity</th>
-                                <th>Unit</th>
+                                <th>Price</th>
                                 <th>Status</th>
                                 <th>Last Updated</th>
                                 <th>Actions</th>
@@ -313,8 +313,8 @@
                                 <input type="number" id="restockQuantity" name="quantity" placeholder="Enter quantity in kg" min="0.1" step="0.1" required>
                             </div>
                             <div class="form-group">
-                                <label for="restockSupplier">Supplier</label>
-                                <input type="text" id="restockSupplier" name="supplier" placeholder="Enter supplier name" required>
+                                <label for="restockSupplier">Supplier <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="restockSupplier" name="supplier" placeholder="Enter supplier name">
                             </div>
                             <div class="form-group">
                                 <label for="restockNote">Notes</label>
@@ -399,7 +399,7 @@
                 name: it.product_name || '',
                 category: it.category || '',
                 quantity: Number(it.stock ?? 0),
-                unit: 'kg',
+                price: Number(it.price ?? it.unit_price ?? 0),
                 status: it.status || (Number(it.stock ?? 0) <= 0 ? 'out' : 'available'),
                 lastUpdated: it.updated_at || it.last_updated || it.modified_at || it.created_at || null
             };
@@ -424,7 +424,9 @@
                 
                 console.log('Loading inventory for branch:', branchId, 'URL:', apiUrl);
                 
-                const res = await fetch(apiUrl);
+                const res = await fetch(apiUrl, {
+                    credentials: 'include'
+                });
                 const json = await res.json();
                 if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load');
                 const data = (json.items || []).map(mapItem);
@@ -439,10 +441,14 @@
             const res = await fetch('/manager/api/inventory', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(payload)
             });
             const json = await res.json().catch(() => ({}));
-            if (!res.ok || json.ok === false) throw new Error(json.error || 'Create failed');
+            if (!res.ok || json.ok === false) {
+                console.error('Create product error:', json);
+                throw new Error(json.error || 'Create failed');
+            }
             return json.item;
         }
 
@@ -450,6 +456,7 @@
             const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(patch)
             });
             const json = await res.json().catch(() => ({}));
@@ -459,7 +466,8 @@
 
         async function deleteItem(id) {
             const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok || json.ok === false) throw new Error(json.error || 'Delete failed');
@@ -467,7 +475,9 @@
         }
 
         async function fetchLogs(id) {
-            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}/logs`);
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}/logs`, {
+                credentials: 'include'
+            });
             const json = await res.json().catch(() => ({}));
             if (!res.ok || json.ok === false) throw new Error(json.error || 'Logs failed');
             return json.logs || [];
@@ -480,11 +490,12 @@
 
             data.forEach(item => {
                 const row = document.createElement('tr');
+                const formattedPrice = item.price ? `₱${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₱0.00';
                 row.innerHTML = `
                     <td>${item.name}</td>
                     <td>${item.category}</td>
                     <td>${item.quantity}</td>
-                    <td>${item.unit}</td>
+                    <td>${formattedPrice}</td>
                     <td><span class="status-badge ${item.status}">${item.status}</span></td>
                     <td>${formatDate(item.lastUpdated)}</td>
                     <td>
@@ -537,15 +548,21 @@
         async function handleProductSubmit(event) {
             event.preventDefault();
             try {
+                // Get branch_id from URL or template variable
+                const branchId = {{ branch_id if branch_id else 'null' }} || 
+                                new URLSearchParams(window.location.search).get('branch') || 
+                                new URLSearchParams(window.location.search).get('branch_id');
+                
                 const fd = new FormData(event.target);
                 const payload = {
+                    branch_id: branchId ? Number(branchId) : null,
                     product_name: (fd.get('productName') || '').trim(),
                     category: (fd.get('category') || '').trim() || null,
                     barcode: (fd.get('barcode') || '').trim() || null,
                     sku: (fd.get('sku') || '').trim() || null,
                     desc: (fd.get('description') || '').trim() || null,
-                    warn: fd.get('warningThreshold') === '' ? null : Number(fd.get('warningThreshold')),
-                    auto: fd.get('autoOrderLevel') === '' ? null : Number(fd.get('autoOrderLevel')),
+                    warn_level: fd.get('warningThreshold') === '' ? null : Number(fd.get('warningThreshold')),
+                    auto_level: fd.get('autoOrderLevel') === '' ? null : Number(fd.get('autoOrderLevel')),
                     stock_kg: fd.get('recordedStock') === '' ? 0 : Number(fd.get('recordedStock')),
                     unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? 0 : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
                     margin: (fd.get('sellingMargin') || '').trim() || null,
@@ -556,13 +573,16 @@
                 if (!payload.product_name) { showToast('Product name required', 'error'); return; }
                 if (!payload.batch_code) { showToast('Batch code is required', 'error'); return; }
 
-                await createProduct(payload);
-            closeStockModal();
+                console.log('Creating product with payload:', payload);
+                const createdItem = await createProduct(payload);
+                console.log('Product created successfully:', createdItem);
+                
+                closeStockModal();
                 event.target.reset();
-                showToast('Product added', 'success');
+                showToast('Product added successfully', 'success');
                 await loadInventoryData();
             } catch (e) {
-                console.error(e);
+                console.error('Error creating product:', e);
                 showToast(e.message || 'Create failed', 'error');
             }
         }
@@ -769,11 +789,11 @@
                 const payload = {
                     inventory_item_id: targetItem ? targetItem.id : null,
                     quantity: Number(fd.get('quantity')),
-                    supplier: (fd.get('supplier') || '').trim(),
+                    supplier: (fd.get('supplier') || '').trim() || null,
                     note: (fd.get('note') || '').trim() || null
                 };
 
-                if (!selectedProductId || !payload.quantity || !payload.supplier) {
+                if (!selectedProductId || !payload.quantity) {
                     showToast('Please fill all required fields', 'error');
                     return;
                 }
@@ -867,7 +887,7 @@
 
         // Export inventory (client-side CSV of current table)
         function exportInventory() {
-            const rows = [['Product Name','Category','Quantity','Unit','Status']];
+            const rows = [['Product Name','Category','Quantity','Price','Status']];
             document.querySelectorAll('#inventoryTableBody tr').forEach(tr => {
                 const cols = Array.from(tr.children).slice(0,5).map(td => td.textContent.trim());
                 rows.push(cols);
