@@ -2432,6 +2432,8 @@ def mgr_clear_all_notifications():
 @manager_required
 def mgr_purchases_recent():
     """Get recent purchases for manager's branch"""
+    from datetime import timezone, timedelta
+    
     branch_id = _current_manager_branch_id()
     if not branch_id:
         # Fallback: try to get branch from URL parameters or default to 1
@@ -2500,7 +2502,6 @@ def mgr_purchases_recent():
                 historical_remaining += float(other_sale.quantity_sold)
         
         # Ensure datetime is timezone-aware (assume UTC if naive, then convert to Philippines time)
-        from datetime import timezone, timedelta
         ph_tz = timezone(timedelta(hours=8))
         
         if sale.transaction_date.tzinfo is None:
@@ -2542,7 +2543,7 @@ def mgr_purchases_recent():
 def mgr_sales_bulk():
     """Bulk sales submission from purchase form"""
     from models import SalesTransaction, Product, db
-    from datetime import datetime
+    from datetime import datetime, timezone, timedelta
     
     branch_id = _current_manager_branch_id()
     if not branch_id:
@@ -2568,8 +2569,17 @@ def mgr_sales_bulk():
         if not date_str or not items:
             return jsonify({"ok": False, "error": "Date and items are required"}), 400
         
-        # Parse date
-        transaction_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        # Parse date and combine with current Philippines time (UTC+8)
+        ph_tz = timezone(timedelta(hours=8))
+        now_ph = datetime.now(ph_tz)
+        
+        # Use the selected date but with current Philippines time
+        date_only = datetime.strptime(date_str, '%Y-%m-%d').date()
+        transaction_date_ph = datetime.combine(date_only, now_ph.time()).replace(tzinfo=ph_tz)
+        
+        # Convert to UTC and remove timezone info for database storage (naive datetime)
+        transaction_date_utc = transaction_date_ph.astimezone(timezone.utc)
+        transaction_date = transaction_date_utc.replace(tzinfo=None)  # Store as naive UTC datetime
         
         created_transactions = []
         
