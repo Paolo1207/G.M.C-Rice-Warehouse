@@ -13,47 +13,158 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            background: #f5f5f5;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
         }
 
-        .login-container {
+        .login-wrapper {
+            display: flex;
             background: white;
-            padding: 3rem;
             border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(33, 150, 243, 0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            max-width: 1200px;
+            width: 100%;
+            min-height: 600px;
+            position: relative;
+        }
+
+        .left-panel {
+            flex: 0 0 48%;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            padding: 3.5rem 2.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            max-width: 500px;
-            width: 90%;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .left-panel-content {
+            width: 100%;
+            max-width: 100%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .wavy-separator {
+            position: absolute;
+            right: -50px;
+            top: 0;
+            bottom: 0;
+            width: 100px;
+            background: white;
+        }
+
+        .wavy-separator svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .left-panel h2 {
+            font-size: 1.3rem;
+            font-weight: 400;
+            margin-bottom: 0.8rem;
+            opacity: 0.95;
+            white-space: nowrap;
         }
 
         .logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 2rem;
-            background: linear-gradient(135deg, #2196F3, #1976D2);
+            width: 90px;
+            height: 90px;
+            margin: 0.8rem auto 1.2rem;
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 2rem;
+            font-size: 2.5rem;
             font-weight: bold;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            flex-shrink: 0;
         }
 
-        h1 {
+        .left-panel h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.2rem;
+            font-weight: 700;
+            line-height: 1.3;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            padding: 0 0.5rem;
+        }
+
+        .left-panel p {
+            font-size: 1rem;
+            line-height: 1.8;
+            opacity: 0.9;
+            max-width: 100%;
+            margin-bottom: 1.5rem;
+            padding: 0 1.5rem;
+            text-align: center;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .left-footer {
+            margin-top: auto;
+            font-size: 0.85rem;
+            opacity: 0.85;
+            text-align: center;
+            padding: 0 1rem;
+            line-height: 1.6;
+            white-space: nowrap;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 4rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: white;
+        }
+
+        .right-panel h2 {
             color: #1565C0;
+            font-size: 2rem;
             margin-bottom: 0.5rem;
-            font-size: 2.2rem;
+            font-weight: 600;
         }
 
-        .subtitle {
+        .right-panel .subtitle {
             color: #666;
             margin-bottom: 2rem;
             font-size: 1rem;
+        }
+
+        .manager-badge {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
         }
 
         .form-group {
@@ -91,7 +202,7 @@
         .login-btn {
             width: 100%;
             padding: 1rem 2rem;
-            background: linear-gradient(135deg, #2196F3, #1976D2);
+            background: #2196F3;
             color: white;
             border: none;
             border-radius: 10px;
@@ -112,21 +223,13 @@
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease;
+            text-align: center;
+            display: block;
+            margin-top: 1rem;
         }
 
         .back-btn:hover {
             color: #1565C0;
-        }
-
-        .manager-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #2196F3, #1976D2);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 2rem;
         }
 
         .error-message {
@@ -147,6 +250,26 @@
             margin-bottom: 1rem;
             border-left: 4px solid #4CAF50;
             display: none;
+        }
+
+        .branch-info {
+            background: #E3F2FD;
+            padding: 1.2rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #2196F3;
+            text-align: left;
+        }
+
+        .branch-info h3 {
+            color: #1565C0;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .branch-info p {
+            color: #666;
+            font-size: 0.9rem;
         }
 
         /* Forgot Password Modal */
@@ -196,7 +319,7 @@
         .forgot-password-content .submit-btn {
             width: 100%;
             padding: 1rem;
-            background: linear-gradient(135deg, #2196F3, #1976D2);
+            background: #2196F3;
             color: white;
             border: none;
             border-radius: 10px;
@@ -225,77 +348,185 @@
             color: #1565C0;
         }
 
+        #forgotPasswordLink {
+            color: #2196F3;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
         #forgotPasswordLink:hover {
             color: #1565C0 !important;
             text-decoration: underline !important;
         }
 
-        .branch-info {
-            background: #E3F2FD;
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #2196F3;
+        /* Responsive Design for Desktop, Laptop, and iPad */
+        @media (max-width: 1366px) {
+            .login-wrapper {
+                max-width: 1100px;
+            }
+
+            .left-panel {
+                padding: 3rem 2rem;
+            }
+
+            .right-panel {
+                padding: 3.5rem 2.5rem;
+            }
         }
 
-        .branch-info h3 {
-            color: #1565C0;
-            margin-bottom: 0.5rem;
-            font-size: 1rem;
+        @media (max-width: 1280px) {
+            .login-wrapper {
+                max-width: 1000px;
+            }
+
+            .left-panel {
+                flex: 0 0 46%;
+                padding: 3rem 2.2rem;
+            }
+
+            .right-panel {
+                padding: 3rem 2.5rem;
+            }
+
+            .left-panel h1 {
+                font-size: 1.7rem;
+            }
+
+            .left-panel p {
+                padding: 0 1.2rem;
+            }
+
+            .right-panel h2 {
+                font-size: 1.8rem;
+            }
         }
 
-        .branch-info p {
-            color: #666;
-            font-size: 0.9rem;
+        @media (max-width: 1024px) {
+            .login-wrapper {
+                max-width: 900px;
+                min-height: 550px;
+            }
+
+            .left-panel {
+                flex: 0 0 45%;
+                padding: 3rem 2rem;
+            }
+
+            .right-panel {
+                padding: 3rem 2rem;
+            }
+
+            .left-panel h1 {
+                font-size: 1.6rem;
+            }
+
+            .left-panel p {
+                font-size: 0.95rem;
+                padding: 0 1rem;
+            }
+
+            .right-panel h2 {
+                font-size: 1.7rem;
+            }
+        }
+
+        @media (max-width: 968px) {
+            .login-wrapper {
+                max-width: 800px;
+                flex-direction: row;
+            }
+
+            .left-panel {
+                flex: 0 0 44%;
+                padding: 2.8rem 1.8rem;
+            }
+
+            .right-panel {
+                padding: 2.5rem 2rem;
+            }
+
+            .left-panel h1 {
+                font-size: 1.5rem;
+            }
+
+            .left-panel p {
+                font-size: 0.9rem;
+                padding: 0 1rem;
+            }
+
+            .right-panel h2 {
+                font-size: 1.6rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="logo">🏢</div>
-        <div class="manager-badge">Branch Manager Access</div>
-        <h1>Manager Login</h1>
-        <p class="subtitle">Access your branch inventory management</p>
-        
-        <div class="branch-info">
-            <h3>Branch Selection Required</h3>
-            <p>Please select your assigned branch to access your inventory management dashboard.</p>
+    <div class="login-wrapper">
+        <div class="left-panel">
+            <div class="wavy-separator">
+                <svg viewBox="0 0 100 600" preserveAspectRatio="none">
+                    <path d="M0,0 Q25,50 0,100 T0,200 Q25,250 0,300 T0,400 Q25,450 0,500 T0,600 L100,600 L100,0 Z" fill="white"/>
+                </svg>
+            </div>
+            <div class="left-panel-content">
+                <h2>Welcome to</h2>
+                <div class="logo">🏢</div>
+                <h1>Manager Login</h1>
+                <p>Access your branch inventory management. Monitor stock levels, manage orders, and generate reports for your assigned branch.</p>
+                <div class="left-footer">
+                    <span>Branch Manager Access</span>
+                </div>
+            </div>
         </div>
         
-        <div class="error-message" id="errorMessage"></div>
-        <div class="success-message" id="successMessage"></div>
-        
-        <form id="managerLoginForm">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required>
+        <div class="right-panel">
+            <div class="manager-badge">Branch Manager Access</div>
+            <h2>Manager Login</h2>
+            <p class="subtitle">Enter your credentials to access your branch</p>
+            
+            <div class="branch-info">
+                <h3>Branch Selection Required</h3>
+                <p>Please select your assigned branch to access your inventory management dashboard.</p>
             </div>
             
-            <div class="form-group">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                    <label for="password" style="margin-bottom: 0;">Password</label>
-                    <a href="#" id="forgotPasswordLink" style="color: #2196F3; text-decoration: none; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: color 0.3s ease;">Forgot Password?</a>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+            
+            <form id="managerLoginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
                 </div>
-                <input type="password" id="password" name="password" required>
-            </div>
+                
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label for="password" style="margin-bottom: 0;">Password</label>
+                        <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+                    </div>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="branch">Select Your Branch</label>
+                    <select id="branch" name="branch" required>
+                        <option value="">Choose your branch...</option>
+                        <option value="1">Marawoy</option>
+                        <option value="2">Lipa</option>
+                        <option value="3">Malvar</option>
+                        <option value="4">Bulacnin</option>
+                        <option value="5">Boac</option>
+                        <option value="6">Sta. Cruz</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="login-btn">Login as Branch Manager</button>
+            </form>
             
-            <div class="form-group">
-                <label for="branch">Select Your Branch</label>
-                <select id="branch" name="branch" required>
-                    <option value="">Choose your branch...</option>
-                    <option value="1">Marawoy</option>
-                    <option value="2">Lipa</option>
-                    <option value="3">Malvar</option>
-                    <option value="4">Bulacnin</option>
-                    <option value="5">Boac</option>
-                    <option value="6">Sta. Cruz</option>
-                </select>
-            </div>
-            
-            <button type="submit" class="login-btn">Login as Branch Manager</button>
-        </form>
-        
-        <a href="/login" class="back-btn">← Back to Role Selection</a>
+            <a href="/login" class="back-btn">← Back to Role Selection</a>
+        </div>
     </div>
 
     <!-- Forgot Password Modal -->
