@@ -845,18 +845,6 @@
                 return;
             }
             
-            // Destroy existing chart more thoroughly
-            if (salesTrendsByBranchChartInstance) {
-                try {
-                    if (typeof salesTrendsByBranchChartInstance.destroy === 'function') {
-                        salesTrendsByBranchChartInstance.destroy();
-                    }
-                } catch (e) {
-                    console.warn('Error destroying existing chart:', e);
-                }
-                salesTrendsByBranchChartInstance = null;
-            }
-            
             // Get the chart container to restore canvas if needed
             const chartContainer = ctxEl.closest('.chart-container');
             if (!chartContainer) {
@@ -864,18 +852,33 @@
                 return;
             }
             
-            // If canvas was replaced, restore it
-            let currentCanvas = document.getElementById('salesTrendsChart');
-            if (!currentCanvas || currentCanvas !== ctxEl) {
-                currentCanvas = document.createElement('canvas');
-                currentCanvas.id = 'salesTrendsChart';
-                currentCanvas.width = 400;
-                currentCanvas.height = 200;
-                chartContainer.innerHTML = '';
-                chartContainer.appendChild(currentCanvas);
+            // Destroy existing chart instance FIRST before replacing canvas
+            if (salesTrendsByBranchChartInstance) {
+                try {
+                    if (typeof salesTrendsByBranchChartInstance.destroy === 'function') {
+                        salesTrendsByBranchChartInstance.destroy();
+                    }
+                } catch (e) {
+                    console.warn('Error destroying chart during cleanup:', e);
+                }
+                salesTrendsByBranchChartInstance = null;
             }
             
-            const ctx = currentCanvas.getContext('2d');
+            // Remove old canvas completely and create fresh one
+            const oldCanvas = document.getElementById('salesTrendsChart');
+            if (oldCanvas) {
+                oldCanvas.remove();
+            }
+            
+            // Create new canvas element
+            const newCanvas = document.createElement('canvas');
+            newCanvas.id = 'salesTrendsChart';
+            newCanvas.width = 400;
+            newCanvas.height = 200;
+            chartContainer.innerHTML = '';
+            chartContainer.appendChild(newCanvas);
+            
+            const ctx = newCanvas.getContext('2d');
 
             const labels = payload.labels || [];
             const colors = ['#2e7d32','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
@@ -1179,14 +1182,31 @@
         async function loadTopProducts(branchId) {
             try {
                 const productsList = document.getElementById('topProductsList');
+                if (!productsList) return;
+                
                 productsList.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Loading top products...</div></div>';
                 
-                // Get the selected days from the dropdown (default to 30 if not found)
-                const daysSelect = document.querySelector('.chart-period');
-                const days = daysSelect ? daysSelect.value : '30';
+                // Get the selected days from the top products dropdown (not the sales trends one)
+                const topProductsWidget = document.querySelector('.top-products-widget');
+                const daysSelect = topProductsWidget ? topProductsWidget.querySelector('.chart-period') : null;
+                const days = daysSelect ? parseInt(daysSelect.value, 10) : 30;
+                
+                // Validate days is a number
+                if (isNaN(days) || days <= 0) {
+                    console.error('Invalid days value:', daysSelect?.value);
+                    productsList.innerHTML = '<div class="error-state">Invalid date range</div>';
+                    return;
+                }
                 
                 console.log('Loading top products for branch:', branchId, 'days:', days);
                 const response = await fetch(`/admin/api/dashboard/charts?branch_id=${branchId}&days=${days}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Top products API error:', response.status, errorText);
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
                 const data = await response.json();
                 
                 console.log('API Response:', data);
@@ -1198,6 +1218,9 @@
                     console.log('No products data in response, trying without branch filter');
                     // Try loading all products if branch-specific data is empty
                     const allProductsResponse = await fetch(`/admin/api/dashboard/charts?days=${days}`);
+                    if (!allProductsResponse.ok) {
+                        throw new Error(`Server error: ${allProductsResponse.status}`);
+                    }
                     const allProductsData = await allProductsResponse.json();
                     
                     if (allProductsData.ok && allProductsData.charts && allProductsData.charts.top_products) {

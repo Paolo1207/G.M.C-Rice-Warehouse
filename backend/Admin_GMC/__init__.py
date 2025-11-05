@@ -2952,182 +2952,180 @@ def api_dashboard_kpis():
 @admin_bp.get("/api/dashboard/charts")
 def api_dashboard_charts():
     """Get chart data for dashboard"""
-    from datetime import datetime, date, timedelta
-    from sqlalchemy import func, and_, desc
-    
-    # Get query parameters
-    branch_id = request.args.get('branch_id', type=int)
-    product_id = request.args.get('product_id', type=int)
-    days = request.args.get('days', 30, type=int)
-    
-    # Use Philippines timezone for date comparison
-    from datetime import timezone as tz
-    ph_tz = tz(timedelta(hours=8))
-    now_ph = datetime.now(ph_tz)
-    end_date = now_ph.date()  # Today in Philippines time
-    start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
-    
-    # Base queries
-    sales_query = db.session.query(SalesTransaction)
-    forecast_query = db.session.query(ForecastData)
-    
-    # Apply filters
-    if branch_id:
-        sales_query = sales_query.filter(SalesTransaction.branch_id == branch_id)
-        forecast_query = forecast_query.filter(ForecastData.branch_id == branch_id)
-    
-    if product_id:
-        sales_query = sales_query.filter(SalesTransaction.product_id == product_id)
-        forecast_query = forecast_query.filter(ForecastData.product_id == product_id)
-    
-    # Query all transactions in the date range, then group by Philippines date
-    # Since transactions are stored as naive UTC, we need to convert to Philippines time for date extraction
-    all_sales = sales_query.filter(
-        and_(
-            SalesTransaction.transaction_date >= datetime.combine(start_date, datetime.min.time()) - timedelta(hours=8),  # Convert PH date start to UTC
-            SalesTransaction.transaction_date < datetime.combine(end_date + timedelta(days=1), datetime.min.time()) - timedelta(hours=8)  # Convert PH date end to UTC
-        )
-    ).all()
-    
-    # Group by Philippines date
-    sales_trend_dict = {}
-    for sale in all_sales:
-        # Convert UTC datetime to Philippines time and get date
-        if sale.transaction_date.tzinfo is None:
-            # Naive datetime, assume UTC
-            sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
-        else:
-            sale_utc = sale.transaction_date
-        sale_ph = sale_utc.astimezone(ph_tz)
-        sale_date = sale_ph.date()
+    try:
+        from datetime import datetime, date, timedelta
+        from sqlalchemy import func, and_, desc
         
-        if start_date <= sale_date <= end_date:
-            if sale_date not in sales_trend_dict:
-                sales_trend_dict[sale_date] = {'sales': 0.0, 'quantity': 0.0}
-            sales_trend_dict[sale_date]['sales'] += float(sale.total_amount)
-            sales_trend_dict[sale_date]['quantity'] += float(sale.quantity_sold)
-    
-    # Fill in missing dates with zero values - include today
-    sales_trend_filled = []
-    for i in range(days):
-        current_date = start_date + timedelta(days=i)
-        # Ensure we don't go past today
-        if current_date > end_date:
-            break
+        # Get query parameters
+        branch_id = request.args.get('branch_id', type=int)
+        product_id = request.args.get('product_id', type=int)
         
-        sales_trend_filled.append({
-            'date': current_date.strftime('%Y-%m-%d'),
-            'sales': sales_trend_dict.get(current_date, {'sales': 0.0})['sales'],
-            'quantity': sales_trend_dict.get(current_date, {'quantity': 0.0})['quantity']
-        })
-    
-    # Forecast vs Actual data
-    forecast_vs_actual = []
-    for i in range(days):
-        current_date = start_date + timedelta(days=i)
-        # Ensure we don't go past today
-        if current_date > end_date:
-            break
+        # Handle days parameter - ensure it's an integer
+        days_param = request.args.get('days', '30')
+        try:
+            days = int(days_param)
+            if days <= 0:
+                days = 30
+        except (ValueError, TypeError):
+            days = 30
         
-        # Get actual sales for this date (use Philippines timezone)
-        current_date_start_ph = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=ph_tz)
-        current_date_end_ph = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=ph_tz)
-        current_date_start_utc = current_date_start_ph.astimezone(tz.utc).replace(tzinfo=None)
-        current_date_end_utc = current_date_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+        # Use Philippines timezone for date comparison
+        from datetime import timezone as tz
+        ph_tz = tz(timedelta(hours=8))
+        now_ph = datetime.now(ph_tz)
+        end_date = now_ph.date()  # Today in Philippines time
+        start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
         
-        actual_sales = sales_query.filter(
+        # Base queries
+        sales_query = db.session.query(SalesTransaction)
+        forecast_query = db.session.query(ForecastData)
+        
+        # Apply filters
+        if branch_id:
+            sales_query = sales_query.filter(SalesTransaction.branch_id == branch_id)
+            forecast_query = forecast_query.filter(ForecastData.branch_id == branch_id)
+        
+        if product_id:
+            sales_query = sales_query.filter(SalesTransaction.product_id == product_id)
+            forecast_query = forecast_query.filter(ForecastData.product_id == product_id)
+        
+        # Query all transactions in the date range, then group by Philippines date
+        # Since transactions are stored as naive UTC, we need to convert to Philippines time for date extraction
+        all_sales = sales_query.filter(
             and_(
-                SalesTransaction.transaction_date >= current_date_start_utc,
-                SalesTransaction.transaction_date <= current_date_end_utc
+                SalesTransaction.transaction_date >= datetime.combine(start_date, datetime.min.time()) - timedelta(hours=8),  # Convert PH date start to UTC
+                SalesTransaction.transaction_date < datetime.combine(end_date + timedelta(days=1), datetime.min.time()) - timedelta(hours=8)  # Convert PH date end to UTC
             )
-        ).with_entities(
-            func.sum(SalesTransaction.quantity_sold)
-        ).scalar() or 0
+        ).all()
         
-        # Get forecast for this date - sum all forecasts for this date
-        forecast_sales = forecast_query.filter(
-            ForecastData.forecast_date == current_date
-        ).with_entities(
-            func.sum(ForecastData.predicted_demand)
-        ).scalar() or 0
+        # Group by Philippines date
+        sales_trend_dict = {}
+        for sale in all_sales:
+            # Convert UTC datetime to Philippines time and get date
+            if sale.transaction_date.tzinfo is None:
+                # Naive datetime, assume UTC
+                sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
+            else:
+                sale_utc = sale.transaction_date
+            sale_ph = sale_utc.astimezone(ph_tz)
+            sale_date = sale_ph.date()
+            
+            if start_date <= sale_date <= end_date:
+                if sale_date not in sales_trend_dict:
+                    sales_trend_dict[sale_date] = {'sales': 0.0, 'quantity': 0.0}
+                sales_trend_dict[sale_date]['sales'] += float(sale.total_amount)
+                sales_trend_dict[sale_date]['quantity'] += float(sale.quantity_sold)
         
-        forecast_vs_actual.append({
-            'date': current_date.strftime('%Y-%m-%d'),
-            'actual': float(actual_sales),
-            'forecast': float(forecast_sales)
-        })
-    
-    # Top 5 products for the specified date range
-    # Convert Philippines date range to UTC datetime range
-    range_start_ph = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ph_tz)
-    range_end_ph = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ph_tz)
-    range_start_utc = range_start_ph.astimezone(tz.utc).replace(tzinfo=None)
-    range_end_utc = range_end_ph.astimezone(tz.utc).replace(tzinfo=None)
-    
-    top_products_query = db.session.query(
-        Product.name,
-        func.sum(SalesTransaction.quantity_sold).label('total_quantity'),
-        func.sum(SalesTransaction.total_amount).label('total_sales')
-    ).join(
-        SalesTransaction, Product.id == SalesTransaction.product_id
-    ).filter(
-        and_(
-            SalesTransaction.transaction_date >= range_start_utc,
-            SalesTransaction.transaction_date <= range_end_utc
+        # Fill in missing dates with zero values - include today
+        sales_trend_filled = []
+        for i in range(days):
+            current_date = start_date + timedelta(days=i)
+            # Ensure we don't go past today
+            if current_date > end_date:
+                break
+            
+            sales_trend_filled.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'sales': sales_trend_dict.get(current_date, {'sales': 0.0})['sales'],
+                'quantity': sales_trend_dict.get(current_date, {'quantity': 0.0})['quantity']
+            })
+        
+        # Forecast vs Actual data
+        forecast_vs_actual = []
+        for i in range(days):
+            current_date = start_date + timedelta(days=i)
+            # Ensure we don't go past today
+            if current_date > end_date:
+                break
+            
+            # Get actual sales for this date (use Philippines timezone)
+            current_date_start_ph = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=ph_tz)
+            current_date_end_ph = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=ph_tz)
+            current_date_start_utc = current_date_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+            current_date_end_utc = current_date_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+            
+            actual_sales = sales_query.filter(
+                and_(
+                    SalesTransaction.transaction_date >= current_date_start_utc,
+                    SalesTransaction.transaction_date <= current_date_end_utc
+                )
+            ).with_entities(
+                func.sum(SalesTransaction.quantity_sold)
+            ).scalar() or 0
+            
+            # Get forecast for this date - sum all forecasts for this date
+            forecast_sales = forecast_query.filter(
+                ForecastData.forecast_date == current_date
+            ).with_entities(
+                func.sum(ForecastData.predicted_demand)
+            ).scalar() or 0
+            
+            forecast_vs_actual.append({
+                'date': current_date.strftime('%Y-%m-%d'),
+                'actual': float(actual_sales),
+                'forecast': float(forecast_sales)
+            })
+        
+        # Top 5 products for the specified date range
+        # Convert Philippines date range to UTC datetime range
+        range_start_ph = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=ph_tz)
+        range_end_ph = datetime.combine(end_date, datetime.max.time()).replace(tzinfo=ph_tz)
+        range_start_utc = range_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+        range_end_utc = range_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+        
+        top_products_query = db.session.query(
+            Product.name,
+            func.sum(SalesTransaction.quantity_sold).label('total_quantity'),
+            func.sum(SalesTransaction.total_amount).label('total_sales')
+        ).join(
+            SalesTransaction, Product.id == SalesTransaction.product_id
+        ).filter(
+            and_(
+                SalesTransaction.transaction_date >= range_start_utc,
+                SalesTransaction.transaction_date <= range_end_utc
+            )
         )
-    )
-    
-    if branch_id:
-        top_products_query = top_products_query.filter(SalesTransaction.branch_id == branch_id)
-    
-    top_products = top_products_query.group_by(
-        Product.id, Product.name
-    ).order_by(
-        desc('total_quantity')
-    ).limit(5).all()
-    
-    # Debug logging
-    print(f"DEBUG: Top products query for branch_id={branch_id}, days={days} ({start_date} to {end_date})")
-    print(f"DEBUG: Found {len(top_products)} products")
-    for i, product in enumerate(top_products):
-        print(f"DEBUG: Product {i+1}: {product.name} - Qty: {product.total_quantity}, Sales: {product.total_sales}")
-    
-    # If no products found, return some sample data for testing
-    if not top_products:
-        print("DEBUG: No products found, returning sample data")
-        top_products = [
-            {
-                'name': 'Jasmine Rice Premium',
-                'quantity': 150.0,
-                'sales': 3000.0
-            },
-            {
-                'name': 'Basmati Rice Long Grain', 
-                'quantity': 120.0,
-                'sales': 2400.0
-            },
-            {
-                'name': 'Brown Rice Organic',
-                'quantity': 100.0,
-                'sales': 2000.0
+        
+        if branch_id:
+            top_products_query = top_products_query.filter(SalesTransaction.branch_id == branch_id)
+        
+        top_products = top_products_query.group_by(
+            Product.id, Product.name
+        ).order_by(
+            desc('total_quantity')
+        ).limit(5).all()
+        
+        # Debug logging
+        print(f"DEBUG: Top products query for branch_id={branch_id}, days={days} ({start_date} to {end_date})")
+        print(f"DEBUG: Found {len(top_products)} products")
+        for i, product in enumerate(top_products):
+            print(f"DEBUG: Product {i+1}: {product.name} - Qty: {product.total_quantity}, Sales: {product.total_sales}")
+        
+        # Format top products for response
+        top_products_formatted = []
+        for row in top_products:
+            top_products_formatted.append({
+                'name': row.name,
+                'quantity': float(row.total_quantity),
+                'sales': float(row.total_sales)
+            })
+        
+        return jsonify({
+            "ok": True,
+            "charts": {
+                "sales_trend": sales_trend_filled,
+                "forecast_vs_actual": forecast_vs_actual,
+                "top_products": top_products_formatted
             }
-        ]
-    
-    return jsonify({
-        "ok": True,
-        "charts": {
-            "sales_trend": sales_trend_filled,
-            "forecast_vs_actual": forecast_vs_actual,
-            "top_products": [
-                {
-                    'name': row.name,
-                    'quantity': float(row.total_quantity),
-                    'sales': float(row.total_sales)
-                }
-                for row in top_products
-            ]
-        }
-    })
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in api_dashboard_charts: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to load chart data: {str(e)}"
+        }), 500
 
 @admin_bp.get("/api/dashboard/key-metrics")
 def api_dashboard_key_metrics():
