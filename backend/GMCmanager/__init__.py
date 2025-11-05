@@ -765,15 +765,16 @@ def mgr_dashboard_charts():
     # Get query parameters
     days = request.args.get('days', 30, type=int)
     
-    # Date range
+    # Date range - include today (end_date) in the range
     end_date = date.today()
-    start_date = end_date - timedelta(days=days)
+    start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
     
     # Sales trend data for this branch
     sales_trend = db.session.query(SalesTransaction).filter(
         and_(
             SalesTransaction.branch_id == branch_id,
-            func.date(SalesTransaction.transaction_date) >= start_date
+            func.date(SalesTransaction.transaction_date) >= start_date,
+            func.date(SalesTransaction.transaction_date) <= end_date  # Include today
         )
     ).with_entities(
         func.date(SalesTransaction.transaction_date).label('date'),
@@ -783,11 +784,14 @@ def mgr_dashboard_charts():
         func.date(SalesTransaction.transaction_date)
     ).order_by('date').all()
     
-    # Fill in missing dates with zero values
+    # Fill in missing dates with zero values - include today (range should be days, not days-1)
     sales_trend_dict = {row.date: {'sales': float(row.total_sales), 'quantity': float(row.total_quantity)} for row in sales_trend}
     sales_trend_filled = []
     for i in range(days):
         current_date = start_date + timedelta(days=i)
+        # Ensure we don't go past today
+        if current_date > end_date:
+            break
         if current_date in sales_trend_dict:
             sales_trend_filled.append({
                 'date': current_date.strftime('%Y-%m-%d'),
@@ -805,6 +809,9 @@ def mgr_dashboard_charts():
     forecast_vs_actual = []
     for i in range(days):
         current_date = start_date + timedelta(days=i)
+        # Ensure we don't go past today
+        if current_date > end_date:
+            break
         
         # Get actual sales for this date
         actual_sales = db.session.query(SalesTransaction).filter(
