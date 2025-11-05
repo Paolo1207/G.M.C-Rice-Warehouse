@@ -2473,6 +2473,9 @@ def mgr_purchases_recent():
         entry = {
             "id": sale.id,
             "date": sale.transaction_date.strftime("%Y-%m-%d"),
+            "datetime": sale.transaction_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "created_at": sale.transaction_date.isoformat(),
+            "timestamp": sale.transaction_date.isoformat(),
             "riceVariant": product_name.lower().replace(' ', '-').replace('_', '-'),
             "product_name": product_name,
             "price": unit_price,

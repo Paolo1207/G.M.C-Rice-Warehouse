@@ -306,7 +306,7 @@
             <table class="purchases-table">
               <thead>
                 <tr>
-                  <th>Date</th>
+                  <th>Date & Time</th>
                   <th>Variety</th>
                   <th>Price/kg</th>
                   <th>Initial</th>
@@ -922,7 +922,7 @@
       const tbody = document.getElementById('recentPurchasesTable');
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${formatDate(entry.date)}</td>
+        <td>${formatDateTime(entry)}</td>
         <td>${entry.product_name || formatVariant(entry.riceVariant)}</td>
         <td>₱${entry.price.toFixed(2)}</td>
         <td>${entry.initialInventory.toFixed(2)}</td>
@@ -955,8 +955,12 @@
       const tbody = document.getElementById('recentPurchasesTable');
       tbody.innerHTML = '';
           
-          // Sort by date (newest first) and display
-          const sortedEntries = data.entries.sort((a,b) => new Date(b.date) - new Date(a.date));
+          // Sort by datetime (newest first) and display
+          const sortedEntries = data.entries.sort((a,b) => {
+            const dateA = new Date(a.datetime || a.created_at || a.timestamp || a.date);
+            const dateB = new Date(b.datetime || b.created_at || b.timestamp || b.date);
+            return dateB - dateA;
+          });
           sortedEntries.forEach(addToRecentPurchases);
           
           console.log(`Loaded ${sortedEntries.length} recent purchases for branch ${data.branch_id}`);
@@ -1046,7 +1050,7 @@
         }
         
         // Create CSV content with proper formatting
-        const headers = ['Date', 'Variety', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit'];
+        const headers = ['Date & Time', 'Variety', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit'];
         
         // Process each row to format data properly
         const csvRows = rows.map(row => {
@@ -1055,12 +1059,15 @@
             let cellText = cell.textContent.trim();
             
             // Format specific columns
-            if (index === 0) { // Date column
-              // Convert "Sep 16, 2025" to "2025-09-16" for better Excel compatibility
+            if (index === 0) { // Date & Time column
+              // Try to parse date and time, keep both if available
               if (cellText.includes(',')) {
                 const date = new Date(cellText);
                 if (!isNaN(date.getTime())) {
-                  cellText = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+                  // Format as YYYY-MM-DD HH:MM:SS for Excel
+                  const datePart = date.toISOString().split('T')[0];
+                  const timePart = date.toTimeString().split(' ')[0];
+                  cellText = `${datePart} ${timePart}`;
                 }
               }
             } else if (index === 2 || index === 6) { // Price/kg and Total columns
@@ -1122,7 +1129,7 @@
         const ws_data = [];
         
         // Add headers
-        ws_data.push(['Date', 'Variety', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit']);
+        ws_data.push(['Date & Time', 'Variety', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit']);
         
         // Process each row
         rows.forEach(row => {
@@ -1131,11 +1138,11 @@
             let cellText = cell.textContent.trim();
             
             // Format specific columns
-            if (index === 0) { // Date column
+            if (index === 0) { // Date & Time column
               if (cellText.includes(',')) {
                 const date = new Date(cellText);
                 if (!isNaN(date.getTime())) {
-                  return date; // Return Date object for proper Excel date formatting
+                  return date; // Return Date object for proper Excel date/time formatting
                 }
               }
               return cellText;
@@ -1254,6 +1261,28 @@
     function formatDate(dateString) {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function formatDateTime(entry) {
+      // Try to get datetime from various possible fields (prioritize datetime fields)
+      const dateTimeStr = entry.datetime || entry.created_at || entry.timestamp || entry.date;
+      
+      if (!dateTimeStr) {
+        // If no date/time found, return placeholder
+        return '-';
+      }
+      
+      const date = new Date(dateTimeStr);
+      
+      if (isNaN(date.getTime())) {
+        // Fallback to just date if datetime parsing fails
+        return formatDate(entry.date || dateTimeStr);
+      }
+      
+      // Format with date and time
+      const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      return `${dateStr} ${timeStr}`;
     }
 
     function formatVariant(key) {
