@@ -622,16 +622,25 @@ def mgr_dashboard_kpis():
         total_orders = 0
         
         try:
-            # Get current date and month
-            today = date.today()
+            # Get current date and month in Philippines timezone
+            from datetime import timezone as tz
+            ph_tz = tz(timedelta(hours=8))
+            now_ph = datetime.now(ph_tz)
+            today = now_ph.date()  # Today in Philippines time
             current_month = today.month
             current_year = today.year
             
-            # Today's sales for this branch
+            # Today's sales for this branch (using Philippines timezone)
+            today_start_ph = datetime.combine(today, datetime.min.time()).replace(tzinfo=ph_tz)
+            today_end_ph = datetime.combine(today, datetime.max.time()).replace(tzinfo=ph_tz)
+            today_start_utc = today_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+            today_end_utc = today_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+            
             today_sales = db.session.query(SalesTransaction).filter(
                 and_(
                     SalesTransaction.branch_id == branch_id,
-                    func.date(SalesTransaction.transaction_date) == today
+                    SalesTransaction.transaction_date >= today_start_utc,
+                    SalesTransaction.transaction_date <= today_end_utc
                 )
             ).with_entities(func.sum(SalesTransaction.total_amount)).scalar() or 0
             
@@ -766,26 +775,43 @@ def mgr_dashboard_charts():
     days = request.args.get('days', 30, type=int)
     
     # Date range - include today (end_date) in the range
-    end_date = date.today()
+    # Use Philippines timezone for date comparison
+    from datetime import timezone as tz
+    ph_tz = tz(timedelta(hours=8))
+    now_ph = datetime.now(ph_tz)
+    end_date = now_ph.date()  # Today in Philippines time
     start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
     
     # Sales trend data for this branch
-    sales_trend = db.session.query(SalesTransaction).filter(
+    # Query all transactions in the date range, then group by Philippines date
+    # Since transactions are stored as naive UTC, we need to convert to Philippines time for date extraction
+    all_sales = db.session.query(SalesTransaction).filter(
         and_(
             SalesTransaction.branch_id == branch_id,
-            func.date(SalesTransaction.transaction_date) >= start_date,
-            func.date(SalesTransaction.transaction_date) <= end_date  # Include today
+            SalesTransaction.transaction_date >= datetime.combine(start_date, datetime.min.time()) - timedelta(hours=8),  # Convert PH date start to UTC
+            SalesTransaction.transaction_date < datetime.combine(end_date + timedelta(days=1), datetime.min.time()) - timedelta(hours=8)  # Convert PH date end to UTC
         )
-    ).with_entities(
-        func.date(SalesTransaction.transaction_date).label('date'),
-        func.sum(SalesTransaction.total_amount).label('total_sales'),
-        func.sum(SalesTransaction.quantity_sold).label('total_quantity')
-    ).group_by(
-        func.date(SalesTransaction.transaction_date)
-    ).order_by('date').all()
+    ).all()
     
-    # Fill in missing dates with zero values - include today (range should be days, not days-1)
-    sales_trend_dict = {row.date: {'sales': float(row.total_sales), 'quantity': float(row.total_quantity)} for row in sales_trend}
+    # Group by Philippines date
+    sales_trend_dict = {}
+    for sale in all_sales:
+        # Convert UTC datetime to Philippines time and get date
+        if sale.transaction_date.tzinfo is None:
+            # Naive datetime, assume UTC
+            sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
+        else:
+            sale_utc = sale.transaction_date
+        sale_ph = sale_utc.astimezone(ph_tz)
+        sale_date = sale_ph.date()
+        
+        if start_date <= sale_date <= end_date:
+            if sale_date not in sales_trend_dict:
+                sales_trend_dict[sale_date] = {'sales': 0.0, 'quantity': 0.0}
+            sales_trend_dict[sale_date]['sales'] += float(sale.total_amount)
+            sales_trend_dict[sale_date]['quantity'] += float(sale.quantity_sold)
+    
+    # Fill in missing dates with zero values - include today
     sales_trend_filled = []
     for i in range(days):
         current_date = start_date + timedelta(days=i)
@@ -813,11 +839,17 @@ def mgr_dashboard_charts():
         if current_date > end_date:
             break
         
-        # Get actual sales for this date
+        # Get actual sales for this date (use Philippines timezone)
+        current_date_start_ph = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=ph_tz)
+        current_date_end_ph = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=ph_tz)
+        current_date_start_utc = current_date_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+        current_date_end_utc = current_date_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+        
         actual_sales = db.session.query(SalesTransaction).filter(
             and_(
                 SalesTransaction.branch_id == branch_id,
-                func.date(SalesTransaction.transaction_date) == current_date
+                SalesTransaction.transaction_date >= current_date_start_utc,
+                SalesTransaction.transaction_date <= current_date_end_utc
             )
         ).with_entities(
             func.sum(SalesTransaction.quantity_sold)
