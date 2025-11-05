@@ -2448,34 +2448,76 @@ def mgr_purchases_recent():
         SalesTransaction.branch_id == branch_id
     ).order_by(SalesTransaction.transaction_date.desc()).limit(50).all()
     
-    # Convert to logbook format
+    # Get current stock for each product to calculate historical estimated remaining
+    from sqlalchemy.orm import load_only
+    from collections import defaultdict
+    
+    # Get current inventory for all products in this branch (avoid grn_number column)
+    inventory_items = (
+        db.session.query(InventoryItem)
+        .options(load_only(InventoryItem.product_id, InventoryItem.stock_kg, InventoryItem.unit_price))
+        .filter_by(branch_id=branch_id)
+        .all()
+    )
+    
+    # Build maps: product_id -> current_stock, product_id -> unit_price
+    current_stock_map = {}
+    unit_price_map = {}
+    for inv_item in inventory_items:
+        current_stock_map[inv_item.product_id] = float(inv_item.stock_kg) if inv_item.stock_kg else 0.0
+        unit_price_map[inv_item.product_id] = float(inv_item.unit_price) if inv_item.unit_price else 0.0
+    
+    # Group sales by product and calculate historical remaining for each transaction
+    # For each sale, historical_remaining = current_stock + sum of all sales AFTER this transaction
+    # Sort by date descending (newest first) for proper calculation
+    sales_by_product = defaultdict(list)
+    for sale in recent_sales:
+        sales_by_product[sale.product_id].append(sale)
+    
+    # Calculate historical remaining for each transaction
     logbook_entries = []
     for sale in recent_sales:
         # Get product name
         product_name = sale.product.name if sale.product else "Unknown Product"
         
-        # Get current inventory for this product (avoid grn_number column)
-        from sqlalchemy.orm import load_only
-        inventory_item = (
-            db.session.query(InventoryItem)
-            .options(load_only(InventoryItem.id, InventoryItem.stock_kg, InventoryItem.unit_price))
-            .filter_by(branch_id=branch_id, product_id=sale.product_id)
-            .first()
-        )
-        
-        current_stock = float(inventory_item.stock_kg) if inventory_item else 0.0
-        unit_price = float(inventory_item.unit_price) if inventory_item and inventory_item.unit_price else 0.0
+        # Get current stock for this product
+        current_stock = current_stock_map.get(sale.product_id, 0.0)
+        unit_price = unit_price_map.get(sale.product_id, 0.0)
         
         # If unit_price is 0, calculate it from the sales transaction
         if unit_price == 0.0 and float(sale.quantity_sold) > 0:
             unit_price = float(sale.total_amount) / float(sale.quantity_sold)
         
+        # Calculate historical estimated remaining: current_stock + sum of sales AFTER this transaction
+        # Since transactions are sorted by date DESC, we need to add back all sales that happened after
+        historical_remaining = current_stock
+        for other_sale in sales_by_product[sale.product_id]:
+            # If this sale happened AFTER the current sale (newer date), add it back
+            if other_sale.transaction_date > sale.transaction_date:
+                historical_remaining += float(other_sale.quantity_sold)
+            # If same date but different ID and this one is newer (higher ID means later insertion)
+            elif other_sale.transaction_date == sale.transaction_date and other_sale.id > sale.id:
+                historical_remaining += float(other_sale.quantity_sold)
+        
+        # Ensure datetime is timezone-aware (assume UTC if naive, then convert to Philippines time)
+        from datetime import timezone, timedelta
+        ph_tz = timezone(timedelta(hours=8))
+        
+        if sale.transaction_date.tzinfo is None:
+            # If naive datetime, assume it's UTC
+            dt_utc = sale.transaction_date.replace(tzinfo=timezone.utc)
+        else:
+            dt_utc = sale.transaction_date
+        
+        # Convert to Philippines time
+        dt_ph = dt_utc.astimezone(ph_tz)
+        
         entry = {
             "id": sale.id,
-            "date": sale.transaction_date.strftime("%Y-%m-%d"),
-            "datetime": sale.transaction_date.strftime("%Y-%m-%d %H:%M:%S"),
-            "created_at": sale.transaction_date.isoformat(),
-            "timestamp": sale.transaction_date.isoformat(),
+            "date": dt_ph.strftime("%Y-%m-%d"),  # Keep for backward compatibility if needed
+            "datetime": dt_ph.strftime("%Y-%m-%d %H:%M:%S"),
+            "created_at": dt_ph.isoformat(),  # Ensure this is also timezone-aware
+            "timestamp": dt_ph.isoformat(),  # Ensure this is also timezone-aware
             "riceVariant": product_name.lower().replace(' ', '-').replace('_', '-'),
             "product_name": product_name,
             "price": unit_price,
@@ -2483,7 +2525,7 @@ def mgr_purchases_recent():
             "addedStocks": 0.0,  # Not tracked in current system
             "totalSoldKg": float(sale.quantity_sold),
             "totalAmount": float(sale.total_amount),
-            "estimatedRemaining": current_stock,
+            "estimatedRemaining": historical_remaining,  # Historical estimated remaining at time of transaction
             "actualRemaining": None,  # Not tracked in current system
             "discrepancy": None  # Not tracked in current system
         }

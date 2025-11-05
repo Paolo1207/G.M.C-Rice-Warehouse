@@ -1279,10 +1279,18 @@
         return formatDate(entry.date || dateTimeStr);
       }
       
-      // Format with date and time
-      const dateStr = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-      const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-      return `${dateStr} ${timeStr}`;
+      // Format with date and time in Philippines timezone (Asia/Manila, UTC+8)
+      const options = {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      };
+      
+      return date.toLocaleString('en-US', options);
     }
 
     function formatVariant(key) {
