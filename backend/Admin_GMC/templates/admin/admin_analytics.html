@@ -499,6 +499,11 @@
 
                 // Load analytics overview (branch series, accuracy, stock, gaps)
                 const overviewResponse = await fetch(`/admin/api/analytics/overview?days=${days}`);
+                if (!overviewResponse.ok) {
+                    const errorText = await overviewResponse.text();
+                    console.error('Analytics API error:', overviewResponse.status, errorText);
+                    throw new Error(`Server error: ${overviewResponse.status}`);
+                }
                 const overviewData = await overviewResponse.json();
                 if (overviewData.ok && overviewData.analytics) {
                     const a = overviewData.analytics;
@@ -514,9 +519,20 @@
                     const firstBranchId = (a.stock_per_branch && a.stock_per_branch[0] && a.stock_per_branch[0].branch_id)
                         || (Object.keys(BRANCH_NAME_BY_ID)[0] ? Number(Object.keys(BRANCH_NAME_BY_ID)[0]) : null);
                     if (firstBranchId) { await loadTopProducts(firstBranchId); activateBranchTabById(firstBranchId); }
+                } else {
+                    console.error('Analytics API returned error:', overviewData.error || 'Unknown error');
                 }
             } catch (error) {
                 console.error('Error loading analytics data:', error);
+                // Show error message to user
+                const stockContainer = document.getElementById('stockChartContainer');
+                if (stockContainer) {
+                    stockContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc2626;">Failed to load stock data. Please refresh the page.</div>';
+                }
+                const salesContainer = document.querySelector('#salesTrendsChart')?.parentElement;
+                if (salesContainer) {
+                    salesContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc2626;">Failed to load sales trends. Please refresh the page.</div>';
+                }
             }
         }
 
@@ -726,61 +742,72 @@
         // Stock per Branch Chart (from overview API) + cards view toggle
         function updateStockPerBranchChart(rows) {
             const ctxEl = document.getElementById('stockPerBranchChart');
-            if (!ctxEl) return;
+            if (!ctxEl) {
+                console.error('Stock chart canvas element not found');
+                return;
+            }
+            
+            if (!rows || rows.length === 0) {
+                console.warn('No stock data to display');
+                ctxEl.parentElement.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No stock data available</div>';
+                return;
+            }
+            
             const ctx = ctxEl.getContext('2d');
             if (stockPerBranchChartInstance && typeof stockPerBranchChartInstance.destroy === 'function') {
                 stockPerBranchChartInstance.destroy();
                 stockPerBranchChartInstance = null;
             }
-            const labels = rows.map(r => r.branch_name);
-            const data = rows.map(r => r.total_stock_kg || 0);
+            const labels = rows.map(r => r.branch_name || `Branch ${r.branch_id}`);
+            const data = rows.map(r => Number(r.total_stock_kg || 0));
             try {
                 stockPerBranchChartInstance = new Chart(ctx, {
                     type: 'bar',
-            data: {
+                    data: {
                         labels,
-                datasets: [{
+                        datasets: [{
                             label: 'Total Stock (kg)',
                             data,
                             backgroundColor: 'rgba(46, 125, 50, 0.8)',
-                    borderColor: '#2e7d32',
+                            borderColor: '#2e7d32',
                             borderWidth: 2,
                             borderRadius: 8,
                             borderSkipped: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                        legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: '#2e7d32',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        callbacks: {
-                            label: function(context) {
-                                    return (context.parsed.y || 0).toLocaleString() + ' kg';
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '#2e7d32',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return (context.parsed.y || 0).toLocaleString() + ' kg';
+                                    }
+                                }
                             }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false },
+                                ticks: { callback: v => v.toLocaleString() + ' kg' }
+                            },
+                            x: { grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false } }
                         }
                     }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                            grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false },
-                            ticks: { callback: v => v.toLocaleString() + ' kg' }
-                        },
-                        x: { grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false } }
-                    }
-                }
-            });
-            renderStockCards(rows);
+                });
+                renderStockCards(rows);
             } catch (error) {
                 console.error('Error creating stock per branch chart:', error);
+                ctxEl.parentElement.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc2626;">Error displaying chart</div>';
             }
         }
 
@@ -803,7 +830,20 @@
         // Sales Trends by Branch (from overview API)
         function updateSalesTrendsByBranch(payload) {
             const ctxEl = document.getElementById('salesTrendsChart');
-            if (!ctxEl) return;
+            if (!ctxEl) {
+                console.error('Sales trends chart canvas element not found');
+                return;
+            }
+            
+            // Check if we have valid data
+            if (!payload || !payload.labels || !payload.series || payload.series.length === 0) {
+                console.warn('No sales trends data to display');
+                const chartContainer = ctxEl.closest('.chart-container');
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No sales data available for the selected period</div>';
+                }
+                return;
+            }
             
             // Destroy existing chart more thoroughly
             if (salesTrendsByBranchChartInstance) {
@@ -817,15 +857,25 @@
                 salesTrendsByBranchChartInstance = null;
             }
             
-            // Completely recreate the canvas element to avoid reuse issues
-            const parent = ctxEl.parentElement;
-            const newCanvas = document.createElement('canvas');
-            newCanvas.id = 'salesTrendsChart';
-            newCanvas.width = 400;
-            newCanvas.height = 200;
-            parent.replaceChild(newCanvas, ctxEl);
+            // Get the chart container to restore canvas if needed
+            const chartContainer = ctxEl.closest('.chart-container');
+            if (!chartContainer) {
+                console.error('Chart container not found');
+                return;
+            }
             
-            const ctx = newCanvas.getContext('2d');
+            // If canvas was replaced, restore it
+            let currentCanvas = document.getElementById('salesTrendsChart');
+            if (!currentCanvas || currentCanvas !== ctxEl) {
+                currentCanvas = document.createElement('canvas');
+                currentCanvas.id = 'salesTrendsChart';
+                currentCanvas.width = 400;
+                currentCanvas.height = 200;
+                chartContainer.innerHTML = '';
+                chartContainer.appendChild(currentCanvas);
+            }
+            
+            const ctx = currentCanvas.getContext('2d');
 
             const labels = payload.labels || [];
             const colors = ['#2e7d32','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
@@ -844,37 +894,40 @@
                     type: 'line',
                     data: { labels, datasets },
                     options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
-                        tooltip: {
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            titleColor: '#ffffff',
-                            bodyColor: '#ffffff',
-                            borderColor: '#2e7d32',
-                            borderWidth: 1,
-                            cornerRadius: 8,
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ₱' + (context.parsed.y || 0).toLocaleString();
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top', labels: { usePointStyle: true, padding: 20 } },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: '#ffffff',
+                                bodyColor: '#ffffff',
+                                borderColor: '#2e7d32',
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ₱' + (context.parsed.y || 0).toLocaleString();
+                                    }
                                 }
                             }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false },
-                            ticks: { callback: v => '₱' + (v / 1000) + 'k' }
                         },
-                        x: { grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false } }
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false },
+                                ticks: { callback: v => '₱' + (v / 1000) + 'k' }
+                            },
+                            x: { grid: { color: 'rgba(0,0,0,0.1)', drawBorder: false } }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating sales trends by branch chart:', error);
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc2626;">Error displaying sales trends chart</div>';
                 }
             }
-        });
-        } catch (error) {
-            console.error('Error creating sales trends by branch chart:', error);
-        }
         }
 
         // Forecast Accuracy by Branch (from overview API)
@@ -987,8 +1040,8 @@
 
         async function reloadSalesTrendsFiltered() {
             try {
-                const period = document.getElementById('salesPeriod').value;
-                const branchId = document.getElementById('salesBranchSelect').value;
+                const period = document.getElementById('salesPeriod')?.value || 'daily';
+                const branchId = document.getElementById('salesBranchSelect')?.value || '';
                 const daysSel = document.getElementById('dateRangeSelect');
                 const days = daysSel ? parseInt(daysSel.value || '30', 10) : 30;
                 
@@ -996,22 +1049,51 @@
                 
                 // Check if custom date range is selected
                 if (daysSel && daysSel.value === 'custom') {
-                    const startDate = document.getElementById('startDate').value;
-                    const endDate = document.getElementById('endDate').value;
+                    const startDate = document.getElementById('startDate')?.value;
+                    const endDate = document.getElementById('endDate')?.value;
                     if (startDate && endDate) {
                         url = `/admin/api/analytics/overview?start_date=${startDate}&end_date=${endDate}`;
                     }
                 }
                 
+                console.log('Loading sales trends with URL:', url, 'period:', period, 'branchId:', branchId);
                 const res = await fetch(url);
+                
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('Sales trends API error:', res.status, errorText);
+                    throw new Error(`Server error: ${res.status}`);
+                }
+                
                 const data = await res.json();
-                if (!data.ok) return;
+                if (!data.ok) {
+                    console.error('Sales trends API returned error:', data.error);
+                    return;
+                }
+                
+                if (!data.analytics || !data.analytics.sales_trends_by_branch) {
+                    console.error('No sales trends data in response');
+                    return;
+                }
+                
                 const payload = data.analytics.sales_trends_by_branch;
                 let series = payload.series || [];
-                if (branchId) series = series.filter(s => String(s.branch_id) === String(branchId));
-                const processed = resampleSalesSeries(period, payload.labels, series);
+                
+                // Filter by branch if specified
+                if (branchId) {
+                    series = series.filter(s => String(s.branch_id) === String(branchId));
+                }
+                
+                // Resample based on period (daily/weekly/monthly)
+                const processed = resampleSalesSeries(period, payload.labels || [], series);
                 updateSalesTrendsByBranch(processed);
-            } catch (e) { console.error('reloadSalesTrendsFiltered', e); }
+            } catch (e) { 
+                console.error('reloadSalesTrendsFiltered error:', e);
+                const chartContainer = document.querySelector('#salesTrendsChart')?.closest('.chart-container');
+                if (chartContainer) {
+                    chartContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc2626;">Failed to load sales trends. Please refresh the page.</div>';
+                }
+            }
         }
 
         function resampleSalesSeries(period, labels, series) {

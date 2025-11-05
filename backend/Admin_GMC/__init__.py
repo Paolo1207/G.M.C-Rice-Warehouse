@@ -2540,238 +2540,252 @@ def api_analytics_overview():
       - forecast_accuracy_by_branch: [{ branch_id, branch_name, accuracy }]
       - inventory_turnover_by_branch: [{ branch_id, branch_name, turnover_ratio }]
       - demand_supply_gaps: [{ branch_id, branch_name, product_id, product_name, stock_kg, predicted_7d, gap_kg, severity }]
-    Query params: days (default 30)
+    Query params: days (default 30) or start_date/end_date
     """
-    from sqlalchemy import func, and_, desc
-    from datetime import date, timedelta, datetime
-    from datetime import timezone as tz
-    
-    days = request.args.get('days', 30, type=int)
-
-    # Use Philippines timezone for date comparison
-    ph_tz = tz(timedelta(hours=8))
-    now_ph = datetime.now(ph_tz)
-    end_date = now_ph.date()  # Today in Philippines time
-    start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
-
-    # Branches
-    branches = Branch.query.all()
-    branch_id_to_name = {b.id: b.name for b in branches}
-
-    # 1) Stock per branch
-    stock_rows = (
-        db.session.query(InventoryItem.branch_id, func.sum(InventoryItem.stock_kg))
-        .group_by(InventoryItem.branch_id)
-        .all()
-    )
-    stock_per_branch = [
-        {
-            "branch_id": bid,
-            "branch_name": branch_id_to_name.get(bid),
-            "total_stock_kg": float(total or 0),
-        }
-        for bid, total in stock_rows
-    ]
-
-    # 2) Sales trends by branch (amounts per day)
-    # Query all transactions in the date range, then group by Philippines date
-    all_sales = db.session.query(SalesTransaction).filter(
-        and_(
-            SalesTransaction.transaction_date >= datetime.combine(start_date, datetime.min.time()) - timedelta(hours=8),  # Convert PH date start to UTC
-            SalesTransaction.transaction_date < datetime.combine(end_date + timedelta(days=1), datetime.min.time()) - timedelta(hours=8)  # Convert PH date end to UTC
-        )
-    ).all()
-    
-    # Group by Philippines date and branch
-    sales_dict = {}
-    for sale in all_sales:
-        # Convert UTC datetime to Philippines time and get date
-        if sale.transaction_date.tzinfo is None:
-            sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
-        else:
-            sale_utc = sale.transaction_date
-        sale_ph = sale_utc.astimezone(ph_tz)
-        sale_date = sale_ph.date()
+    try:
+        from sqlalchemy import func, and_, desc
+        from datetime import date, timedelta, datetime
+        from datetime import timezone as tz
         
-        if start_date <= sale_date <= end_date:
-            key = (sale_date, sale.branch_id)
-            if key not in sales_dict:
-                sales_dict[key] = 0.0
-            sales_dict[key] += float(sale.total_amount)
+        # Support both days parameter and date range
+        ph_tz = tz(timedelta(hours=8))
+        if request.args.get('start_date') and request.args.get('end_date'):
+            start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+            end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+            days = (end_date - start_date).days + 1
+        else:
+            days = request.args.get('days', 30, type=int)
+            # Use Philippines timezone for date comparison
+            now_ph = datetime.now(ph_tz)
+            end_date = now_ph.date()  # Today in Philippines time
+            start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
 
-    # Build date labels
-    labels = []
-    for i in range(days):
-        current_date = start_date + timedelta(days=i)
-        if current_date > end_date:
-            break
-        labels.append(current_date.strftime('%Y-%m-%d'))
-    
-    # Initialize series per branch
-    branch_ids = [b.id for b in branches]
-    series_map = {bid: [0.0 for _ in range(len(labels))] for bid in branch_ids}
-    idx_map = {labels[i]: i for i in range(len(labels))}
+        # Branches
+        branches = Branch.query.all()
+        branch_id_to_name = {b.id: b.name for b in branches}
 
-    for (d, bid), amt in sales_dict.items():
-        ds = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
-        if ds in idx_map and bid in series_map:
-            series_map[bid][idx_map[ds]] = float(amt)
-
-    sales_trends_by_branch = {
-        "labels": labels,
-        "series": [
+        # 1) Stock per branch
+        stock_rows = (
+            db.session.query(InventoryItem.branch_id, func.sum(InventoryItem.stock_kg))
+            .group_by(InventoryItem.branch_id)
+            .all()
+        )
+        stock_per_branch = [
             {
                 "branch_id": bid,
                 "branch_name": branch_id_to_name.get(bid),
-                "data": series_map[bid],
+                "total_stock_kg": float(total or 0),
             }
-            for bid in branch_ids
-        ],
-    }
-
-    # 3) Forecast accuracy by branch (MAPE over last 30 days)
-    # Use Philippines timezone
-    today_ph = end_date  # Already calculated as Philippines date
-    thirty_days_ago_ph = today_ph - timedelta(days=30)
-
-    forecasts = (
-        db.session.query(ForecastData.branch_id, ForecastData.product_id, ForecastData.forecast_date, ForecastData.predicted_demand)
-        .filter(and_(ForecastData.forecast_date >= thirty_days_ago_ph, ForecastData.forecast_date <= today_ph))
-        .all()
-    )
-
-    accuracy_map = {bid: {"mape_sum": 0.0, "count": 0} for bid in branch_ids}
-    for bid, pid, fdate, predicted in forecasts:
-        # Convert forecast date to UTC datetime range for Philippines timezone
-        fdate_start_ph = datetime.combine(fdate, datetime.min.time()).replace(tzinfo=ph_tz)
-        fdate_end_ph = datetime.combine(fdate, datetime.max.time()).replace(tzinfo=ph_tz)
-        fdate_start_utc = fdate_start_ph.astimezone(tz.utc).replace(tzinfo=None)
-        fdate_end_utc = fdate_end_ph.astimezone(tz.utc).replace(tzinfo=None)
-        
-        actual = (
-            db.session.query(func.sum(SalesTransaction.quantity_sold))
-            .filter(
-                and_(
-                    SalesTransaction.branch_id == bid,
-                    SalesTransaction.product_id == pid,
-                    SalesTransaction.transaction_date >= fdate_start_utc,
-                    SalesTransaction.transaction_date <= fdate_end_utc,
-                )
-            )
-            .scalar()
-            or 0
-        )
-        if actual > 0:
-            mape = abs((predicted or 0) - actual) / actual * 100.0
-            accuracy_map[bid]["mape_sum"] += mape
-            accuracy_map[bid]["count"] += 1
-
-    forecast_accuracy_by_branch = []
-    for bid in branch_ids:
-        cnt = accuracy_map[bid]["count"]
-        acc = 100.0 - (accuracy_map[bid]["mape_sum"] / cnt) if cnt > 0 else 0.0
-        forecast_accuracy_by_branch.append({
-            "branch_id": bid,
-            "branch_name": branch_id_to_name.get(bid),
-            "accuracy": round(acc, 2),
-        })
-
-    # 4) Inventory turnover by branch (approx): monthly qty sold / current stock
-    month_ago_ph = today_ph - timedelta(days=30)
-    month_ago_start_ph = datetime.combine(month_ago_ph, datetime.min.time()).replace(tzinfo=ph_tz)
-    month_ago_start_utc = month_ago_start_ph.astimezone(tz.utc).replace(tzinfo=None)
-    
-    qty_rows = (
-        db.session.query(SalesTransaction.branch_id, func.sum(SalesTransaction.quantity_sold))
-        .filter(SalesTransaction.transaction_date >= month_ago_start_utc)
-        .group_by(SalesTransaction.branch_id)
-        .all()
-    )
-    qty_map = {bid: float(q or 0) for bid, q in qty_rows}
-    stock_map = {row[0]: float(row[1] or 0) for row in stock_rows}
-    inventory_turnover_by_branch = []
-    for bid in branch_ids:
-        sold = qty_map.get(bid, 0.0)
-        stock = stock_map.get(bid, 0.0)
-        turnover = (sold / stock) if stock > 0 else 0.0
-        inventory_turnover_by_branch.append({
-            "branch_id": bid,
-            "branch_name": branch_id_to_name.get(bid),
-            "turnover_ratio": round(turnover, 2),
-        })
-
-    # 4b) Top products per branch (this month)
-    current_month = today_ph.month
-    current_year = today_ph.year
-    top_products_per_branch = {}
-    for bid in branch_ids:
-        rows = (
-            db.session.query(Product.name, func.sum(SalesTransaction.quantity_sold).label('qty'), func.sum(SalesTransaction.total_amount).label('amt'))
-            .join(Product, Product.id == SalesTransaction.product_id)
-            .filter(
-                and_(
-                    SalesTransaction.branch_id == bid,
-                    func.extract('month', SalesTransaction.transaction_date) == current_month,
-                    func.extract('year', SalesTransaction.transaction_date) == current_year,
-                )
-            )
-            .group_by(Product.id, Product.name)
-            .order_by(desc('qty'))
-            .limit(5)
-            .all()
-        )
-        top_products_per_branch[bid] = [
-            {"name": n, "quantity": float(q or 0), "sales": float(a or 0)} for n, q, a in rows
+            for bid, total in stock_rows
         ]
 
-    # 5) Demand-supply gaps: next 7 days forecast sum per product vs current stock
-    next7 = today + timedelta(days=7)
-    forecast_next = (
-        db.session.query(
-            ForecastData.branch_id,
-            ForecastData.product_id,
-            func.sum(ForecastData.predicted_demand).label('predicted')
-        )
-        .filter(and_(ForecastData.forecast_date >= today, ForecastData.forecast_date <= next7))
-        .group_by(ForecastData.branch_id, ForecastData.product_id)
-        .all()
-    )
-    # Current stock per (branch, product)
-    inv_rows = (
-        db.session.query(InventoryItem.branch_id, InventoryItem.product_id, InventoryItem.stock_kg)
-        .all()
-    )
-    inv_map = {(b, p): float(s or 0) for b, p, s in inv_rows}
-    pid_to_name = {p.id: p.name for p in Product.query.all()}
+        # 2) Sales trends by branch (amounts per day)
+        # Query all transactions in the date range, then group by Philippines date
+        all_sales = db.session.query(SalesTransaction).filter(
+            and_(
+                SalesTransaction.transaction_date >= datetime.combine(start_date, datetime.min.time()) - timedelta(hours=8),  # Convert PH date start to UTC
+                SalesTransaction.transaction_date < datetime.combine(end_date + timedelta(days=1), datetime.min.time()) - timedelta(hours=8)  # Convert PH date end to UTC
+            )
+        ).all()
+        
+        # Group by Philippines date and branch
+        sales_dict = {}
+        for sale in all_sales:
+            # Convert UTC datetime to Philippines time and get date
+            if sale.transaction_date.tzinfo is None:
+                sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
+            else:
+                sale_utc = sale.transaction_date
+            sale_ph = sale_utc.astimezone(ph_tz)
+            sale_date = sale_ph.date()
+            
+            if start_date <= sale_date <= end_date:
+                key = (sale_date, sale.branch_id)
+                if key not in sales_dict:
+                    sales_dict[key] = 0.0
+                sales_dict[key] += float(sale.total_amount)
 
-    demand_supply_gaps = []
-    for bid, pid, pred in forecast_next:
-        stock = inv_map.get((bid, pid), 0.0)
-        gap = float(pred or 0) - stock
-        if gap > 0:  # only gaps where demand exceeds supply
-            severity = "critical" if gap > stock else "warning"
-            demand_supply_gaps.append({
+        # Build date labels
+        labels = []
+        for i in range(days):
+            current_date = start_date + timedelta(days=i)
+            if current_date > end_date:
+                break
+            labels.append(current_date.strftime('%Y-%m-%d'))
+        
+        # Initialize series per branch
+        branch_ids = [b.id for b in branches]
+        series_map = {bid: [0.0 for _ in range(len(labels))] for bid in branch_ids}
+        idx_map = {labels[i]: i for i in range(len(labels))}
+
+        for (d, bid), amt in sales_dict.items():
+            ds = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)
+            if ds in idx_map and bid in series_map:
+                series_map[bid][idx_map[ds]] = float(amt)
+
+        sales_trends_by_branch = {
+            "labels": labels,
+            "series": [
+                {
+                    "branch_id": bid,
+                    "branch_name": branch_id_to_name.get(bid),
+                    "data": series_map[bid],
+                }
+                for bid in branch_ids
+            ],
+        }
+
+        # 3) Forecast accuracy by branch (MAPE over last 30 days)
+        # Use Philippines timezone
+        today_ph = end_date  # Already calculated as Philippines date
+        thirty_days_ago_ph = today_ph - timedelta(days=30)
+
+        forecasts = (
+            db.session.query(ForecastData.branch_id, ForecastData.product_id, ForecastData.forecast_date, ForecastData.predicted_demand)
+            .filter(and_(ForecastData.forecast_date >= thirty_days_ago_ph, ForecastData.forecast_date <= today_ph))
+            .all()
+        )
+
+        accuracy_map = {bid: {"mape_sum": 0.0, "count": 0} for bid in branch_ids}
+        for bid, pid, fdate, predicted in forecasts:
+            # Convert forecast date to UTC datetime range for Philippines timezone
+            fdate_start_ph = datetime.combine(fdate, datetime.min.time()).replace(tzinfo=ph_tz)
+            fdate_end_ph = datetime.combine(fdate, datetime.max.time()).replace(tzinfo=ph_tz)
+            fdate_start_utc = fdate_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+            fdate_end_utc = fdate_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+            
+            actual = (
+                db.session.query(func.sum(SalesTransaction.quantity_sold))
+                .filter(
+                    and_(
+                        SalesTransaction.branch_id == bid,
+                        SalesTransaction.product_id == pid,
+                        SalesTransaction.transaction_date >= fdate_start_utc,
+                        SalesTransaction.transaction_date <= fdate_end_utc,
+                    )
+                )
+                .scalar()
+                or 0
+            )
+            if actual > 0:
+                mape = abs((predicted or 0) - actual) / actual * 100.0
+                accuracy_map[bid]["mape_sum"] += mape
+                accuracy_map[bid]["count"] += 1
+
+        forecast_accuracy_by_branch = []
+        for bid in branch_ids:
+            cnt = accuracy_map[bid]["count"]
+            acc = 100.0 - (accuracy_map[bid]["mape_sum"] / cnt) if cnt > 0 else 0.0
+            forecast_accuracy_by_branch.append({
                 "branch_id": bid,
                 "branch_name": branch_id_to_name.get(bid),
-                "product_id": pid,
-                "product_name": pid_to_name.get(pid),
-                "stock_kg": stock,
-                "predicted_7d": float(pred or 0),
-                "gap_kg": round(gap, 2),
-                "severity": severity,
+                "accuracy": round(acc, 2),
             })
 
-    return jsonify({
-        "ok": True,
-        "analytics": {
-            "stock_per_branch": stock_per_branch,
-            "sales_trends_by_branch": sales_trends_by_branch,
-            "forecast_accuracy_by_branch": forecast_accuracy_by_branch,
-            "inventory_turnover_by_branch": inventory_turnover_by_branch,
-            "top_products_per_branch": top_products_per_branch,
-            "demand_supply_gaps": demand_supply_gaps,
-        }
-    })
+        # 4) Inventory turnover by branch (approx): monthly qty sold / current stock
+        month_ago_ph = today_ph - timedelta(days=30)
+        month_ago_start_ph = datetime.combine(month_ago_ph, datetime.min.time()).replace(tzinfo=ph_tz)
+        month_ago_start_utc = month_ago_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+        
+        qty_rows = (
+            db.session.query(SalesTransaction.branch_id, func.sum(SalesTransaction.quantity_sold))
+            .filter(SalesTransaction.transaction_date >= month_ago_start_utc)
+            .group_by(SalesTransaction.branch_id)
+            .all()
+        )
+        qty_map = {bid: float(q or 0) for bid, q in qty_rows}
+        stock_map = {row[0]: float(row[1] or 0) for row in stock_rows}
+        inventory_turnover_by_branch = []
+        for bid in branch_ids:
+            sold = qty_map.get(bid, 0.0)
+            stock = stock_map.get(bid, 0.0)
+            turnover = (sold / stock) if stock > 0 else 0.0
+            inventory_turnover_by_branch.append({
+                "branch_id": bid,
+                "branch_name": branch_id_to_name.get(bid),
+                "turnover_ratio": round(turnover, 2),
+            })
+
+        # 4b) Top products per branch (this month)
+        current_month = today_ph.month
+        current_year = today_ph.year
+        top_products_per_branch = {}
+        for bid in branch_ids:
+            rows = (
+                db.session.query(Product.name, func.sum(SalesTransaction.quantity_sold).label('qty'), func.sum(SalesTransaction.total_amount).label('amt'))
+                .join(Product, Product.id == SalesTransaction.product_id)
+                .filter(
+                    and_(
+                        SalesTransaction.branch_id == bid,
+                        func.extract('month', SalesTransaction.transaction_date) == current_month,
+                        func.extract('year', SalesTransaction.transaction_date) == current_year,
+                    )
+                )
+                .group_by(Product.id, Product.name)
+                .order_by(desc('qty'))
+                .limit(5)
+                .all()
+            )
+            top_products_per_branch[bid] = [
+                {"name": n, "quantity": float(q or 0), "sales": float(a or 0)} for n, q, a in rows
+            ]
+
+        # 5) Demand-supply gaps: next 7 days forecast sum per product vs current stock
+        next7 = today_ph + timedelta(days=7)
+        forecast_next = (
+            db.session.query(
+                ForecastData.branch_id,
+                ForecastData.product_id,
+                func.sum(ForecastData.predicted_demand).label('predicted')
+            )
+            .filter(and_(ForecastData.forecast_date >= today_ph, ForecastData.forecast_date <= next7))
+            .group_by(ForecastData.branch_id, ForecastData.product_id)
+            .all()
+        )
+        # Current stock per (branch, product)
+        inv_rows = (
+            db.session.query(InventoryItem.branch_id, InventoryItem.product_id, InventoryItem.stock_kg)
+            .all()
+        )
+        inv_map = {(b, p): float(s or 0) for b, p, s in inv_rows}
+        pid_to_name = {p.id: p.name for p in Product.query.all()}
+
+        demand_supply_gaps = []
+        for bid, pid, pred in forecast_next:
+            stock = inv_map.get((bid, pid), 0.0)
+            gap = float(pred or 0) - stock
+            if gap > 0:  # only gaps where demand exceeds supply
+                severity = "critical" if gap > stock else "warning"
+                demand_supply_gaps.append({
+                    "branch_id": bid,
+                    "branch_name": branch_id_to_name.get(bid),
+                    "product_id": pid,
+                    "product_name": pid_to_name.get(pid),
+                    "stock_kg": stock,
+                    "predicted_7d": float(pred or 0),
+                    "gap_kg": round(gap, 2),
+                    "severity": severity,
+                })
+
+        return jsonify({
+            "ok": True,
+            "analytics": {
+                "stock_per_branch": stock_per_branch,
+                "sales_trends_by_branch": sales_trends_by_branch,
+                "forecast_accuracy_by_branch": forecast_accuracy_by_branch,
+                "inventory_turnover_by_branch": inventory_turnover_by_branch,
+                "top_products_per_branch": top_products_per_branch,
+                "demand_supply_gaps": demand_supply_gaps,
+            }
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in api_analytics_overview: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to load analytics data: {str(e)}"
+        }), 500
 
 # ========== DASHBOARD API ENDPOINTS ==========
 
