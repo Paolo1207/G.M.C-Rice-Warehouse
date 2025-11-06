@@ -2992,21 +2992,41 @@ def api_dashboard_charts():
         branch_id = request.args.get('branch_id', type=int)
         product_id = request.args.get('product_id', type=int)
         
-        # Handle days parameter - ensure it's an integer
-        days_param = request.args.get('days', '30')
-        try:
-            days = int(days_param)
-            if days <= 0:
-                days = 30
-        except (ValueError, TypeError):
-            days = 30
+        # Handle date range - support both days and custom from/to dates
+        from_str = request.args.get('from')
+        to_str = request.args.get('to')
         
         # Use Philippines timezone for date comparison
         from datetime import timezone as tz
         ph_tz = tz(timedelta(hours=8))
         now_ph = datetime.now(ph_tz)
-        end_date = now_ph.date()  # Today in Philippines time
-        start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
+        
+        if from_str and to_str:
+            # Custom date range
+            try:
+                start_date = datetime.strptime(from_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(to_str, '%Y-%m-%d').date()
+                # Ensure end_date is not in the future
+                if end_date > now_ph.date():
+                    end_date = now_ph.date()
+                # Calculate days for other parts of the function
+                days = (end_date - start_date).days + 1
+            except (ValueError, TypeError):
+                # Fallback to default 30 days
+                end_date = now_ph.date()
+                start_date = end_date - timedelta(days=29)
+                days = 30
+        else:
+            # Handle days parameter - ensure it's an integer
+            days_param = request.args.get('days', '30')
+            try:
+                days = int(days_param)
+                if days <= 0:
+                    days = 30
+            except (ValueError, TypeError):
+                days = 30
+            end_date = now_ph.date()  # Today in Philippines time
+            start_date = end_date - timedelta(days=days - 1)  # Adjust to include today
         
         # Base queries
         sales_query = db.session.query(SalesTransaction)

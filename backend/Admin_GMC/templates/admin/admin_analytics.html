@@ -309,17 +309,9 @@
             </div>
         </div>
 
-        <!-- Forecast Accuracy & Demand/Supply Gaps -->
+        <!-- Demand/Supply Gaps -->
         <div class="analytics-widgets-row">
-            <div class="analytics-widget chart-widget">
-                <div class="widget-header">
-                    <h3>🎯 Forecast Accuracy by Branch</h3>
-                </div>
-                <div class="chart-container">
-                    <canvas id="forecastAccuracyChart" width="400" height="200"></canvas>
-                </div>
-            </div>
-            <div class="analytics-widget demand-supply-widget">
+            <div class="analytics-widget demand-supply-widget" style="width: 100%;">
                 <div class="widget-header">
                     <h3>⚖️ Demand/Supply Gaps</h3>
                     <span class="alert-count">3</span>
@@ -359,12 +351,21 @@
                 <div class="widget-header">
                     <h3>🏆 Top-Selling Rice per Branch</h3>
                     <div class="chart-controls">
-                        <select class="chart-period">
+                        <select class="chart-period" id="topProductsDateRange">
                             <option value="7">Last 7 days</option>
                             <option value="30" selected>Last 30 days</option>
                             <option value="90">Last 90 days</option>
+                            <option value="custom">Custom Range</option>
                         </select>
                     </div>
+                </div>
+                
+                <!-- Custom Date Range Inputs -->
+                <div class="custom-date-range" id="topProductsCustomRange" style="display:none; margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                    <input type="date" id="topProductsStartDate" class="date-input">
+                    <span style="margin: 0 10px;">to</span>
+                    <input type="date" id="topProductsEndDate" class="date-input">
+                    <button class="apply-btn" onclick="applyTopProductsDateRange()">Apply</button>
                 </div>
                 
                 <!-- Enhanced Branch Tabs -->
@@ -460,15 +461,59 @@
 
         // Add event listener for days filter
         function wireDaysFilter() {
-            const daysSelect = document.querySelector('.chart-period');
+            const daysSelect = document.getElementById('topProductsDateRange');
+            const customRangeDiv = document.getElementById('topProductsCustomRange');
+            
             if (daysSelect) {
                 daysSelect.addEventListener('change', async () => {
-                    const activeTab = document.querySelector('.branch-tab.active');
-                    const branchId = activeTab ? activeTab.dataset.branchId : 1;
-                    if (branchId) {
-                        await loadTopProducts(branchId);
+                    if (daysSelect.value === 'custom') {
+                        if (customRangeDiv) customRangeDiv.style.display = 'flex';
+                        // Set default dates to today
+                        const today = new Date().toISOString().split('T')[0];
+                        const startDateInput = document.getElementById('topProductsStartDate');
+                        const endDateInput = document.getElementById('topProductsEndDate');
+                        if (startDateInput) startDateInput.value = today;
+                        if (endDateInput) endDateInput.value = today;
+                    } else {
+                        if (customRangeDiv) customRangeDiv.style.display = 'none';
+                        const activeTab = document.querySelector('.branch-tab.active');
+                        const branchId = activeTab ? activeTab.dataset.branchId : 1;
+                        if (branchId) {
+                            await loadTopProducts(branchId);
+                        }
                     }
                 });
+            }
+            
+            // Add event listeners for custom date inputs
+            const startDateInput = document.getElementById('topProductsStartDate');
+            const endDateInput = document.getElementById('topProductsEndDate');
+            if (startDateInput) {
+                startDateInput.addEventListener('change', () => {
+                    if (daysSelect && daysSelect.value === 'custom') {
+                        applyTopProductsDateRange();
+                    }
+                });
+            }
+            if (endDateInput) {
+                endDateInput.addEventListener('change', () => {
+                    if (daysSelect && daysSelect.value === 'custom') {
+                        applyTopProductsDateRange();
+                    }
+                });
+            }
+        }
+        
+        // Apply custom date range for top products
+        async function applyTopProductsDateRange() {
+            const startDate = document.getElementById('topProductsStartDate')?.value;
+            const endDate = document.getElementById('topProductsEndDate')?.value;
+            if (startDate && endDate) {
+                const activeTab = document.querySelector('.branch-tab.active');
+                const branchId = activeTab ? activeTab.dataset.branchId : 1;
+                if (branchId) {
+                    await loadTopProducts(branchId, startDate, endDate);
+                }
             }
         }
 
@@ -512,7 +557,6 @@
                     populateBranchSelect(a);
                     updateStockPerBranchChart(a.stock_per_branch || []);
                     updateSalesTrendsByBranch(a.sales_trends_by_branch || { labels: [], series: [] });
-                    updateForecastAccuracyChart(a.forecast_accuracy_by_branch || []);
                     updateDemandSupplyList(a.demand_supply_gaps || []);
                     updateTurnoverList(a.inventory_turnover_by_branch || []);
                     // initialize top products for the first branch if present
@@ -570,7 +614,6 @@
                     populateBranchSelect(a);
                     updateStockPerBranchChart(a.stock_per_branch || []);
                     updateSalesTrendsByBranch(a.sales_trends_by_branch || { labels: [], series: [] });
-                    updateForecastAccuracyChart(a.forecast_accuracy_by_branch || []);
                     updateDemandSupplyList(a.demand_supply_gaps || []);
                     updateTurnoverList(a.inventory_turnover_by_branch || []);
                     // initialize top products for the first branch if present
@@ -737,7 +780,6 @@
         // Live charts instances
         let stockPerBranchChartInstance = null;
         let salesTrendsByBranchChartInstance = null;
-        let forecastAccuracyChartInstance = null;
 
         // Stock per Branch Chart (from overview API) + cards view toggle
         function updateStockPerBranchChart(rows) {
@@ -933,53 +975,6 @@
             }
         }
 
-        // Forecast Accuracy by Branch (from overview API)
-        function updateForecastAccuracyChart(rows) {
-            const ctxEl = document.getElementById('forecastAccuracyChart');
-            if (!ctxEl) return;
-            const ctx = ctxEl.getContext('2d');
-            if (forecastAccuracyChartInstance && typeof forecastAccuracyChartInstance.destroy === 'function') {
-                forecastAccuracyChartInstance.destroy();
-                forecastAccuracyChartInstance = null;
-            }
-            const labels = rows.map(r => r.branch_name);
-            const data = rows.map(r => r.accuracy || 0);
-            const colors = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#059669','#dc2626'];
-            try {
-                forecastAccuracyChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                        labels,
-                datasets: [{
-                            data,
-                            backgroundColor: labels.map((_, i) => colors[i % colors.length]),
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: '#2e7d32',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                        callbacks: {
-                                label: function(context) { return context.label + ': ' + (context.parsed || 0) + '%'; }
-                        }
-                    }
-                }
-            }
-        });
-        } catch (error) {
-            console.error('Error creating forecast accuracy chart:', error);
-        }
-        }
 
         function populateBranchSelect(a) {
             const sel = document.getElementById('salesBranchSelect');
@@ -1179,27 +1174,38 @@
         }
 
         // Load top products for selected branch
-        async function loadTopProducts(branchId) {
+        async function loadTopProducts(branchId, startDate = null, endDate = null) {
             try {
                 const productsList = document.getElementById('topProductsList');
                 if (!productsList) return;
                 
                 productsList.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><div class="loading-text">Loading top products...</div></div>';
                 
-                // Get the selected days from the top products dropdown (not the sales trends one)
-                const topProductsWidget = document.querySelector('.top-products-widget');
-                const daysSelect = topProductsWidget ? topProductsWidget.querySelector('.chart-period') : null;
-                const days = daysSelect ? parseInt(daysSelect.value, 10) : 30;
+                // Build query parameters
+                const params = new URLSearchParams();
+                if (branchId) params.append('branch_id', branchId);
                 
-                // Validate days is a number
-                if (isNaN(days) || days <= 0) {
-                    console.error('Invalid days value:', daysSelect?.value);
-                    productsList.innerHTML = '<div class="error-state">Invalid date range</div>';
-                    return;
+                // Handle date range
+                if (startDate && endDate) {
+                    // Custom date range
+                    params.append('from', startDate);
+                    params.append('to', endDate);
+                } else {
+                    // Get the selected days from the top products dropdown
+                    const daysSelect = document.getElementById('topProductsDateRange');
+                    const days = daysSelect ? parseInt(daysSelect.value, 10) : 30;
+                    
+                    // Validate days is a number
+                    if (isNaN(days) || days <= 0) {
+                        console.error('Invalid days value:', daysSelect?.value);
+                        productsList.innerHTML = '<div class="error-state">Invalid date range</div>';
+                        return;
+                    }
+                    params.append('days', days);
                 }
                 
-                console.log('Loading top products for branch:', branchId, 'days:', days);
-                const response = await fetch(`/admin/api/dashboard/charts?branch_id=${branchId}&days=${days}`);
+                console.log('Loading top products for branch:', branchId, 'params:', params.toString());
+                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -1211,29 +1217,19 @@
                 
                 console.log('API Response:', data);
                 
-                if (data.ok && data.charts && data.charts.top_products) {
+                if (data.ok && data.charts && data.charts.top_products && data.charts.top_products.length > 0) {
                     console.log('Top products data:', data.charts.top_products);
                     updateProductList(data.charts.top_products);
                 } else {
-                    console.log('No products data in response, trying without branch filter');
-                    // Try loading all products if branch-specific data is empty
-                    const allProductsResponse = await fetch(`/admin/api/dashboard/charts?days=${days}`);
-                    if (!allProductsResponse.ok) {
-                        throw new Error(`Server error: ${allProductsResponse.status}`);
-                    }
-                    const allProductsData = await allProductsResponse.json();
-                    
-                    if (allProductsData.ok && allProductsData.charts && allProductsData.charts.top_products) {
-                        console.log('All products data:', allProductsData.charts.top_products);
-                        updateProductList(allProductsData.charts.top_products);
-                    } else {
-                        productsList.innerHTML = '<div class="no-data">No products found for this branch</div>';
-                    }
+                    console.log('No products data in response for branch:', branchId);
+                    productsList.innerHTML = '<div class="no-data">No products found for this branch in the selected date range</div>';
                 }
             } catch (error) {
                 console.error('Error loading top products:', error);
                 const productsList = document.getElementById('topProductsList');
-                productsList.innerHTML = '<div class="error-state">Failed to load products</div>';
+                if (productsList) {
+                    productsList.innerHTML = '<div class="error-state">Failed to load products. Please try again.</div>';
+                }
             }
         }
 
