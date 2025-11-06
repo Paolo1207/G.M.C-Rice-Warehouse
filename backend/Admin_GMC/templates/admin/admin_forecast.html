@@ -235,7 +235,15 @@
                 <h3>📊 Forecast Accuracy</h3>
                 <canvas id="accuracyChart" height="180"></canvas>
             </div>
-            </div>
+        </div>
+        
+        <!-- Forecast Information & Stock Preparation Guide -->
+        <div class="glass-card" id="forecast-information" style="display: none;">
+            <h3 style="font-size: 1.18rem; font-weight: 700; color: #2e7d32; margin: 0 0 20px 0;">
+                📖 Forecast Interpretation & Stock Preparation Guide
+            </h3>
+            <div id="forecast-information-content"></div>
+        </div>
             </div>
     <script>
         // Global variables
@@ -365,8 +373,9 @@
                 
                 if (data.ok) {
                     showAlert('Forecast generated successfully!', 'success');
-                    displayForecastResults(data.forecast, branchId, productId);
+                    await displayForecastResults(data.forecast, branchId, productId);
                     updateCharts(data.forecast);
+                    await displayForecastInformation(data.forecast, branchId, productId);
                 } else {
                     showAlert('Error generating forecast: ' + data.error, 'error');
                 }
@@ -377,9 +386,14 @@
         }
 
         // Display forecast results
-        function displayForecastResults(forecast, branchId, productId) {
+        async function displayForecastResults(forecast, branchId, productId) {
             const branchName = branches.find(b => b.id == branchId)?.name || 'Unknown';
             const productName = products.find(p => p.id == productId)?.name || 'Unknown';
+            
+            const avgDailyDemand = forecast.forecast_values.slice(0, 7).reduce((a, b) => a + b, 0) / 7;
+            const totalForecast = forecast.forecast_values.reduce((a, b) => a + b, 0);
+            const maxDailyDemand = Math.max(...forecast.forecast_values);
+            const minDailyDemand = Math.min(...forecast.forecast_values);
             
             const summaryContent = document.getElementById('forecast-summary-content');
             summaryContent.innerHTML = `
@@ -388,19 +402,175 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                             <strong>Model Type:</strong><br>${forecast.model_type}
-            </div>
+                        </div>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                             <strong>Accuracy Score:</strong><br>${(forecast.accuracy_score * 100).toFixed(1)}%
-            </div>
+                        </div>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <strong>Avg Daily Demand:</strong><br>${forecast.forecast_values.slice(0, 7).reduce((a, b) => a + b, 0) / 7} kg
-            </div>
+                            <strong>Avg Daily Demand:</strong><br>${avgDailyDemand.toFixed(2)} kg
+                        </div>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                             <strong>Total Forecast Period:</strong><br>${forecast.forecast_values.length} days
-            </div>
-        </div>
-    </div>
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong>Peak Daily Demand:</strong><br>${maxDailyDemand.toFixed(2)} kg
+                        </div>
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                            <strong>Total Forecasted Demand:</strong><br>${totalForecast.toFixed(2)} kg
+                        </div>
+                    </div>
+                </div>
             `;
+        }
+        
+        // Display detailed forecast information and stock preparation guide
+        async function displayForecastInformation(forecast, branchId, productId) {
+            try {
+                // Fetch current inventory for stock recommendations
+                const inventoryResponse = await fetch(`/admin/api/products/branch?branch_id=${branchId}`);
+                const inventoryData = await inventoryResponse.json().catch(() => ({ items: [] }));
+                
+                // Find the specific product in the inventory
+                const productItem = inventoryData.items && inventoryData.items.length > 0
+                    ? inventoryData.items.find(item => item.product_id == productId)
+                    : null;
+                
+                const currentStock = productItem 
+                    ? (productItem.stock_kg || productItem.stock || 0)
+                    : 0;
+                
+                const branchName = branches.find(b => b.id == branchId)?.name || 'Unknown';
+                const productName = products.find(p => p.id == productId)?.name || 'Unknown';
+                
+                // Calculate forecast statistics
+                const avgDailyDemand = forecast.forecast_values.slice(0, 7).reduce((a, b) => a + b, 0) / 7;
+                const totalForecast = forecast.forecast_values.reduce((a, b) => a + b, 0);
+                const maxDailyDemand = Math.max(...forecast.forecast_values);
+                const minDailyDemand = Math.min(...forecast.forecast_values);
+                const forecastDays = forecast.forecast_values.length;
+                
+                // Calculate stock recommendations
+                const recommendedStock = Math.ceil(totalForecast * 1.2); // 20% buffer
+                const stockShortage = recommendedStock - currentStock;
+                const daysOfStock = currentStock > 0 ? Math.floor(currentStock / avgDailyDemand) : 0;
+                
+                // Determine stock status
+                let stockStatus = 'good';
+                let stockStatusText = 'Adequate';
+                let stockStatusColor = '#2e7d32';
+                if (stockShortage > 0) {
+                    stockStatus = stockShortage > totalForecast * 0.5 ? 'critical' : 'warning';
+                    stockStatusText = stockShortage > totalForecast * 0.5 ? 'Critical Shortage' : 'Low Stock';
+                    stockStatusColor = stockShortage > totalForecast * 0.5 ? '#e53935' : '#f59e0b';
+                }
+                
+                const infoContent = document.getElementById('forecast-information-content');
+                infoContent.innerHTML = `
+                    <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+                        <!-- What the Forecast Means -->
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #2e7d32;">
+                            <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 1.1rem; font-weight: 700;">
+                                📊 What This Forecast Means
+                            </h4>
+                            <div style="color: #374151; line-height: 1.8;">
+                                <p style="margin: 0 0 12px 0;">
+                                    <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales data analyzed using the <strong>${forecast.model_type}</strong> model.
+                                </p>
+                                <p style="margin: 0 0 12px 0;">
+                                    <strong>How it works:</strong> The system analyzes your past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
+                                </p>
+                                <p style="margin: 0;">
+                                    <strong>Confidence intervals:</strong> The shaded areas (for ARIMA model) show the range where actual demand is likely to fall, helping you prepare for both best-case and worst-case scenarios.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <!-- Stock Preparation Recommendations -->
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${stockStatusColor};">
+                            <h4 style="margin: 0 0 12px 0; color: ${stockStatusColor}; font-size: 1.1rem; font-weight: 700;">
+                                📦 Stock Preparation Recommendations
+                            </h4>
+                            <div style="color: #374151; line-height: 1.8;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                                        <strong style="color: #64748b; font-size: 0.9rem;">Current Stock</strong>
+                                        <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">${currentStock.toFixed(2)} kg</div>
+                                    </div>
+                                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                                        <strong style="color: #64748b; font-size: 0.9rem;">Forecasted Demand</strong>
+                                        <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">${totalForecast.toFixed(2)} kg</div>
+                                    </div>
+                                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                                        <strong style="color: #64748b; font-size: 0.9rem;">Recommended Stock</strong>
+                                        <div style="font-size: 1.3rem; font-weight: 700; color: #2e7d32;">${recommendedStock.toFixed(2)} kg</div>
+                                    </div>
+                                    <div style="background: white; padding: 12px; border-radius: 8px;">
+                                        <strong style="color: #64748b; font-size: 0.9rem;">Stock Status</strong>
+                                        <div style="font-size: 1.1rem; font-weight: 700; color: ${stockStatusColor};">${stockStatusText}</div>
+                                    </div>
+                                </div>
+                                
+                                ${stockShortage > 0 ? `
+                                    <div style="background: ${stockStatusColor === '#e53935' ? 'rgba(229, 57, 53, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid ${stockStatusColor};">
+                                        <strong style="color: ${stockStatusColor}; display: block; margin-bottom: 8px;">⚠️ Action Required</strong>
+                                        <p style="margin: 0; color: #374151;">
+                                            You need to restock <strong>${stockShortage.toFixed(2)} kg</strong> to meet the forecasted demand with a 20% safety buffer. 
+                                            Current stock will only last approximately <strong>${daysOfStock} days</strong> at average demand.
+                                        </p>
+                                    </div>
+                                ` : `
+                                    <div style="background: rgba(46, 125, 50, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #2e7d32;">
+                                        <strong style="color: #2e7d32; display: block; margin-bottom: 8px;">✅ Stock Level Adequate</strong>
+                                        <p style="margin: 0; color: #374151;">
+                                            Current stock is sufficient to meet forecasted demand. Monitor daily sales and replenish when stock falls below recommended levels.
+                                        </p>
+                                    </div>
+                                `}
+                                
+                                <div style="background: #e8f5e9; padding: 16px; border-radius: 8px;">
+                                    <strong style="color: #2e7d32; display: block; margin-bottom: 8px;">💡 Stock Preparation Strategy</strong>
+                                    <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #374151;">
+                                        <li style="margin-bottom: 8px;">Prepare <strong>${recommendedStock.toFixed(2)} kg</strong> total stock to cover the next ${forecastDays} days</li>
+                                        <li style="margin-bottom: 8px;">Plan for peak daily demand of <strong>${maxDailyDemand.toFixed(2)} kg</strong> (highest predicted day)</li>
+                                        <li style="margin-bottom: 8px;">Maintain minimum daily stock of <strong>${Math.ceil(maxDailyDemand * 3)} kg</strong> (3 days of peak demand as safety buffer)</li>
+                                        <li style="margin-bottom: 0;">Schedule restock orders when stock falls below <strong>${Math.ceil(avgDailyDemand * 7)} kg</strong> (1 week of average demand)</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Forecast Details -->
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6;">
+                            <h4 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
+                                📈 Forecast Details
+                            </h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; color: #374151;">
+                                <div>
+                                    <strong style="color: #64748b; font-size: 0.9rem;">Average Daily Demand</strong>
+                                    <div style="font-size: 1.1rem; font-weight: 600;">${avgDailyDemand.toFixed(2)} kg/day</div>
+                                </div>
+                                <div>
+                                    <strong style="color: #64748b; font-size: 0.9rem;">Peak Daily Demand</strong>
+                                    <div style="font-size: 1.1rem; font-weight: 600;">${maxDailyDemand.toFixed(2)} kg</div>
+                                </div>
+                                <div>
+                                    <strong style="color: #64748b; font-size: 0.9rem;">Minimum Daily Demand</strong>
+                                    <div style="font-size: 1.1rem; font-weight: 600;">${minDailyDemand.toFixed(2)} kg</div>
+                                </div>
+                                <div>
+                                    <strong style="color: #64748b; font-size: 0.9rem;">Model Accuracy</strong>
+                                    <div style="font-size: 1.1rem; font-weight: 600;">${(forecast.accuracy_score * 100).toFixed(1)}%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Show the information section
+                document.getElementById('forecast-information').style.display = 'block';
+            } catch (error) {
+                console.error('Error displaying forecast information:', error);
+            }
         }
 
         // Update charts
