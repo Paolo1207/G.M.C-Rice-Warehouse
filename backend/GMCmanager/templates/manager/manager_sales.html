@@ -95,7 +95,7 @@
             <div class="card-icon success"><i class="fas fa-money-bill-wave"></i></div>
             <div class="card-content">
               <h3>Total Price of Purchase</h3>
-              <p class="number" id="totalPriceDisplay" style="opacity: 0;">--</p>
+              <p class="number" id="totalPriceDisplay">₱0.00</p>
               <p class="trend positive">Total purchase amount</p>
             </div>
           </div>
@@ -311,11 +311,8 @@
             totalPrice = Number(j.kpis.month_sales || 0);
           }
           
-          // Update with fade-in effect to prevent glitch
+          // Update immediately without any animation
           totalPriceEl.textContent = `₱${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-          // Fade in smoothly
-          totalPriceEl.style.transition = 'opacity 0.3s ease-in';
-          totalPriceEl.style.opacity = '1';
         }
         
         // Get top selling product
@@ -332,7 +329,6 @@
         const totalPriceEl = document.getElementById('totalPriceDisplay') || document.querySelector('.overview-card:nth-child(2) .number');
         if (totalPriceEl) {
           totalPriceEl.textContent = '₱0.00';
-          totalPriceEl.style.opacity = '1';
         }
       }
     }
