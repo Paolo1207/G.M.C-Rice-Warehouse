@@ -173,6 +173,7 @@
 
     let MANAGER_BRANCH_ID = null;
     let dailyChart, perfChart, shareChart;
+    let salesTableData = []; // Store sales data for filtering
 
     function initSales() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -363,7 +364,17 @@
       try {
         const j = await fetch('/admin/api/sales?'+queryParams()).then(r=>r.json());
         const rows = j.rows || [];
-        renderSalesTable(rows.map(r=>({ id:r.id, product:r.product_name, quantity:r.qty, saleDate:r.date, branch:r.branch_name, encoder:'-' })));
+        // Store data for filtering
+        salesTableData = rows.map(r=>({ 
+          id:r.id, 
+          product:r.product_name, 
+          quantity:r.qty, 
+          saleDate:r.date, 
+          branch:r.branch_name, 
+          encoder:'-',
+          amount: r.amount || 0
+        }));
+        renderSalesTable(salesTableData);
         updateOverviewCards(rows.map(r=>({ product:r.product_name, quantity:r.qty, saleDate:r.date })));
       } catch (e) {
         console.error('Load data error:', e);
@@ -420,19 +431,41 @@
 
     function filterSales() {
       try {
-        const q = (document.getElementById('searchSales')?.value || '').toLowerCase();
-        document.querySelectorAll('#salesTableBody tr').forEach(row => {
-          row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        const searchQuery = (document.getElementById('searchSales')?.value || '').toLowerCase().trim();
+        const tb = document.getElementById('salesTableBody');
+        if (!tb) return;
+        
+        if (!searchQuery) {
+          // Show all rows if search is empty
+          renderSalesTable(salesTableData);
+          return;
+        }
+        
+        // Filter the data
+        const filtered = salesTableData.filter(item => {
+          return item.product.toLowerCase().includes(searchQuery) ||
+                 item.branch.toLowerCase().includes(searchQuery) ||
+                 item.saleDate.toLowerCase().includes(searchQuery) ||
+                 item.quantity.toString().includes(searchQuery);
         });
+        
+        // Re-render with filtered data
+        renderSalesTable(filtered);
       } catch (e) {
         console.error('Filter error:', e);
       }
     }
 
-    // Exports / actions (stubs)
-    function exportSalesReport(){ showNotification('Sales report exported successfully','success'); }
-    function exportToCSV(){ showNotification('Sales data exported to CSV','success'); }
-    function exportToExcel(){ showNotification('Sales data exported to Excel','success'); }
+    // Exports / actions
+    function exportSalesReport(){ 
+      window.location.href = `/manager/api/reports/export/sales?format=csv&${queryParams()}`;
+    }
+    function exportToCSV(){ 
+      window.location.href = `/manager/api/reports/export/sales?format=csv&${queryParams()}`;
+    }
+    function exportToExcel(){ 
+      window.location.href = `/manager/api/reports/export/sales?format=excel&${queryParams()}`;
+    }
     function printSales(){ window.print(); }
     function viewSaleDetails(id){ showNotification('Viewing sale details...','info'); }
     function printSaleReceipt(id){ showNotification('Printing sale receipt...','info'); }

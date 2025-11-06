@@ -2741,26 +2741,61 @@ def mgr_export_report(report_type):
 
 def _get_sales_export_data(branch_id, start_date, end_date):
     """Get sales data for export"""
+    from datetime import datetime
+    
     query = SalesTransaction.query.filter(SalesTransaction.branch_id == branch_id)
     
+    # Parse date parameters if provided
     if start_date:
-        query = query.filter(SalesTransaction.transaction_date >= start_date)
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            query = query.filter(SalesTransaction.transaction_date >= start_date)
+        except:
+            pass
     if end_date:
-        query = query.filter(SalesTransaction.transaction_date <= end_date)
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            query = query.filter(SalesTransaction.transaction_date <= end_date)
+        except:
+            pass
+    
+    # Also check for days parameter
+    days = request.args.get('days', type=int)
+    if days and not start_date and not end_date:
+        from datetime import timedelta
+        end = datetime.utcnow().date()
+        start = end - timedelta(days=days)
+        query = query.filter(SalesTransaction.transaction_date >= start)
     
     sales = query.order_by(SalesTransaction.transaction_date.desc()).all()
     
     data = []
+    total_amount = 0
     for sale in sales:
+        total_amount += float(sale.total_amount or 0)
         data.append({
             'Transaction ID': sale.id,
-            'Date': sale.transaction_date.strftime('%Y-%m-%d'),
+            'Date': sale.transaction_date.strftime('%Y-%m-%d'),  # Format as YYYY-MM-DD for Excel
             'Customer': sale.customer_name or 'Walk-in',
             'Product': sale.product.name,
-            'Quantity': float(sale.quantity_sold),
-            'Unit Price': float(sale.unit_price),
-            'Total': float(sale.total_amount),
-            'Branch ID': branch_id
+            'Quantity (kg)': float(sale.quantity_sold),
+            'Unit Price (₱)': float(sale.unit_price or 0),
+            'Total Amount (₱)': float(sale.total_amount or 0),
+            'Branch': sale.branch.name if sale.branch else f'Branch {branch_id}'
+        })
+    
+    # Add total row
+    if data:
+        total_quantity = sum(float(d['Quantity (kg)']) for d in data)
+        data.append({
+            'Transaction ID': '',
+            'Date': '',
+            'Customer': '',
+            'Product': 'TOTAL',
+            'Quantity (kg)': total_quantity,
+            'Unit Price (₱)': '',
+            'Total Amount (₱)': total_amount,
+            'Branch': ''
         })
     
     return data
@@ -2865,15 +2900,91 @@ def _generate_excel_response(data, filename):
     try:
         import pandas as pd
         import io
+        from openpyxl import load_workbook
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from datetime import datetime
         
         if not data:
             return jsonify({"ok": False, "error": "No data to export"}), 400
         
+        # Remove the total row from data for DataFrame creation
+        total_row = None
+        if data and data[-1].get('Product') == 'TOTAL':
+            total_row = data.pop()
+        
         df = pd.DataFrame(data)
+        
+        # Convert Date column to datetime for proper Excel formatting
+        if 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], format='%Y-%m-%d', errors='coerce')
+        
         output = io.BytesIO()
         
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, sheet_name='Report', index=False)
+        with pd.ExcelWriter(output, engine='openpyxl', date_format='YYYY-MM-DD') as writer:
+            df.to_excel(writer, sheet_name='Sales Report', index=False)
+            
+            # Get the workbook and worksheet
+            workbook = writer.book
+            worksheet = writer.sheets['Sales Report']
+            
+            # Format date column
+            from openpyxl.styles import NamedStyle
+            date_style = NamedStyle(name='date_style', number_format='YYYY-MM-DD')
+            if 'Date' in df.columns:
+                date_col_idx = df.columns.get_loc('Date') + 1
+                for row in range(2, len(df) + 2):  # Start from row 2 (skip header)
+                    cell = worksheet.cell(row=row, column=date_col_idx)
+                    if cell.value:
+                        cell.number_format = 'YYYY-MM-DD'
+            
+            # Format number columns
+            numeric_cols = ['Quantity (kg)', 'Unit Price (₱)', 'Total Amount (₱)']
+            for col_name in numeric_cols:
+                if col_name in df.columns:
+                    col_idx = df.columns.get_loc(col_name) + 1
+                    for row in range(2, len(df) + 2):
+                        cell = worksheet.cell(row=row, column=col_idx)
+                        if cell.value is not None:
+                            cell.number_format = '#,##0.00'
+            
+            # Add total row if exists
+            if total_row:
+                total_row_num = len(df) + 2
+                worksheet.append([])  # Empty row
+                total_row_num += 1
+                
+                # Add total row data
+                for col_idx, col_name in enumerate(df.columns, start=1):
+                    cell = worksheet.cell(row=total_row_num, column=col_idx)
+                    value = total_row.get(col_name, '')
+                    if col_name == 'Product':
+                        cell.value = 'TOTAL'
+                        cell.font = Font(bold=True)
+                    elif col_name in numeric_cols:
+                        cell.value = float(value) if value else 0
+                        cell.number_format = '#,##0.00'
+                        cell.font = Font(bold=True)
+                    else:
+                        cell.value = value
+                
+                # Style the total row
+                for col_idx in range(1, len(df.columns) + 1):
+                    cell = worksheet.cell(row=total_row_num, column=col_idx)
+                    cell.fill = PatternFill(start_color='E0E0E0', end_color='E0E0E0', fill_type='solid')
+                    cell.alignment = Alignment(horizontal='right' if col_idx > 4 else 'left')
+            
+            # Auto-adjust column widths
+            for column in worksheet.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                worksheet.column_dimensions[column_letter].width = adjusted_width
         
         output.seek(0)
         
@@ -2883,8 +2994,10 @@ def _generate_excel_response(data, filename):
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             headers={'Content-Disposition': f'attachment; filename={filename}'}
         )
-    except ImportError:
-        return jsonify({"ok": False, "error": "Excel export not available"}), 500
+    except ImportError as e:
+        return jsonify({"ok": False, "error": f"Excel export not available: {str(e)}"}), 500
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Excel export error: {str(e)}"}), 500
 
 def _generate_pdf_response(data, filename, report_type):
     """Generate PDF response"""
