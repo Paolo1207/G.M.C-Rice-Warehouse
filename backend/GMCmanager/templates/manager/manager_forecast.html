@@ -1371,18 +1371,18 @@
         
         // Manager API returns: { forecast: { labels: [], forecast: [], actual: [] }, summary: {}, details: [] }
         if (forecastData.forecast) {
-          // Check for forecast.forecast array (manager API format)
-          if (Array.isArray(forecastData.forecast.forecast)) {
+          // Check for forecast.forecast array (manager API format) - this is the primary source
+          if (Array.isArray(forecastData.forecast.forecast) && forecastData.forecast.forecast.length > 0) {
             forecastValues = forecastData.forecast.forecast;
             console.log('DEBUG: Found forecast.forecast array with', forecastValues.length, 'values');
           } 
           // Check for forecast.forecast_values array
-          else if (Array.isArray(forecastData.forecast.forecast_values)) {
+          else if (Array.isArray(forecastData.forecast.forecast_values) && forecastData.forecast.forecast_values.length > 0) {
             forecastValues = forecastData.forecast.forecast_values;
             console.log('DEBUG: Found forecast.forecast_values array with', forecastValues.length, 'values');
           }
           // Check if forecast itself is an array
-          else if (Array.isArray(forecastData.forecast)) {
+          else if (Array.isArray(forecastData.forecast) && forecastData.forecast.length > 0) {
             forecastValues = forecastData.forecast;
             console.log('DEBUG: Found forecast as array with', forecastValues.length, 'values');
           }
@@ -1391,23 +1391,39 @@
           modelType = forecastData.forecast.model_type || forecastData.model_info?.type || 'ARIMA';
         }
         
-        // Try details array if forecast array is empty
+        // Try details array if forecast array is empty - this is important for manager API
         if (forecastValues.length === 0 && Array.isArray(forecastData.details) && forecastData.details.length > 0) {
-          // Extract predicted_demand from details
-          forecastValues = forecastData.details.map(item => item.predicted_demand || 0);
+          // Extract predicted_demand from details - manager API returns details with predicted_demand
+          forecastValues = forecastData.details
+            .map(item => {
+              const value = item.predicted_demand || item.forecast || item.value || 0;
+              return typeof value === 'number' ? value : parseFloat(value) || 0;
+            })
+            .filter(v => v > 0); // Filter out zeros
           console.log('DEBUG: Extracted forecast values from details array:', forecastValues.length);
         }
         
         // If forecast is directly in forecastData
-        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values)) {
+        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values) && forecastData.forecast_values.length > 0) {
           forecastValues = forecastData.forecast_values;
           console.log('DEBUG: Found forecast_values directly:', forecastValues.length);
+        }
+        
+        // Last resort: check if we can get values from the chart data that was already applied
+        if (forecastValues.length === 0 && demandChart && demandChart.data && demandChart.data.datasets) {
+          const forecastDataset = demandChart.data.datasets.find(ds => ds.label === 'Forecast' || ds.label === 'Forecasted Demand');
+          if (forecastDataset && Array.isArray(forecastDataset.data) && forecastDataset.data.length > 0) {
+            forecastValues = forecastDataset.data
+              .map(v => typeof v === 'number' ? v : parseFloat(v) || 0)
+              .filter(v => v > 0);
+            console.log('DEBUG: Extracted forecast values from chart data:', forecastValues.length);
+          }
         }
         
         summary = forecastData.summary || {};
         
         console.log('DEBUG: Final forecastValues length:', forecastValues.length);
-        console.log('DEBUG: Full forecastData structure:', JSON.stringify(forecastData, null, 2));
+        console.log('DEBUG: Summary data:', summary);
         
         // If no forecast values, try to use summary data or show helpful message
         if (!forecastValues || forecastValues.length === 0) {
@@ -1415,9 +1431,14 @@
           
           // Check if this is a "0 products" scenario
           const message = forecastData.message || '';
-          const isZeroProducts = message.includes('0 products') || message.includes('Generated') && message.includes('0');
+          const isZeroProducts = message.includes('0 products') || (message.includes('Generated') && message.includes('0'));
           
-          if (isZeroProducts) {
+          // Also check if forecast_data array is empty
+          const hasEmptyForecast = forecastData.forecast && 
+            Array.isArray(forecastData.forecast.forecast) && 
+            forecastData.forecast.forecast.length === 0;
+          
+          if (isZeroProducts || hasEmptyForecast) {
             // Show helpful message about why no forecast was generated
             const infoContent = document.getElementById('forecast-information-content');
             if (infoContent) {
@@ -1453,11 +1474,30 @@
           // Try to create forecast values from summary if available
           if (summary && (summary.avg_demand > 0 || summary.peak_quantity > 0)) {
             // Create a simple forecast array from summary
-            const days = forecastData.model_info?.days_forecasted || 30;
+            const days = forecastData.model_info?.days_forecasted || summary.days_forecasted || 30;
             const baseDemand = summary.avg_demand || summary.peak_quantity || 50;
             forecastValues = Array(days).fill(baseDemand);
-            console.log('DEBUG: Created forecast values from summary:', forecastValues.length);
-          } else {
+            console.log('DEBUG: Created forecast values from summary:', forecastValues.length, 'days, base demand:', baseDemand);
+          } 
+          // Try to use chart data one more time if summary doesn't work
+          else if (demandChart && demandChart.data && demandChart.data.datasets) {
+            const forecastDataset = demandChart.data.datasets.find(ds => 
+              ds.label === 'Forecast' || 
+              ds.label === 'Forecasted Demand' || 
+              ds.label === 'Predicted Demand'
+            );
+            if (forecastDataset && Array.isArray(forecastDataset.data) && forecastDataset.data.length > 0) {
+              forecastValues = forecastDataset.data
+                .map(v => typeof v === 'number' && !isNaN(v) ? v : parseFloat(v) || 0)
+                .filter(v => v > 0);
+              if (forecastValues.length > 0) {
+                console.log('DEBUG: Using chart data as forecast values:', forecastValues.length);
+              }
+            }
+          }
+          
+          // If we still don't have values after all attempts, show error message
+          if (!forecastValues || forecastValues.length === 0) {
             // Show error message but still display the section
             const infoContent = document.getElementById('forecast-information-content');
             if (infoContent) {
@@ -1484,6 +1524,8 @@
             }
             return;
           }
+          // If we successfully extracted values from summary or chart, continue to show full information
+          console.log('DEBUG: Successfully extracted forecast values, proceeding to display full information');
         }
         
         // Get product name from details if available
