@@ -1650,7 +1650,37 @@
         const priceInsights = priceData.price_insights || {};
         const modelInfo = priceData.model_info || {};
         
+        // Always show the information section, even if data is incomplete
+        const infoSection = document.getElementById('price-forecast-information');
+        if (!infoSection) {
+          console.error('Price forecast information section not found');
+          return;
+        }
+        
         if (!priceForecast || priceForecast.length === 0) {
+          // Show message for no data
+          const infoContent = document.getElementById('price-forecast-information-content');
+          if (infoContent) {
+            infoContent.innerHTML = `
+              <div style="background: #fef3c7; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                <h4 style="margin: 0 0 12px 0; color: #f59e0b; font-size: 1.1rem; font-weight: 700;">
+                  ⚠️ No Price Forecast Data Available
+                </h4>
+                <p style="margin: 0; color: #374151;">
+                  No price forecast data was generated. This may happen if:
+                </p>
+                <ul style="margin: 8px 0 0 20px; color: #374151;">
+                  <li>The selected product(s) don't have inventory items in your branch</li>
+                  <li>The inventory items don't have unit prices set</li>
+                  <li>There was an error generating the forecast</li>
+                </ul>
+                <p style="margin: 12px 0 0 0; color: #374151;">
+                  <strong>Solution:</strong> Ensure your inventory items have unit prices set, then try generating the forecast again.
+                </p>
+              </div>
+            `;
+            infoSection.style.display = 'block';
+          }
           console.log('No price forecast data to display');
           return;
         }
@@ -1818,9 +1848,34 @@
         `;
         
         // Show the information section
-        document.getElementById('price-forecast-information').style.display = 'block';
+        const infoSection = document.getElementById('price-forecast-information');
+        if (infoSection) {
+          infoSection.style.display = 'block';
+          // Scroll to the information section smoothly
+          setTimeout(() => {
+            infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+        } else {
+          console.error('Price forecast information section element not found');
+        }
       } catch (error) {
         console.error('Error displaying price forecast information:', error);
+        // Show error message in the section
+        const infoSection = document.getElementById('price-forecast-information');
+        const infoContent = document.getElementById('price-forecast-information-content');
+        if (infoSection && infoContent) {
+          infoContent.innerHTML = `
+            <div style="background: #fee2e2; padding: 20px; border-radius: 12px; border-left: 4px solid #e53e3e;">
+              <h4 style="margin: 0 0 12px 0; color: #e53e3e; font-size: 1.1rem; font-weight: 700;">
+                ❌ Error Displaying Price Forecast Information
+              </h4>
+              <p style="margin: 0; color: #374151;">
+                An error occurred while displaying the price forecast information. Please try generating the forecast again.
+              </p>
+            </div>
+          `;
+          infoSection.style.display = 'block';
+        }
       }
     }
 

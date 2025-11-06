@@ -1425,8 +1425,13 @@ def mgr_forecast_price():
         # Get products from manager's inventory (avoid grn_number column)
         from sqlalchemy.orm import load_only
         if product_id:
-            products = [Product.query.get(product_id)]
+            # When specific product is selected, get it directly
+            product = Product.query.get(product_id)
+            if not product:
+                return jsonify({"ok": False, "error": f"Product with ID {product_id} not found"}), 404
+            products = [product]
         else:
+            # Get all products from inventory for this branch
             inventory_items = (
                 db.session.query(InventoryItem)
                 .options(load_only(InventoryItem.id, InventoryItem.branch_id, InventoryItem.product_id))
@@ -1435,11 +1440,14 @@ def mgr_forecast_price():
             )
             products = [item.product for item in inventory_items if item.product]
         
+        if not products:
+            return jsonify({"ok": False, "error": "No products found in inventory for this branch"}), 404
+        
         for product in products:
             if not product:
                 continue
             
-            print(f"DEBUG PRICE FORECAST: Processing product: {product.name}")
+            print(f"DEBUG PRICE FORECAST: Processing product: {product.name} (ID: {product.id})")
             
             # Get current price data (avoid grn_number column)
             current_item = (
@@ -1451,15 +1459,25 @@ def mgr_forecast_price():
             
             print(f"DEBUG PRICE FORECAST: Found inventory item: {current_item}")
             if current_item:
-                print(f"DEBUG PRICE FORECAST: Unit price: {current_item.unit_price}")
+                print(f"DEBUG PRICE FORECAST: Unit price: {current_item.unit_price}, Type: {type(current_item.unit_price)}")
             
-            if not current_item or not current_item.unit_price:
-                print(f"DEBUG PRICE FORECAST: Skipping {product.name} - no inventory or price")
-                continue
+            # Handle missing inventory or price - use product default price or reasonable default
+            if not current_item:
+                print(f"DEBUG PRICE FORECAST: No inventory item found for {product.name}, checking product default price")
+                # Try to get price from product table if available
+                current_price = float(product.unit_price) if hasattr(product, 'unit_price') and product.unit_price else 50.0
+                print(f"DEBUG PRICE FORECAST: Using product default price: {current_price}")
+            elif not current_item.unit_price or float(current_item.unit_price) <= 0:
+                print(f"DEBUG PRICE FORECAST: Inventory item has no valid price for {product.name}, using default")
+                # Use product default price or reasonable default
+                current_price = float(product.unit_price) if hasattr(product, 'unit_price') and product.unit_price else 50.0
+                print(f"DEBUG PRICE FORECAST: Using default price: {current_price}")
+            else:
+                current_price = float(current_item.unit_price)
+                print(f"DEBUG PRICE FORECAST: Using inventory price: {current_price}")
                 
             # Create price history based on current price with some variation
             # Since we don't have historical price data, we'll simulate it
-            current_price = current_item.unit_price
             price_history = []
             
             # Generate 30 days of price history with some variation
@@ -1513,18 +1531,39 @@ def mgr_forecast_price():
                     'market_factor': round(market_factor, 2)
                 })
         
-        # Generate price insights
+        # Generate price insights - use the first product's current price
         price_insights = {}
-        if price_forecast_data and current_item:
-            current_price = float(current_item.unit_price)
+        if price_forecast_data:
+            # Get the first product's current price from the forecast data
+            first_product_id = price_forecast_data[0].get('product_id')
+            if first_product_id:
+                # Find the inventory item for the first product to get current price
+                first_item = (
+                    db.session.query(InventoryItem)
+                    .options(load_only(InventoryItem.id, InventoryItem.unit_price))
+                    .filter_by(branch_id=branch_id, product_id=first_product_id)
+                    .first()
+                )
+                if first_item and first_item.unit_price:
+                    current_price = float(first_item.unit_price)
+                else:
+                    # Fallback to product default or reasonable default
+                    first_product = Product.query.get(first_product_id)
+                    current_price = float(first_product.unit_price) if first_product and hasattr(first_product, 'unit_price') and first_product.unit_price else 50.0
+            else:
+                current_price = 50.0  # Default fallback
+            
             avg_predicted_price = sum(f['predicted_price'] for f in price_forecast_data) / len(price_forecast_data)
             price_change_percent = ((avg_predicted_price - current_price) / current_price) * 100
+            
+            # Calculate average confidence
+            avg_confidence = sum(f.get('confidence', 0.75) for f in price_forecast_data) / len(price_forecast_data) if price_forecast_data else 0.75
             
             price_insights = {
                 "current_price": current_price,
                 "price_change_percent": round(price_change_percent, 2),
                 "predicted_change_percent": round(price_change_percent, 2),
-                "reason": f"Based on {model_type} model with {round(confidence * 100, 1)}% confidence"
+                "reason": f"Based on {model_type} model with {round(avg_confidence * 100, 1)}% confidence"
             }
         
         print(f"DEBUG PRICE FORECAST: Returning {len(price_forecast_data)} products")
