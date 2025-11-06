@@ -459,24 +459,103 @@
                     stockStatusColor = stockShortage > totalForecast * 0.5 ? '#e53935' : '#f59e0b';
                 }
                 
+                // Model-specific descriptions
+                let modelDescription = '';
+                let modelColor = '#2e7d32';
+                let confidenceNote = '';
+                
+                if (forecast.model_type === 'ARIMA') {
+                    modelDescription = `
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>ARIMA (AutoRegressive Integrated Moving Average)</strong> model.
+                        </p>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>How ARIMA works:</strong> This model analyzes your past sales transactions from the SalesTransaction table, identifying patterns, trends, and seasonal variations. It uses moving averages and trend analysis to predict future demand. ARIMA is best for capturing long-term trends and cyclical patterns in rice sales.
+                        </p>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 100 transactions for this product and branch.
+                        </p>
+                        <p style="margin: 0;">
+                            <strong>Confidence intervals:</strong> The shaded areas show the range where actual demand is likely to fall (95% confidence), helping you prepare for both best-case and worst-case scenarios.
+                        </p>
+                    `;
+                    modelColor = '#2e7d32';
+                    confidenceNote = 'Confidence intervals are available for ARIMA forecasts.';
+                } else if (forecast.model_type === 'RF') {
+                    modelDescription = `
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>Random Forest (RF)</strong> machine learning model.
+                        </p>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>How Random Forest works:</strong> This model uses an ensemble of decision trees trained on historical sales data. It creates features from past sales patterns including:
+                        </p>
+                        <ul style="margin: 8px 0 12px 20px; padding: 0;">
+                            <li><strong>Lag features:</strong> Sales from 1, 2, 3, 7, 14, and 28 days ago</li>
+                            <li><strong>Rolling averages:</strong> 7-day and 14-day moving averages to capture short-term trends</li>
+                            <li><strong>Pattern recognition:</strong> The model learns complex non-linear relationships between past sales and future demand</li>
+                        </ul>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 100 transactions. The model requires at least 10 days of data to train effectively.
+                        </p>
+                        <p style="margin: 0;">
+                            <strong>Best for:</strong> Capturing complex patterns and non-linear relationships in sales data. Random Forest is particularly effective when sales patterns are irregular or influenced by multiple factors.
+                        </p>
+                    `;
+                    modelColor = '#3b82f6';
+                    confidenceNote = 'Random Forest does not provide confidence intervals, but offers high accuracy (typically 80%) for complex pattern recognition.';
+                } else if (forecast.model_type === 'Seasonal') {
+                    modelDescription = `
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>Seasonal Naive</strong> forecasting model.
+                        </p>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>How Seasonal Naive works:</strong> This model uses a simple but effective approach - it repeats the pattern from the last 7 days (one week) to predict future demand. It assumes that weekly patterns repeat consistently.
+                        </p>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>Methodology:</strong>
+                        </p>
+                        <ul style="margin: 8px 0 12px 20px; padding: 0;">
+                            <li>Takes the last 7 days of sales data as the "seasonal pattern"</li>
+                            <li>Repeats this pattern for the forecast period (e.g., if forecasting 30 days, it repeats the 7-day pattern ~4 times)</li>
+                            <li>Adds small random variations (±10%) to account for day-to-day fluctuations</li>
+                        </ul>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 100 transactions. The model requires at least 7 days of data to identify the weekly pattern.
+                        </p>
+                        <p style="margin: 0;">
+                            <strong>Best for:</strong> Products with strong weekly patterns (e.g., higher sales on weekdays vs weekends). This model is simple, fast, and works well when sales follow predictable weekly cycles.
+                        </p>
+                    `;
+                    modelColor = '#f59e0b';
+                    confidenceNote = 'Seasonal Naive does not provide confidence intervals, but is highly effective for products with consistent weekly patterns.';
+                } else {
+                    // Generic fallback
+                    modelDescription = `
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales data analyzed using the <strong>${forecast.model_type}</strong> model.
+                        </p>
+                        <p style="margin: 0 0 12px 0;">
+                            <strong>How it works:</strong> The system analyzes your past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
+                        </p>
+                        <p style="margin: 0;">
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) from the SalesTransaction table, aggregated daily.
+                        </p>
+                    `;
+                    modelColor = '#2e7d32';
+                    confidenceNote = '';
+                }
+                
                 const infoContent = document.getElementById('forecast-information-content');
                 infoContent.innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
                         <!-- What the Forecast Means -->
-                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #2e7d32;">
-                            <h4 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 1.1rem; font-weight: 700;">
-                                📊 What This Forecast Means
+                        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${modelColor};">
+                            <h4 style="margin: 0 0 12px 0; color: ${modelColor}; font-size: 1.1rem; font-weight: 700;">
+                                📊 What This Forecast Means (${forecast.model_type} Model)
                             </h4>
                             <div style="color: #374151; line-height: 1.8;">
-                                <p style="margin: 0 0 12px 0;">
-                                    <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales data analyzed using the <strong>${forecast.model_type}</strong> model.
-                                </p>
-                                <p style="margin: 0 0 12px 0;">
-                                    <strong>How it works:</strong> The system analyzes your past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
-                                </p>
-                                <p style="margin: 0;">
-                                    <strong>Confidence intervals:</strong> The shaded areas (for ARIMA model) show the range where actual demand is likely to fall, helping you prepare for both best-case and worst-case scenarios.
-                                </p>
+                                ${modelDescription}
+                                ${confidenceNote ? `<p style="margin: 12px 0 0 0; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border-left: 3px solid #3b82f6;"><strong>Note:</strong> ${confidenceNote}</p>` : ''}
                             </div>
                         </div>
                         
@@ -626,9 +705,14 @@
             }
             
             // Set chart title based on model type
-            const chartTitle = forecast.model_type === 'ARIMA' 
-                ? 'Demand Forecast with Confidence Intervals'
-                : 'Demand Forecast';
+            let chartTitle = 'Demand Forecast';
+            if (forecast.model_type === 'ARIMA') {
+                chartTitle = 'ARIMA Forecast with Confidence Intervals';
+            } else if (forecast.model_type === 'RF') {
+                chartTitle = 'Random Forest Forecast (ML Model)';
+            } else if (forecast.model_type === 'Seasonal') {
+                chartTitle = 'Seasonal Naive Forecast (Weekly Pattern)';
+            }
             
             demandChart = new Chart(ctx, {
                 type: 'line',
