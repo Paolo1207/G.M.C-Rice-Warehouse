@@ -269,21 +269,6 @@
             </div>
           </div>
 
-          <div class="forecast-table-container">
-            <h3><i class="fas fa-table"></i> Forecast Details</h3>
-            <table class="forecast-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Projected Quantity</th>
-                  <th>Confidence</th>
-                  <th>Trend</th>
-                </tr>
-              </thead>
-              <tbody id="forecastTableBody"></tbody>
-            </table>
-          </div>
-
           <!-- Forecast Information & Stock Preparation Guide -->
           <div class="glass-card" id="forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
             <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
@@ -646,12 +631,7 @@
             console.log('Invalid summary data - keeping existing values');
           }
           
-          if (details) {
-            console.log('DEBUG FRONTEND: Details data:', details);
-            renderForecastTable(details);
-          } else {
-            console.log('DEBUG FRONTEND: No details data received');
-          }
+          // Details table removed - information is shown in the information section below
         } else {
           console.warn('Invalid forecast data - generating sample data');
           generateSampleForecastData();
@@ -814,30 +794,6 @@
       }
     }
 
-    function renderForecastTable(data) {
-      const tbody = document.getElementById('forecastTableBody');
-      tbody.innerHTML = '';
-      
-      if (!data || data.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td colspan="4" style="text-align: center; color: #666;">No forecast data available</td>
-        `;
-        tbody.appendChild(tr);
-        return;
-      }
-      
-      data.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(item.date)}</td>
-          <td>${item.predicted_demand || item.projected || '--'} kg</td>
-          <td>${item.confidence || '--'}</td>
-          <td>${item.trend || '--'}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
 
     // Load risk data from manager API
     async function loadRiskData() {
@@ -929,7 +885,11 @@
             });
             
             // Display detailed forecast information with branch inventory
-            await displayForecastInformation(data, branchId, productId);
+            // Always call this, even if forecast data seems invalid
+            console.log('Calling displayForecastInformation with data:', data);
+            await displayForecastInformation(data, branchId, productId).catch(err => {
+              console.error('Error in displayForecastInformation:', err);
+            });
             filtersDirty = false;
           } else {
             console.error('API Error:', data.error);
@@ -1456,21 +1416,34 @@
         summary = forecastData.summary || {};
         
         console.log('DEBUG: Final forecastValues length:', forecastValues.length);
+        console.log('DEBUG: Full forecastData structure:', JSON.stringify(forecastData, null, 2));
         
+        // If no forecast values, try to use summary data to create a basic display
         if (!forecastValues || forecastValues.length === 0) {
-          console.warn('No forecast values to display. Data structure:', Object.keys(forecastData));
-          // Try to show a message to the user
-          const infoContent = document.getElementById('forecast-information-content');
-          if (infoContent) {
-            infoContent.innerHTML = `
-              <div style="padding: 20px; text-align: center; color: #666;">
-                <p>Forecast data is being processed. Please wait a moment and try generating the forecast again.</p>
-                <p style="font-size: 0.9rem; margin-top: 10px;">If the issue persists, ensure you have sales data for the selected product.</p>
-              </div>
-            `;
-            document.getElementById('forecast-information').style.display = 'block';
+          console.warn('No forecast values found. Attempting to use summary data.');
+          
+          // Try to create forecast values from summary if available
+          if (summary && summary.avg_demand && summary.peak_quantity) {
+            // Create a simple forecast array from summary
+            const days = forecastData.model_info?.days_forecasted || 30;
+            const baseDemand = summary.avg_demand || 0;
+            forecastValues = Array(days).fill(baseDemand);
+            console.log('DEBUG: Created forecast values from summary:', forecastValues.length);
+          } else {
+            // Show error message but still display the section
+            const infoContent = document.getElementById('forecast-information-content');
+            if (infoContent) {
+              infoContent.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #666;">
+                  <p style="color: #e53e3e; font-weight: 600;">⚠️ Forecast data is incomplete</p>
+                  <p>Please ensure you have sales data for the selected product and try generating the forecast again.</p>
+                  <p style="font-size: 0.9rem; margin-top: 10px; color: #999;">The forecast requires historical sales transactions to generate accurate predictions.</p>
+                </div>
+              `;
+              document.getElementById('forecast-information').style.display = 'block';
+            }
+            return;
           }
-          return;
         }
         
         // Get product name from details if available
@@ -1640,9 +1613,28 @@
         `;
         
         // Show the information section
-        document.getElementById('forecast-information').style.display = 'block';
+        const infoSection = document.getElementById('forecast-information');
+        if (infoSection) {
+          infoSection.style.display = 'block';
+          console.log('DEBUG: Forecast information section displayed');
+        } else {
+          console.error('DEBUG: forecast-information element not found!');
+        }
       } catch (error) {
         console.error('Error displaying forecast information:', error);
+        // Show error message in the section
+        const infoContent = document.getElementById('forecast-information-content');
+        const infoSection = document.getElementById('forecast-information');
+        if (infoContent && infoSection) {
+          infoContent.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #666;">
+              <p style="color: #e53e3e; font-weight: 600;">⚠️ Error displaying forecast information</p>
+              <p>${error.message || 'An unexpected error occurred'}</p>
+              <p style="font-size: 0.9rem; margin-top: 10px; color: #999;">Please check the browser console for details.</p>
+            </div>
+          `;
+          infoSection.style.display = 'block';
+        }
       }
     }
 
