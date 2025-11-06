@@ -875,12 +875,19 @@
               details: data.details || []
             });
             
-            // Display detailed forecast information with branch inventory
-            // Always call this, even if forecast data seems invalid
-            console.log('Calling displayForecastInformation with data:', data);
-            await displayForecastInformation(data, branchId, productId).catch(err => {
-              console.error('Error in displayForecastInformation:', err);
-            });
+            // Wait a bit for chart to update, then display detailed forecast information
+            // This ensures we can extract data from the chart if API data is empty
+            setTimeout(async () => {
+              console.log('Calling displayForecastInformation with data:', data);
+              console.log('Chart data available:', demandChart ? 'Yes' : 'No');
+              if (demandChart) {
+                console.log('Chart datasets:', demandChart.data.datasets.map(ds => ({ label: ds.label, dataLength: ds.data.length })));
+              }
+              await displayForecastInformation(data, branchId, productId).catch(err => {
+                console.error('Error in displayForecastInformation:', err);
+              });
+            }, 500); // Wait 500ms for chart to update
+            
             filtersDirty = false;
           } else {
             console.error('API Error:', data.error);
@@ -1369,29 +1376,67 @@
         let summary = {};
         let modelType = 'ARIMA';
         
-        // Manager API returns: { forecast: { labels: [], forecast: [], actual: [] }, summary: {}, details: [] }
-        if (forecastData.forecast) {
+        // PRIORITY 1: Try to extract from chart first (most reliable after chart is updated)
+        if (demandChart && demandChart.data && demandChart.data.datasets) {
+          console.log('DEBUG: Chart datasets available:', demandChart.data.datasets.map(ds => ds.label));
+          
+          // Try to find forecast dataset - check all possible labels
+          let forecastDataset = demandChart.data.datasets.find(ds => 
+            ds.label === 'Forecast' || 
+            ds.label === 'Forecasted Demand' ||
+            ds.label === 'Predicted Demand'
+          );
+          
+          // If not found by label, try to get the second dataset (usually forecast is second)
+          if (!forecastDataset && demandChart.data.datasets.length > 1) {
+            forecastDataset = demandChart.data.datasets[1]; // Second dataset is usually forecast
+            console.log('DEBUG: Using second dataset as forecast:', forecastDataset.label);
+          }
+          
+          if (forecastDataset && Array.isArray(forecastDataset.data) && forecastDataset.data.length > 0) {
+            forecastValues = forecastDataset.data
+              .map(v => {
+                if (v == null || v === undefined) return 0;
+                const num = typeof v === 'number' ? v : parseFloat(v);
+                return isNaN(num) ? 0 : num;
+              })
+              .filter(v => v > 0);
+            if (forecastValues.length > 0) {
+              console.log('DEBUG: ✅ Extracted forecast values from CHART data:', forecastValues.length, 'values');
+              console.log('DEBUG: Sample values:', forecastValues.slice(0, 5));
+            } else {
+              console.log('DEBUG: Chart dataset found but all values are zero or invalid');
+            }
+          } else {
+            console.log('DEBUG: No forecast dataset found in chart or dataset is empty');
+          }
+        } else {
+          console.log('DEBUG: Chart not available or no datasets');
+        }
+        
+        // PRIORITY 2: Manager API returns: { forecast: { labels: [], forecast: [], actual: [] }, summary: {}, details: [] }
+        if (forecastValues.length === 0 && forecastData.forecast) {
           // Check for forecast.forecast array (manager API format) - this is the primary source
           if (Array.isArray(forecastData.forecast.forecast) && forecastData.forecast.forecast.length > 0) {
-            forecastValues = forecastData.forecast.forecast;
-            console.log('DEBUG: Found forecast.forecast array with', forecastValues.length, 'values');
+            forecastValues = forecastData.forecast.forecast.filter(v => v != null && v !== undefined && v > 0);
+            console.log('DEBUG: ✅ Found forecast.forecast array with', forecastValues.length, 'values');
           } 
           // Check for forecast.forecast_values array
           else if (Array.isArray(forecastData.forecast.forecast_values) && forecastData.forecast.forecast_values.length > 0) {
-            forecastValues = forecastData.forecast.forecast_values;
-            console.log('DEBUG: Found forecast.forecast_values array with', forecastValues.length, 'values');
+            forecastValues = forecastData.forecast.forecast_values.filter(v => v != null && v !== undefined && v > 0);
+            console.log('DEBUG: ✅ Found forecast.forecast_values array with', forecastValues.length, 'values');
           }
           // Check if forecast itself is an array
           else if (Array.isArray(forecastData.forecast) && forecastData.forecast.length > 0) {
-            forecastValues = forecastData.forecast;
-            console.log('DEBUG: Found forecast as array with', forecastValues.length, 'values');
+            forecastValues = forecastData.forecast.filter(v => v != null && v !== undefined && v > 0);
+            console.log('DEBUG: ✅ Found forecast as array with', forecastValues.length, 'values');
           }
           
           // Get model type
           modelType = forecastData.forecast.model_type || forecastData.model_info?.type || 'ARIMA';
         }
         
-        // Try details array if forecast array is empty - this is important for manager API
+        // PRIORITY 3: Try details array if forecast array is empty - this is important for manager API
         if (forecastValues.length === 0 && Array.isArray(forecastData.details) && forecastData.details.length > 0) {
           // Extract predicted_demand from details - manager API returns details with predicted_demand
           forecastValues = forecastData.details
@@ -1400,24 +1445,15 @@
               return typeof value === 'number' ? value : parseFloat(value) || 0;
             })
             .filter(v => v > 0); // Filter out zeros
-          console.log('DEBUG: Extracted forecast values from details array:', forecastValues.length);
-        }
-        
-        // If forecast is directly in forecastData
-        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values) && forecastData.forecast_values.length > 0) {
-          forecastValues = forecastData.forecast_values;
-          console.log('DEBUG: Found forecast_values directly:', forecastValues.length);
-        }
-        
-        // Last resort: check if we can get values from the chart data that was already applied
-        if (forecastValues.length === 0 && demandChart && demandChart.data && demandChart.data.datasets) {
-          const forecastDataset = demandChart.data.datasets.find(ds => ds.label === 'Forecast' || ds.label === 'Forecasted Demand');
-          if (forecastDataset && Array.isArray(forecastDataset.data) && forecastDataset.data.length > 0) {
-            forecastValues = forecastDataset.data
-              .map(v => typeof v === 'number' ? v : parseFloat(v) || 0)
-              .filter(v => v > 0);
-            console.log('DEBUG: Extracted forecast values from chart data:', forecastValues.length);
+          if (forecastValues.length > 0) {
+            console.log('DEBUG: ✅ Extracted forecast values from details array:', forecastValues.length);
           }
+        }
+        
+        // PRIORITY 4: If forecast is directly in forecastData
+        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values) && forecastData.forecast_values.length > 0) {
+          forecastValues = forecastData.forecast_values.filter(v => v != null && v !== undefined && v > 0);
+          console.log('DEBUG: ✅ Found forecast_values directly:', forecastValues.length);
         }
         
         summary = forecastData.summary || {};
