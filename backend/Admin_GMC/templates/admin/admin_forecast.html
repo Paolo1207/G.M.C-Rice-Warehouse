@@ -227,13 +227,9 @@
             </div>
         </div>
         <div class="forecast-visuals">
-            <div class="glass-card forecast-chart-card">
+            <div class="glass-card forecast-chart-card" style="grid-column: 1 / -1;">
                 <h3>📈 Demand Forecast Chart</h3>
                 <canvas id="demandForecastChart" height="180"></canvas>
-            </div>
-            <div class="glass-card forecast-chart-card">
-                <h3>📊 Forecast Accuracy</h3>
-                <canvas id="accuracyChart" height="180"></canvas>
             </div>
         </div>
         
@@ -248,7 +244,6 @@
     <script>
         // Global variables
         let demandChart = null;
-        let accuracyChart = null;
         let branches = [];
         let products = [];
 
@@ -576,7 +571,6 @@
         // Update charts
         function updateCharts(forecast) {
             updateDemandChart(forecast);
-            updateAccuracyChart(forecast);
         }
 
         // Update demand forecast chart
@@ -664,36 +658,6 @@
             });
         }
 
-        // Update accuracy chart
-        function updateAccuracyChart(forecast) {
-            const ctx = document.getElementById('accuracyChart').getContext('2d');
-            
-            if (accuracyChart) {
-                accuracyChart.destroy();
-            }
-
-            accuracyChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                    labels: ['Accuracy', 'Error'],
-                datasets: [{
-                        data: [forecast.accuracy_score * 100, (1 - forecast.accuracy_score) * 100],
-                        backgroundColor: ['#2e7d32', '#f44336'],
-                    borderWidth: 0
-                }]
-            },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom' },
-                        title: {
-                            display: true,
-                            text: 'Model Accuracy'
-                        }
-                    }
-                }
-            });
-        }
 
         // Show alert
         function showAlert(message, type) {
