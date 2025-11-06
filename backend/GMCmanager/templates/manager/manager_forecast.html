@@ -214,13 +214,6 @@
                 <option value="">All Products</option>
                 <!-- Products will be populated from inventory -->
               </select>
-              <select id="categoryFilter">
-                <option value="">All Categories</option>
-                <option value="white">White Rice</option>
-                <option value="premium">Premium Rice</option>
-                <option value="regular">Regular Rice</option>
-                <option value="special">Special Varieties</option>
-              </select>
             </div>
             <div class="date-range">
               <select id="timeRange">
@@ -844,10 +837,9 @@
           }
           
           const productId = document.getElementById('productFilter')?.value || '';
-          const category = document.getElementById('categoryFilter')?.value || '';
           const timeRange = document.getElementById('timeRange')?.value || '30';
           
-          console.log('Forecast parameters:', { productId, category, timeRange });
+          console.log('Forecast parameters:', { productId, timeRange });
           
           // Get branch_id for the API call
           const branchId = {{ branch_id if branch_id else 'null' }} || 
@@ -861,7 +853,6 @@
             },
             body: JSON.stringify({
               product_id: productId,
-              category: category,
               days: parseInt(timeRange),
               model_type: 'arima',
               branch_id: branchId
@@ -1263,7 +1254,7 @@
         });
 
       // Forecast filters - mark as dirty but don't auto-generate
-      ['productFilter', 'categoryFilter', 'timeRange']
+      ['productFilter', 'timeRange']
         .forEach(id => {
           const el = document.getElementById(id);
           if (el) el.addEventListener('change', () => {
