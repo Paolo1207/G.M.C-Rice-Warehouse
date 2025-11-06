@@ -1418,15 +1418,52 @@
         console.log('DEBUG: Final forecastValues length:', forecastValues.length);
         console.log('DEBUG: Full forecastData structure:', JSON.stringify(forecastData, null, 2));
         
-        // If no forecast values, try to use summary data to create a basic display
+        // If no forecast values, try to use summary data or show helpful message
         if (!forecastValues || forecastValues.length === 0) {
-          console.warn('No forecast values found. Attempting to use summary data.');
+          console.warn('No forecast values found. Attempting to use summary data or show helpful information.');
+          
+          // Check if this is a "0 products" scenario
+          const message = forecastData.message || '';
+          const isZeroProducts = message.includes('0 products') || message.includes('Generated') && message.includes('0');
+          
+          if (isZeroProducts) {
+            // Show helpful message about why no forecast was generated
+            const infoContent = document.getElementById('forecast-information-content');
+            if (infoContent) {
+              infoContent.innerHTML = `
+                <div style="padding: 20px;">
+                  <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 8px 0; color: #856404; font-size: 1rem;">⚠️ No Products Found for Forecast</h4>
+                    <p style="margin: 0; color: #856404;">
+                      The system could not find any products to generate a forecast for. This could be because:
+                    </p>
+                    <ul style="margin: 8px 0 0 20px; color: #856404;">
+                      <li>No products are available in your branch inventory</li>
+                      <li>The selected product filter doesn't match any products</li>
+                      <li>Products exist but have no sales history</li>
+                    </ul>
+                  </div>
+                  <div style="background: #e8f5e9; padding: 16px; border-radius: 8px; border-left: 4px solid #1a365d;">
+                    <h4 style="margin: 0 0 8px 0; color: #1a365d; font-size: 1rem;">💡 How to Fix This</h4>
+                    <ul style="margin: 8px 0 0 20px; color: #374151;">
+                      <li>Go to <strong>Inventory</strong> and add products to your branch</li>
+                      <li>Record some <strong>Sales</strong> transactions for the products</li>
+                      <li>Try selecting "All Products" instead of a specific product</li>
+                      <li>Wait a few days after recording sales to build historical data</li>
+                    </ul>
+                  </div>
+                </div>
+              `;
+              document.getElementById('forecast-information').style.display = 'block';
+            }
+            return;
+          }
           
           // Try to create forecast values from summary if available
-          if (summary && summary.avg_demand && summary.peak_quantity) {
+          if (summary && (summary.avg_demand > 0 || summary.peak_quantity > 0)) {
             // Create a simple forecast array from summary
             const days = forecastData.model_info?.days_forecasted || 30;
-            const baseDemand = summary.avg_demand || 0;
+            const baseDemand = summary.avg_demand || summary.peak_quantity || 50;
             forecastValues = Array(days).fill(baseDemand);
             console.log('DEBUG: Created forecast values from summary:', forecastValues.length);
           } else {
@@ -1434,10 +1471,22 @@
             const infoContent = document.getElementById('forecast-information-content');
             if (infoContent) {
               infoContent.innerHTML = `
-                <div style="padding: 20px; text-align: center; color: #666;">
-                  <p style="color: #e53e3e; font-weight: 600;">⚠️ Forecast data is incomplete</p>
-                  <p>Please ensure you have sales data for the selected product and try generating the forecast again.</p>
-                  <p style="font-size: 0.9rem; margin-top: 10px; color: #999;">The forecast requires historical sales transactions to generate accurate predictions.</p>
+                <div style="padding: 20px;">
+                  <div style="background: #fee2e2; border-left: 4px solid #e53e3e; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 8px 0; color: #991b1b; font-size: 1rem;">⚠️ Forecast data is incomplete</h4>
+                    <p style="margin: 0; color: #991b1b;">
+                      The forecast could not be generated because there is insufficient data. The forecast requires historical sales transactions to generate accurate predictions.
+                    </p>
+                  </div>
+                  <div style="background: #e8f5e9; padding: 16px; border-radius: 8px; border-left: 4px solid #1a365d;">
+                    <h4 style="margin: 0 0 8px 0; color: #1a365d; font-size: 1rem;">💡 What You Can Do</h4>
+                    <ul style="margin: 8px 0 0 20px; color: #374151;">
+                      <li>Ensure you have recorded sales transactions for the selected product</li>
+                      <li>Wait for at least 7-14 days of sales data to build a reliable forecast</li>
+                      <li>Try selecting a different product that has more sales history</li>
+                      <li>Check that sales are being recorded correctly in the Sales page</li>
+                    </ul>
+                  </div>
                 </div>
               `;
               document.getElementById('forecast-information').style.display = 'block';
