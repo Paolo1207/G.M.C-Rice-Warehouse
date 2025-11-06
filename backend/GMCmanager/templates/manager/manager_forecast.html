@@ -283,6 +283,14 @@
               <tbody id="forecastTableBody"></tbody>
             </table>
           </div>
+
+          <!-- Forecast Information & Stock Preparation Guide -->
+          <div class="glass-card" id="forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
+              📖 Forecast Interpretation & Stock Preparation Guide
+            </h3>
+            <div id="forecast-information-content"></div>
+          </div>
         </div>
 
         <!-- Price Forecast Tab -->
@@ -919,6 +927,9 @@
               summary: data.summary,
               details: data.details || []
             });
+            
+            // Display detailed forecast information with branch inventory
+            await displayForecastInformation(data, branchId, productId);
             filtersDirty = false;
           } else {
             console.error('API Error:', data.error);
@@ -1394,6 +1405,203 @@
       } catch (error) {
         console.error('Export error:', error);
         showToast('Error exporting risk report', 'error');
+      }
+    }
+
+    // Display detailed forecast information and stock preparation guide for manager
+    async function displayForecastInformation(forecastData, branchId, productId) {
+      try {
+        // Get forecast values from the API response - handle different response formats
+        let forecastValues = [];
+        let summary = {};
+        let modelType = 'ARIMA';
+        
+        // Try different possible structures
+        if (forecastData.forecast) {
+          if (Array.isArray(forecastData.forecast.forecast)) {
+            forecastValues = forecastData.forecast.forecast;
+          } else if (Array.isArray(forecastData.forecast.forecast_values)) {
+            forecastValues = forecastData.forecast.forecast_values;
+          } else if (Array.isArray(forecastData.forecast)) {
+            forecastValues = forecastData.forecast;
+          }
+          modelType = forecastData.forecast.model_type || 'ARIMA';
+        }
+        
+        // If forecast is directly in forecastData
+        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values)) {
+          forecastValues = forecastData.forecast_values;
+        }
+        
+        summary = forecastData.summary || {};
+        
+        if (!forecastValues || forecastValues.length === 0) {
+          console.log('No forecast values to display');
+          return;
+        }
+        
+        // Fetch current inventory for this branch and product
+        let currentStock = 0;
+        let productName = 'Unknown Product';
+        
+        try {
+          const branchIdParam = branchId || MANAGER_BRANCH_ID;
+          const inventoryUrl = '/manager/api/inventory' + (branchIdParam ? `?branch_id=${branchIdParam}` : '');
+          const inventoryResponse = await fetch(inventoryUrl);
+          const inventoryData = await inventoryResponse.json().catch(() => ({ items: [] }));
+          
+          if (inventoryData.ok && inventoryData.items) {
+            // Find the specific product if productId is provided
+            const productItem = productId 
+              ? inventoryData.items.find(item => item.product_id == productId || item.id == productId)
+              : inventoryData.items[0];
+            
+            if (productItem) {
+              currentStock = productItem.stock_kg || productItem.stock || 0;
+              productName = productItem.product_name || productItem.name || 'Unknown Product';
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching inventory:', error);
+        }
+        
+        const branchName = MANAGER_BRANCH_NAME || 'Your Branch';
+        
+        // Calculate forecast statistics
+        const avgDailyDemand = forecastValues.length > 0 
+          ? forecastValues.reduce((a, b) => a + b, 0) / forecastValues.length 
+          : 0;
+        const totalForecast = forecastValues.reduce((a, b) => a + b, 0);
+        const maxDailyDemand = Math.max(...forecastValues);
+        const minDailyDemand = Math.min(...forecastValues);
+        const forecastDays = forecastValues.length;
+        
+        // Calculate stock recommendations
+        const recommendedStock = Math.ceil(totalForecast * 1.2); // 20% buffer
+        const stockShortage = recommendedStock - currentStock;
+        const daysOfStock = currentStock > 0 && avgDailyDemand > 0 
+          ? Math.floor(currentStock / avgDailyDemand) 
+          : 0;
+        
+        // Determine stock status
+        let stockStatus = 'good';
+        let stockStatusText = 'Adequate';
+        let stockStatusColor = '#1a365d';
+        if (stockShortage > 0) {
+          stockStatus = stockShortage > totalForecast * 0.5 ? 'critical' : 'warning';
+          stockStatusText = stockShortage > totalForecast * 0.5 ? 'Critical Shortage' : 'Low Stock';
+          stockStatusColor = stockShortage > totalForecast * 0.5 ? '#e53e3e' : '#f59e0b';
+        }
+        
+        // Get accuracy score if available
+        const accuracyScore = summary.accuracy_score || forecastData.forecast?.accuracy_score || 0.75;
+        
+        const infoContent = document.getElementById('forecast-information-content');
+        infoContent.innerHTML = `
+          <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+            <!-- What the Forecast Means -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #1a365d;">
+              <h4 style="margin: 0 0 12px 0; color: #1a365d; font-size: 1.1rem; font-weight: 700;">
+                📊 What This Forecast Means
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <p style="margin: 0 0 12px 0;">
+                  <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> for <strong>${productName}</strong> at <strong>${branchName}</strong>, based on historical sales data analyzed using the <strong>${modelType}</strong> model.
+                </p>
+                <p style="margin: 0 0 12px 0;">
+                  <strong>How it works:</strong> The system analyzes your branch's past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
+                </p>
+                <p style="margin: 0;">
+                  <strong>Model accuracy:</strong> This forecast has an accuracy of <strong>${(accuracyScore * 100).toFixed(1)}%</strong>, meaning the predictions are reliable for planning your inventory needs.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Stock Preparation Recommendations -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${stockStatusColor};">
+              <h4 style="margin: 0 0 12px 0; color: ${stockStatusColor}; font-size: 1.1rem; font-weight: 700;">
+                📦 Stock Preparation Recommendations for ${branchName}
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Current Stock</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">${currentStock.toFixed(2)} kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Forecasted Demand</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">${totalForecast.toFixed(2)} kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Recommended Stock</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">${recommendedStock.toFixed(2)} kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Stock Status</strong>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: ${stockStatusColor};">${stockStatusText}</div>
+                  </div>
+                </div>
+                
+                ${stockShortage > 0 ? `
+                  <div style="background: ${stockStatusColor === '#e53e3e' ? 'rgba(229, 62, 62, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid ${stockStatusColor};">
+                    <strong style="color: ${stockStatusColor}; display: block; margin-bottom: 8px;">⚠️ Action Required</strong>
+                    <p style="margin: 0; color: #374151;">
+                      You need to restock <strong>${stockShortage.toFixed(2)} kg</strong> of ${productName} to meet the forecasted demand with a 20% safety buffer. 
+                      Current stock will only last approximately <strong>${daysOfStock} days</strong> at average demand. Consider placing a purchase order soon.
+                    </p>
+                  </div>
+                ` : `
+                  <div style="background: rgba(26, 54, 93, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #1a365d;">
+                    <strong style="color: #1a365d; display: block; margin-bottom: 8px;">✅ Stock Level Adequate</strong>
+                    <p style="margin: 0; color: #374151;">
+                      Current stock for ${productName} is sufficient to meet forecasted demand. Monitor daily sales and replenish when stock falls below recommended levels.
+                    </p>
+                  </div>
+                `}
+                
+                <div style="background: #e8f5e9; padding: 16px; border-radius: 8px;">
+                  <strong style="color: #1a365d; display: block; margin-bottom: 8px;">💡 Stock Preparation Strategy for ${branchName}</strong>
+                  <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #374151;">
+                    <li style="margin-bottom: 8px;">Prepare <strong>${recommendedStock.toFixed(2)} kg</strong> total stock of ${productName} to cover the next ${forecastDays} days</li>
+                    <li style="margin-bottom: 8px;">Plan for peak daily demand of <strong>${maxDailyDemand.toFixed(2)} kg</strong> (highest predicted day)</li>
+                    <li style="margin-bottom: 8px;">Maintain minimum daily stock of <strong>${Math.ceil(maxDailyDemand * 3)} kg</strong> (3 days of peak demand as safety buffer)</li>
+                    <li style="margin-bottom: 0;">Schedule restock orders when stock falls below <strong>${Math.ceil(avgDailyDemand * 7)} kg</strong> (1 week of average demand)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Forecast Details -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6;">
+              <h4 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
+                📈 Forecast Details for ${productName}
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; color: #374151;">
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Average Daily Demand</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${avgDailyDemand.toFixed(2)} kg/day</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Peak Daily Demand</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${maxDailyDemand.toFixed(2)} kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Minimum Daily Demand</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${minDailyDemand.toFixed(2)} kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Model Accuracy</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${(accuracyScore * 100).toFixed(1)}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Show the information section
+        document.getElementById('forecast-information').style.display = 'block';
+      } catch (error) {
+        console.error('Error displaying forecast information:', error);
       }
     }
 
