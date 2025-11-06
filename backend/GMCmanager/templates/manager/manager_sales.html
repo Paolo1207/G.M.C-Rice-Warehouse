@@ -198,6 +198,8 @@
             const endDateInput = document.getElementById('endDate');
             if (startDateInput) startDateInput.value = today;
             if (endDateInput) endDateInput.value = today;
+            // Automatically refresh data when custom range is selected
+            setTimeout(() => loadAll(), 100); // Small delay to ensure dates are set
           } else {
             custom.style.display = 'none';
             loadAll();
@@ -207,15 +209,25 @@
         // Add event listeners for custom date inputs
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
+        
+        const refreshOnDateChange = () => {
+          if (dateRange.value === 'custom') {
+            // Check if both dates are set before refreshing
+            const startVal = startDateInput?.value;
+            const endVal = endDateInput?.value;
+            if (startVal && endVal) {
+              loadAll();
+            }
+          }
+        };
+        
         if (startDateInput) {
-          startDateInput.addEventListener('change', function() {
-            if (dateRange.value === 'custom') loadAll();
-          });
+          startDateInput.addEventListener('change', refreshOnDateChange);
+          startDateInput.addEventListener('input', refreshOnDateChange);
         }
         if (endDateInput) {
-          endDateInput.addEventListener('change', function() {
-            if (dateRange.value === 'custom') loadAll();
-          });
+          endDateInput.addEventListener('change', refreshOnDateChange);
+          endDateInput.addEventListener('input', refreshOnDateChange);
         }
 
         hydrateProducts();
