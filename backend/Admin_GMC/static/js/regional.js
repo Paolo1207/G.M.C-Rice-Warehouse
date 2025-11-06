@@ -133,7 +133,7 @@ class RegionalInsights {
     /**
      * Handle filter changes with debouncing
      */
-    handleFilterChange(selectId, value) {
+    async handleFilterChange(selectId, value) {
         // Clear existing timer
         if (this.debounceTimer) {
             clearTimeout(this.debounceTimer);
@@ -143,6 +143,8 @@ class RegionalInsights {
         const filterKey = selectId.replace('-select', '');
         if (filterKey === 'region') {
             this.filters.branch = value;
+            // When branch changes, update product dropdown to show only products in that branch
+            await this.updateProductsForBranch(value);
         } else {
             this.filters[filterKey] = value;
         }
@@ -158,6 +160,75 @@ class RegionalInsights {
         this.debounceTimer = setTimeout(() => {
             this.loadAllData();
         }, 300);
+    }
+    
+    /**
+     * Update product dropdown based on selected branch
+     */
+    async updateProductsForBranch(branchName) {
+        const productSelect = document.getElementById('product-select');
+        if (!productSelect) return;
+        
+        // If "All Branches" is selected, show all products
+        if (branchName === 'all') {
+            // Reload all products from catalog
+            try {
+                const response = await fetch('/admin/api/catalog');
+                const data = await response.json();
+                if (data.ok && data.products) {
+                    productSelect.innerHTML = '<option value="all">All Products</option>';
+                    data.products.forEach(product => {
+                        const option = document.createElement('option');
+                        option.value = product;
+                        option.textContent = product;
+                        productSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading all products:', error);
+            }
+            return;
+        }
+        
+        // Load products for the specific branch
+        try {
+            const response = await fetch(`/admin/api/products/branch?branch_name=${encodeURIComponent(branchName)}`);
+            const data = await response.json();
+            
+            if (data.ok && data.items) {
+                // Get unique product names from the branch's inventory
+                const productNames = new Set();
+                data.items.forEach(item => {
+                    if (item.product_name) {
+                        productNames.add(item.product_name);
+                    }
+                });
+                
+                // Update product dropdown
+                productSelect.innerHTML = '<option value="all">All Products</option>';
+                const sortedProducts = Array.from(productNames).sort();
+                sortedProducts.forEach(productName => {
+                    const option = document.createElement('option');
+                    option.value = productName;
+                    option.textContent = productName;
+                    productSelect.appendChild(option);
+                });
+                
+                // Reset product filter to "all" when branch changes
+                productSelect.value = 'all';
+                this.filters.product = 'all';
+                
+                console.log(`Updated product dropdown for branch "${branchName}": ${sortedProducts.length} products`);
+            } else {
+                console.error('Failed to load products for branch:', data.error);
+                // Show empty state
+                productSelect.innerHTML = '<option value="all">All Products</option>';
+            }
+        } catch (error) {
+            console.error('Error loading products for branch:', error);
+            // Show empty state on error
+            productSelect.innerHTML = '<option value="all">All Products</option>';
+        }
     }
     
     /**
