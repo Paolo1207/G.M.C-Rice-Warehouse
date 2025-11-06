@@ -281,7 +281,10 @@
         const j = await fetch('/admin/api/sales/kpis?'+queryParams()).then(r=>r.json());
         if (!j.ok) return;
         const unitsSoldEl = document.querySelector('.overview-card:nth-child(1) .number');
-        if (unitsSoldEl) unitsSoldEl.textContent = Number(j.kpis.units_sold||0).toLocaleString();
+        if (unitsSoldEl) {
+          const units = Number(j.kpis.units_sold||0);
+          unitsSoldEl.textContent = `${units.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
+        }
         
         // Get total price of purchase from sales API (which returns totals.amount)
         const salesData = await fetch('/admin/api/sales?'+queryParams()).then(r=>r.json());
@@ -363,7 +366,10 @@
     function updateOverviewCards(data) {
       try {
         const total = data.reduce((s, r) => s + r.quantity, 0);
-        document.querySelector('.overview-card:nth-child(1) .number').textContent = total.toLocaleString();
+        const unitsSoldEl = document.querySelector('.overview-card:nth-child(1) .number');
+        if (unitsSoldEl) {
+          unitsSoldEl.textContent = `${total.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
+        }
 
         const days = new Set(data.map(x => x.saleDate)).size || 1;
         document.querySelector('.overview-card:nth-child(2) .number').textContent = Math.round(total / days).toLocaleString();
