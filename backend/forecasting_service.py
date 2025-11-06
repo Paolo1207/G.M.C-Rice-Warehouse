@@ -324,18 +324,39 @@ def rf_forecast(df, horizon):
         import numpy as np
         from sklearn.ensemble import RandomForestRegressor
         
-        # Create features with lags and rolling means
-        data = df.copy()
+        # Convert Series to DataFrame if needed
+        if isinstance(df, pd.Series):
+            data = pd.DataFrame({'value': df})
+            target_col_name = 'value'
+        else:
+            data = df.copy()
+            # If DataFrame, use first numeric column as target
+            numeric_cols = data.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) == 0:
+                raise ValueError("No numeric columns found in input data")
+            target_col_name = numeric_cols[0]
+            # Keep only numeric columns
+            data = data[numeric_cols]
+        
+        # Ensure data is not empty
+        if data.empty or len(data) == 0:
+            raise ValueError("Empty data provided to RF forecast")
+        
+        # Ensure target column is numeric
+        if not pd.api.types.is_numeric_dtype(data[target_col_name]):
+            data[target_col_name] = pd.to_numeric(data[target_col_name], errors='coerce')
+            data = data.dropna()
         
         # Add lag features
         for lag in [1, 2, 3, 7, 14, 28]:
-            data[f'lag_{lag}'] = data.shift(lag)
+            if len(data) > lag:
+                data[f'lag_{lag}'] = data[target_col_name].shift(lag)
         
         # Add rolling mean features
-        data['rolling_7'] = data.rolling(window=7, min_periods=1).mean()
-        data['rolling_14'] = data.rolling(window=14, min_periods=1).mean()
+        data['rolling_7'] = data[target_col_name].rolling(window=7, min_periods=1).mean()
+        data['rolling_14'] = data[target_col_name].rolling(window=14, min_periods=1).mean()
         
-        # Ensure we have numeric data
+        # Ensure we have numeric data (select only numeric columns)
         data = data.select_dtypes(include=[np.number])
         
         # Remove rows with NaN values
@@ -343,8 +364,16 @@ def rf_forecast(df, horizon):
         
         if len(data) < 10:  # Need sufficient data for RF
             # Fallback to simple forecast
-            last_value = df.iloc[-1] if not df.empty else 20
-            forecast_values = [max(0, last_value + np.random.normal(0, last_value * 0.1)) for _ in range(horizon)]
+            try:
+                if isinstance(df, pd.Series):
+                    last_value = float(df.iloc[-1]) if len(df) > 0 else 20.0
+                else:
+                    # Get last value from target column
+                    last_value = float(data[target_col_name].iloc[-1]) if len(data) > 0 else 20.0
+            except (IndexError, KeyError, ValueError):
+                last_value = 20.0
+            
+            forecast_values = [max(0.0, last_value + np.random.normal(0, last_value * 0.1)) for _ in range(horizon)]
             return {
                 "forecast_values": forecast_values,
                 "confidence_lower": None,
@@ -355,9 +384,14 @@ def rf_forecast(df, horizon):
         
         # Prepare features and target
         if len(data.columns) == 0:
-            raise ValueError("No numeric columns found in data")
-            
-        target_col = data.columns[0]  # First column is target
+            raise ValueError("No numeric columns found in data after feature engineering")
+        
+        # Use the original target column name if it exists, otherwise use first column
+        if target_col_name in data.columns:
+            target_col = target_col_name
+        else:
+            target_col = data.columns[0]  # First column is target
+        
         feature_cols = [col for col in data.columns if col != target_col]  # All except target
         
         if len(feature_cols) == 0:
@@ -413,9 +447,23 @@ def rf_forecast(df, horizon):
         
     except Exception as e:
         print(f"RF forecast error: {e}")
+        import traceback
+        traceback.print_exc()
         # Fallback
-        last_value = df.iloc[-1] if not df.empty else 20
-        forecast_values = [max(0, last_value + np.random.normal(0, last_value * 0.1)) for _ in range(horizon)]
+        try:
+            if isinstance(df, pd.Series):
+                last_value = float(df.iloc[-1]) if len(df) > 0 else 20.0
+            else:
+                # Try to get last numeric value
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    last_value = float(df[numeric_cols[0]].iloc[-1]) if len(df) > 0 else 20.0
+                else:
+                    last_value = 20.0
+        except (IndexError, KeyError, ValueError, AttributeError):
+            last_value = 20.0
+        
+        forecast_values = [max(0.0, last_value + np.random.normal(0, abs(last_value) * 0.1)) for _ in range(horizon)]
         return {
             "forecast_values": forecast_values,
             "confidence_lower": None,
