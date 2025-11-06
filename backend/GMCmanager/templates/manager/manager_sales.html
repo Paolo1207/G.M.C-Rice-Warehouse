@@ -95,7 +95,7 @@
             <div class="card-icon success"><i class="fas fa-money-bill-wave"></i></div>
             <div class="card-content">
               <h3>Total Price of Purchase</h3>
-              <p class="number">₱0</p>
+              <p class="number" id="totalPriceDisplay" style="opacity: 0;">--</p>
               <p class="trend positive">Total purchase amount</p>
             </div>
           </div>
@@ -280,26 +280,46 @@
         // Get total units sold from KPIs
         const j = await fetch('/admin/api/sales/kpis?'+queryParams()).then(r=>r.json());
         if (!j.ok) return;
-        document.querySelector('.overview-card:nth-child(1) .number').textContent = Number(j.kpis.units_sold||0).toLocaleString();
+        const unitsSoldEl = document.querySelector('.overview-card:nth-child(1) .number');
+        if (unitsSoldEl) unitsSoldEl.textContent = Number(j.kpis.units_sold||0).toLocaleString();
         
         // Get total price of purchase from sales API (which returns totals.amount)
         const salesData = await fetch('/admin/api/sales?'+queryParams()).then(r=>r.json());
-        if (salesData.ok && salesData.totals) {
-          const totalPrice = Number(salesData.totals.amount || 0);
-          document.querySelector('.overview-card:nth-child(2) .number').textContent = `₱${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        } else {
-          // Fallback to KPIs month_sales if available
-          const totalPrice = Number(j.kpis.month_sales || 0);
-          document.querySelector('.overview-card:nth-child(2) .number').textContent = `₱${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        const totalPriceEl = document.getElementById('totalPriceDisplay') || document.querySelector('.overview-card:nth-child(2) .number');
+        
+        if (totalPriceEl) {
+          let totalPrice = 0;
+          if (salesData.ok && salesData.totals) {
+            totalPrice = Number(salesData.totals.amount || 0);
+          } else if (j.kpis && j.kpis.month_sales) {
+            // Fallback to KPIs month_sales if available
+            totalPrice = Number(j.kpis.month_sales || 0);
+          }
+          
+          // Update with fade-in effect to prevent glitch
+          totalPriceEl.textContent = `₱${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+          // Fade in smoothly
+          totalPriceEl.style.transition = 'opacity 0.3s ease-in';
+          totalPriceEl.style.opacity = '1';
         }
         
         // Get top selling product
         const tp = await fetch('/admin/api/sales/top_products?'+queryParams()).then(r=>r.json());
         if ((tp.rows||[])[0]){
-          document.querySelector('.overview-card:nth-child(3) .product').textContent = tp.rows[0].name;
-          document.querySelector('.overview-card:nth-child(3) .quantity').textContent = `${Number(tp.rows[0].quantity||0).toLocaleString()} units`;
+          const productEl = document.querySelector('.overview-card:nth-child(3) .product');
+          const quantityEl = document.querySelector('.overview-card:nth-child(3) .quantity');
+          if (productEl) productEl.textContent = tp.rows[0].name;
+          if (quantityEl) quantityEl.textContent = `${Number(tp.rows[0].quantity||0).toLocaleString()} units`;
         }
-      }catch(e){ console.error('kpis',e); }
+      }catch(e){ 
+        console.error('kpis',e);
+        // Show error state
+        const totalPriceEl = document.getElementById('totalPriceDisplay') || document.querySelector('.overview-card:nth-child(2) .number');
+        if (totalPriceEl) {
+          totalPriceEl.textContent = '₱0.00';
+          totalPriceEl.style.opacity = '1';
+        }
+      }
     }
 
     async function loadTrend(){
