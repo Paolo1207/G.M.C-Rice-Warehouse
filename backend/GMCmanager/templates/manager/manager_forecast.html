@@ -1411,38 +1411,76 @@
     // Display detailed forecast information and stock preparation guide for manager
     async function displayForecastInformation(forecastData, branchId, productId) {
       try {
-        // Get forecast values from the API response - handle different response formats
+        console.log('DEBUG displayForecastInformation: Received data:', forecastData);
+        
+        // Get forecast values from the API response - handle manager API structure
         let forecastValues = [];
         let summary = {};
         let modelType = 'ARIMA';
         
-        // Try different possible structures
+        // Manager API returns: { forecast: { labels: [], forecast: [], actual: [] }, summary: {}, details: [] }
         if (forecastData.forecast) {
+          // Check for forecast.forecast array (manager API format)
           if (Array.isArray(forecastData.forecast.forecast)) {
             forecastValues = forecastData.forecast.forecast;
-          } else if (Array.isArray(forecastData.forecast.forecast_values)) {
+            console.log('DEBUG: Found forecast.forecast array with', forecastValues.length, 'values');
+          } 
+          // Check for forecast.forecast_values array
+          else if (Array.isArray(forecastData.forecast.forecast_values)) {
             forecastValues = forecastData.forecast.forecast_values;
-          } else if (Array.isArray(forecastData.forecast)) {
-            forecastValues = forecastData.forecast;
+            console.log('DEBUG: Found forecast.forecast_values array with', forecastValues.length, 'values');
           }
-          modelType = forecastData.forecast.model_type || 'ARIMA';
+          // Check if forecast itself is an array
+          else if (Array.isArray(forecastData.forecast)) {
+            forecastValues = forecastData.forecast;
+            console.log('DEBUG: Found forecast as array with', forecastValues.length, 'values');
+          }
+          
+          // Get model type
+          modelType = forecastData.forecast.model_type || forecastData.model_info?.type || 'ARIMA';
+        }
+        
+        // Try details array if forecast array is empty
+        if (forecastValues.length === 0 && Array.isArray(forecastData.details) && forecastData.details.length > 0) {
+          // Extract predicted_demand from details
+          forecastValues = forecastData.details.map(item => item.predicted_demand || 0);
+          console.log('DEBUG: Extracted forecast values from details array:', forecastValues.length);
         }
         
         // If forecast is directly in forecastData
         if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values)) {
           forecastValues = forecastData.forecast_values;
+          console.log('DEBUG: Found forecast_values directly:', forecastValues.length);
         }
         
         summary = forecastData.summary || {};
         
+        console.log('DEBUG: Final forecastValues length:', forecastValues.length);
+        
         if (!forecastValues || forecastValues.length === 0) {
-          console.log('No forecast values to display');
+          console.warn('No forecast values to display. Data structure:', Object.keys(forecastData));
+          // Try to show a message to the user
+          const infoContent = document.getElementById('forecast-information-content');
+          if (infoContent) {
+            infoContent.innerHTML = `
+              <div style="padding: 20px; text-align: center; color: #666;">
+                <p>Forecast data is being processed. Please wait a moment and try generating the forecast again.</p>
+                <p style="font-size: 0.9rem; margin-top: 10px;">If the issue persists, ensure you have sales data for the selected product.</p>
+              </div>
+            `;
+            document.getElementById('forecast-information').style.display = 'block';
+          }
           return;
+        }
+        
+        // Get product name from details if available
+        let productName = 'Unknown Product';
+        if (Array.isArray(forecastData.details) && forecastData.details.length > 0) {
+          productName = forecastData.details[0].product_name || 'Unknown Product';
         }
         
         // Fetch current inventory for this branch and product
         let currentStock = 0;
-        let productName = 'Unknown Product';
         
         try {
           const branchIdParam = branchId || MANAGER_BRANCH_ID;
@@ -1454,11 +1492,14 @@
             // Find the specific product if productId is provided
             const productItem = productId 
               ? inventoryData.items.find(item => item.product_id == productId || item.id == productId)
-              : inventoryData.items[0];
+              : inventoryData.items.find(item => (item.product_name || item.name) === productName) || inventoryData.items[0];
             
             if (productItem) {
               currentStock = productItem.stock_kg || productItem.stock || 0;
-              productName = productItem.product_name || productItem.name || 'Unknown Product';
+              // Update product name if we found it in inventory
+              if (!productName || productName === 'Unknown Product') {
+                productName = productItem.product_name || productItem.name || 'Unknown Product';
+              }
             }
           }
         } catch (error) {
