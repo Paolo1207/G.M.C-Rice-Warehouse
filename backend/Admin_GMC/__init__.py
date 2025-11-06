@@ -1243,13 +1243,25 @@ def api_sales_list():
 def api_sales_kpis():
     """Return month sales, units sold, avg order value for date window."""
     from sqlalchemy import func, and_
-    days = request.args.get('days', 30, type=int)
+    days = request.args.get('days', type=int)
     branch_id = request.args.get('branch_id', type=int)
+    product_id = request.args.get('product_id', type=int)
+    to = request.args.get('to')
+    frm = request.args.get('from')
+    
     end = datetime.utcnow()
-    start = end - timedelta(days=days)
+    if to:
+        try: end = datetime.strptime(to, '%Y-%m-%d')
+        except: pass
+    start = end - timedelta(days=days or 30)
+    if frm:
+        try: start = datetime.strptime(frm, '%Y-%m-%d')
+        except: pass
+    
     q = db.session.query(func.sum(SalesTransaction.total_amount), func.sum(SalesTransaction.quantity_sold), func.count(SalesTransaction.id))
     q = q.filter(and_(SalesTransaction.transaction_date >= start, SalesTransaction.transaction_date <= end))
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
+    if product_id: q = q.filter(SalesTransaction.product_id == product_id)
     amt, qty, orders = q.first()
     avg = (float(amt or 0) / orders) if orders else 0
     return jsonify({"ok": True, "kpis": {"month_sales": float(amt or 0), "units_sold": float(qty or 0), "avg_order_value": round(avg,2)}})
@@ -1258,11 +1270,20 @@ def api_sales_kpis():
 def api_sales_trend():
     from sqlalchemy import func, and_
     granularity = request.args.get('granularity', 'daily')
-    days = request.args.get('days', 90, type=int)  # Changed default from 30 to 90 days
+    days = request.args.get('days', type=int)
     branch_id = request.args.get('branch_id', type=int)
     product_id = request.args.get('product_id', type=int)
+    to = request.args.get('to')
+    frm = request.args.get('from')
+    
     end = datetime.utcnow().date()
-    start = end - timedelta(days=days)
+    if to:
+        try: end = datetime.strptime(to, '%Y-%m-%d').date()
+        except: pass
+    start = end - timedelta(days=days or 90)
+    if frm:
+        try: start = datetime.strptime(frm, '%Y-%m-%d').date()
+        except: pass
     if granularity == 'daily':
         date_expr = func.date(SalesTransaction.transaction_date)
     elif granularity == 'week':
@@ -1299,15 +1320,26 @@ def api_sales_trend():
 def api_sales_top_products():
     from sqlalchemy import func, and_
     from models import Product, InventoryItem
-    days = request.args.get('days', 30, type=int)
+    days = request.args.get('days', type=int)
     branch_id = request.args.get('branch_id', type=int)
+    product_id = request.args.get('product_id', type=int)
+    to = request.args.get('to')
+    frm = request.args.get('from')
+    
     end = datetime.utcnow()
-    start = end - timedelta(days=days)
+    if to:
+        try: end = datetime.strptime(to, '%Y-%m-%d')
+        except: pass
+    start = end - timedelta(days=days or 30)
+    if frm:
+        try: start = datetime.strptime(frm, '%Y-%m-%d')
+        except: pass
     # Total sold and sales revenue
     q = db.session.query(Product.id, Product.name, func.sum(SalesTransaction.quantity_sold).label('qty'), func.sum(SalesTransaction.total_amount).label('amt'))
     q = q.join(Product, Product.id == SalesTransaction.product_id)
     q = q.filter(and_(SalesTransaction.transaction_date >= start, SalesTransaction.transaction_date <= end))
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
+    if product_id: q = q.filter(SalesTransaction.product_id == product_id)
     q = q.group_by(Product.id, Product.name).order_by(func.sum(SalesTransaction.quantity_sold).desc()).limit(10)
     rows = q.all()
 
