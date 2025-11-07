@@ -1645,17 +1645,17 @@
 
     // Display detailed price forecast information and pricing strategy guide
     async function displayPriceForecastInformation(priceData, branchId, productId) {
+      // Declare infoSection outside try-catch so it's accessible in both blocks
+      const infoSection = document.getElementById('price-forecast-information');
+      if (!infoSection) {
+        console.error('Price forecast information section not found');
+        return;
+      }
+      
       try {
         const priceForecast = priceData.price_forecast || [];
         const priceInsights = priceData.price_insights || {};
         const modelInfo = priceData.model_info || {};
-        
-        // Always show the information section, even if data is incomplete
-        const infoSection = document.getElementById('price-forecast-information');
-        if (!infoSection) {
-          console.error('Price forecast information section not found');
-          return;
-        }
         
         if (!priceForecast || priceForecast.length === 0) {
           // Show message for no data
@@ -1859,7 +1859,7 @@
         }
       } catch (error) {
         console.error('Error displaying price forecast information:', error);
-        // Show error message in the section (infoSection already declared at top of function)
+        // Show error message in the section
         const infoContent = document.getElementById('price-forecast-information-content');
         if (infoSection && infoContent) {
           infoContent.innerHTML = `
