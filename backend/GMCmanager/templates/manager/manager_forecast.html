@@ -1416,8 +1416,36 @@
         
         summary = forecastData.summary || {};
         
+        // If no forecast values from API, try to extract from chart data
         if (!forecastValues || forecastValues.length === 0) {
-          console.log('No forecast values to display');
+          console.log('No forecast values from API, trying to extract from chart...');
+          if (demandChart && demandChart.data && demandChart.data.datasets) {
+            const forecastDataset = demandChart.data.datasets.find(ds => ds.label === 'Forecast' || ds.label === 'forecast');
+            if (forecastDataset && forecastDataset.data && forecastDataset.data.length > 0) {
+              forecastValues = forecastDataset.data.filter(v => v !== null && v !== undefined);
+              console.log('Extracted forecast values from chart:', forecastValues.length);
+            }
+          }
+        }
+        
+        // If still no values, show a message but still display the section
+        if (!forecastValues || forecastValues.length === 0) {
+          console.log('No forecast values available - showing empty state');
+          const infoContent = document.getElementById('forecast-information-content');
+          const infoSection = document.getElementById('forecast-information');
+          if (infoContent && infoSection) {
+            infoContent.innerHTML = `
+              <div style="background: #fef3c7; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                <h4 style="margin: 0 0 12px 0; color: #f59e0b; font-size: 1.1rem; font-weight: 700;">
+                  ⚠️ Forecast Data Not Available
+                </h4>
+                <p style="margin: 0; color: #374151;">
+                  Unable to extract forecast values. Please try generating the forecast again.
+                </p>
+              </div>
+            `;
+            infoSection.style.display = 'block';
+          }
           return;
         }
         
@@ -1579,8 +1607,19 @@
           </div>
         `;
         
-        // Show the information section
-        document.getElementById('forecast-information').style.display = 'block';
+        // Show the information section immediately
+        const forecastInfoSection = document.getElementById('forecast-information');
+        if (forecastInfoSection) {
+          forecastInfoSection.style.display = 'block';
+          console.log('DEBUG: Forecast information section displayed');
+          
+          // Scroll into view after a short delay
+          setTimeout(() => {
+            forecastInfoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 200);
+        } else {
+          console.error('DEBUG: Forecast information section element not found');
+        }
       } catch (error) {
         console.error('Error displaying forecast information:', error);
       }
