@@ -224,6 +224,9 @@
         <div style="margin-left:auto; display:flex; gap:8px;">
           <button class="action-btn add-stock-btn" id="addStockBtn">Add Stock</button>
           <button class="action-btn export-btn" id="exportInvBtn">Export</button>
+          <button class="action-btn print-btn" id="printInvBtn" title="Print with preview">
+            <i class="fas fa-print"></i> Print
+          </button>
         </div>
       </div>
     </div>
@@ -826,10 +829,23 @@ function renderLog(onlyVariant=null){
     ? ""
     : `<tr><td colspan="6" style="text-align:center;opacity:.7;">No log entries yet.</td></tr>`;
 
+  // Format date helper for display
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   rows.forEach(l=>{
     const tr = document.createElement("tr");
+    const displayDate = formatDateForDisplay(l.date || l.datetime);
     tr.innerHTML = `
-      <td>${l.date}</td>
+      <td>${displayDate}</td>
       <td>${l.variant}</td>
       <td>${l.batch_code || l.batch || ""}</td>
       <td>${Number(l.qty).toLocaleString()}</td>
@@ -851,6 +867,7 @@ document.getElementById("addStockBtn").addEventListener("click", ()=>{
   showModal(addProductModal);
 });
 document.getElementById("exportInvBtn").addEventListener("click", exportCSV);
+document.getElementById("printInvBtn").addEventListener("click", showPrintPreview);
 
 /* =========================================================
    CREATE -> POST to Flask, then refresh
@@ -1306,7 +1323,7 @@ restockForm.addEventListener("submit", async (e)=>{
 });
 
 /* =========================================================
-   EXPORT CSV
+   EXPORT CSV (with proper date formatting)
 ========================================================= */
 function exportCSV(){
   if (!currentBranch) return;
@@ -1314,12 +1331,44 @@ function exportCSV(){
   const q  = currentFilter.variant.trim().toLowerCase();
   const s  = currentFilter.status;
 
-  const rows = [["Variant","Stock(kg)","Price","Status","Batch"]];
+  // Format date helper - ensures YYYY-MM-DD format
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr; // Return as-is if invalid
+      return d.toISOString().split('T')[0]; // YYYY-MM-DD
+    } catch (e) {
+      return dateStr; // Return as-is if error
+    }
+  };
+
+  // Export inventory items
+  const rows = [["Variant","Stock(kg)","Price","Status","Batch Code","Last Updated"]];
   br.items.forEach(it=>{
     const ok = (!q || it.variant.toLowerCase().includes(q)) && (s === "all" || s === it.status);
     if (!ok) return;
-    rows.push([it.variant, it.stock, it.price, it.status, it.batch || ""]);
+    const lastUpdated = it.lastUpdated ? formatDate(it.lastUpdated) : "";
+    rows.push([it.variant, it.stock, it.price, it.status, it.batch || "", lastUpdated]);
   });
+
+  // Add restock logs section if available
+  if (br.logs && br.logs.length > 0) {
+    rows.push([]); // Empty row separator
+    rows.push(["Restock Log"]);
+    rows.push(["Date","Variant","Batch Code","Quantity(kg)","By","Note"]);
+    br.logs.forEach(log => {
+      const logDate = formatDate(log.date || log.datetime);
+      rows.push([
+        logDate,
+        log.variant || "",
+        log.batch_code || "",
+        log.qty || 0,
+        log.created_by || log.by || "Admin",
+        log.note || "Restock"
+      ]);
+    });
+  }
 
   const csv = rows.map(r => r.map(v => {
     const str = String(v ?? "");
@@ -1330,11 +1379,259 @@ function exportCSV(){
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement("a");
   a.href = url;
-  a.download = `${currentBranch.replace(/\s+/g,'_').toLowerCase()}_inventory.csv`;
+  a.download = `${currentBranch.replace(/\s+/g,'_').toLowerCase()}_inventory_${new Date().toISOString().split('T')[0]}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/* =========================================================
+   PRINT PREVIEW & PRINT
+========================================================= */
+function showPrintPreview(){
+  if (!currentBranch) return;
+  const br = BRANCH_DATA[currentBranch];
+  const q  = currentFilter.variant.trim().toLowerCase();
+  const s  = currentFilter.status;
+
+  // Format date helper
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // Filter items
+  const filteredItems = br.items.filter(it => {
+    const matchVariant = !q || it.variant.toLowerCase().includes(q);
+    const matchStatus = s === "all" || s === it.status;
+    return matchVariant && matchStatus;
+  });
+
+  // Build print HTML
+  const printDate = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  let printHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${currentBranch} - Inventory Report</title>
+      <style>
+        @media print {
+          @page { margin: 1cm; }
+          body { margin: 0; }
+          .no-print { display: none !important; }
+        }
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          color: #333;
+        }
+        .header {
+          border-bottom: 3px solid #2e7d32;
+          padding-bottom: 15px;
+          margin-bottom: 20px;
+        }
+        .header h1 {
+          color: #2e7d32;
+          margin: 0 0 5px 0;
+          font-size: 24px;
+        }
+        .header p {
+          margin: 5px 0;
+          color: #666;
+          font-size: 14px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+          font-size: 12px;
+        }
+        th {
+          background: #2e7d32;
+          color: white;
+          padding: 10px 8px;
+          text-align: left;
+          font-weight: 600;
+          border: 1px solid #1b5e20;
+        }
+        td {
+          padding: 8px;
+          border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+          background: #f9f9f9;
+        }
+        .status-available { color: #4caf50; font-weight: 600; }
+        .status-low { color: #ff9800; font-weight: 600; }
+        .status-out { color: #f44336; font-weight: 600; }
+        .summary {
+          margin-top: 20px;
+          padding: 15px;
+          background: #f5f5f5;
+          border-radius: 5px;
+        }
+        .summary h3 {
+          margin-top: 0;
+          color: #2e7d32;
+        }
+        .print-actions {
+          margin: 20px 0;
+          text-align: center;
+        }
+        .print-actions button {
+          padding: 12px 24px;
+          margin: 0 10px;
+          font-size: 16px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-print {
+          background: #2e7d32;
+          color: white;
+        }
+        .btn-print:hover {
+          background: #1b5e20;
+        }
+        .btn-cancel {
+          background: #757575;
+          color: white;
+        }
+        .btn-cancel:hover {
+          background: #616161;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${currentBranch} - Inventory Report</h1>
+        <p>Generated: ${printDate}</p>
+        <p>Branch: ${currentBranch}</p>
+      </div>
+
+      <h2>Inventory Items</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Variant</th>
+            <th>Stock (kg)</th>
+            <th>Price/Unit</th>
+            <th>Status</th>
+            <th>Batch Code</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  // Add inventory items
+  let totalStock = 0;
+  filteredItems.forEach(it => {
+    totalStock += Number(it.stock || 0);
+    const statusClass = it.status === "available" ? "status-available" : 
+                       it.status === "low" ? "status-low" : "status-out";
+    const statusText = it.status === "available" ? "Available" :
+                      it.status === "low" ? "Low Stock" : "Out of Stock";
+    const lastUpdated = it.lastUpdated ? formatDate(it.lastUpdated) : "N/A";
+    
+    printHTML += `
+      <tr>
+        <td>${it.variant || "N/A"}</td>
+        <td>${Number(it.stock || 0).toLocaleString()}</td>
+        <td>₱${Number(it.price || 0).toFixed(2)}</td>
+        <td class="${statusClass}">${statusText}</td>
+        <td>${it.batch || "N/A"}</td>
+        <td>${lastUpdated}</td>
+      </tr>
+    `;
+  });
+
+  printHTML += `
+        </tbody>
+      </table>
+
+      <div class="summary">
+        <h3>Summary</h3>
+        <p><strong>Total Items:</strong> ${filteredItems.length}</p>
+        <p><strong>Total Stock:</strong> ${totalStock.toLocaleString()} kg</p>
+        <p><strong>Filter Applied:</strong> ${q ? `Variant: "${q}"` : "None"} ${s !== "all" ? `| Status: ${s}` : ""}</p>
+      </div>
+  `;
+
+  // Add restock logs if available
+  if (br.logs && br.logs.length > 0) {
+    printHTML += `
+      <h2 style="margin-top: 30px;">Recent Restock Logs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Variant</th>
+            <th>Batch Code</th>
+            <th>Quantity (kg)</th>
+            <th>By</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    // Show last 20 logs
+    const recentLogs = br.logs.slice(0, 20);
+    recentLogs.forEach(log => {
+      const logDate = formatDate(log.date || log.datetime);
+      printHTML += `
+        <tr>
+          <td>${logDate}</td>
+          <td>${log.variant || "N/A"}</td>
+          <td>${log.batch_code || "N/A"}</td>
+          <td>${Number(log.qty || 0).toLocaleString()}</td>
+          <td>${log.created_by || log.by || "Admin"}</td>
+          <td>${log.note || "Restock"}</td>
+        </tr>
+      `;
+    });
+
+    printHTML += `
+        </tbody>
+      </table>
+    `;
+  }
+
+  printHTML += `
+      <div class="print-actions no-print">
+        <button class="btn-print" onclick="window.print()">Print</button>
+        <button class="btn-cancel" onclick="window.close()">Close</button>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Open print preview in new window
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(printHTML);
+    printWindow.document.close();
+    // Auto-focus on print window
+    printWindow.focus();
+  } else {
+    alert('Please allow popups to use the print preview feature.');
+  }
 }
 
 /* =========================================================
@@ -1504,37 +1801,53 @@ async function exportAllBranches() {
       csvLines.push(`Status: ${branch.status || 'operational'}`);
       csvLines.push(''); // Empty line
       
-      // Add inventory items
-      if (invData.ok && invData.items && invData.items.length > 0) {
-        // Add inventory table headers
-        csvLines.push('Product,Stock (kg),Price/Unit,Status,Batch Code,GRN Number,Warn Level,Auto Level');
-        
+        // Format date helper - ensures YYYY-MM-DD format
+        const formatDate = (dateStr) => {
+          if (!dateStr) return "";
+          try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toISOString().split('T')[0]; // YYYY-MM-DD
+          } catch (e) {
+            return dateStr;
+          }
+        };
+
         // Add inventory items
-        invData.items.forEach(item => {
-          const escapeCSV = (str) => {
-            if (str === null || str === undefined) return '';
-            const s = String(str);
-            if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-              return `"${s.replace(/"/g, '""')}"`;
-            }
-            return s;
-          };
+        if (invData.ok && invData.items && invData.items.length > 0) {
+          // Add inventory table headers
+          csvLines.push('Product,Stock (kg),Price/Unit,Status,Batch Code,GRN Number,Warn Level,Auto Level,Last Updated');
           
-          const row = [
-            escapeCSV(item.variant || item.product_name || 'N/A'),
-            escapeCSV(item.stock || 0),
-            escapeCSV(item.price || 0),
-            escapeCSV(item.status || 'available'),
-            escapeCSV(item.batch || item.batch_code || ''),
-            escapeCSV(item.grn || item.grn_number || ''),
-            escapeCSV(item.warn || item.warn_level || ''),
-            escapeCSV(item.auto || item.auto_level || '')
-          ];
-          csvLines.push(row.join(','));
-        });
-      } else {
-        csvLines.push('No inventory items found');
-      }
+          // Add inventory items
+          invData.items.forEach(item => {
+            const escapeCSV = (str) => {
+              if (str === null || str === undefined) return '';
+              const s = String(str);
+              if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                return `"${s.replace(/"/g, '""')}"`;
+              }
+              return s;
+            };
+            
+            const lastUpdated = item.last_updated || item.updated_at || item.created_at || "";
+            const formattedDate = lastUpdated ? formatDate(lastUpdated) : "";
+            
+            const row = [
+              escapeCSV(item.variant || item.product_name || 'N/A'),
+              escapeCSV(item.stock || item.stock_kg || 0),
+              escapeCSV(item.price || item.unit_price || 0),
+              escapeCSV(item.status || 'available'),
+              escapeCSV(item.batch || item.batch_code || ''),
+              escapeCSV(item.grn || item.grn_number || ''),
+              escapeCSV(item.warn || item.warn_level || ''),
+              escapeCSV(item.auto || item.auto_level || ''),
+              escapeCSV(formattedDate)
+            ];
+            csvLines.push(row.join(','));
+          });
+        } else {
+          csvLines.push('No inventory items found');
+        }
       
       csvLines.push(''); // Empty line for spacing
       csvLines.push('='.repeat(80)); // Separator line
@@ -1728,6 +2041,23 @@ async function exportAllBranches() {
         
         #restockProductModal .action-btn[type="submit"]:hover {
             background: #388e3c;
+        }
+
+        /* Print Button Styling */
+        .print-btn {
+            background: #1976d2;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .print-btn:hover {
+            background: #1565c0;
+        }
+        
+        .print-btn i {
+            font-size: 14px;
         }
 
         /* Scrollable Table Container */
