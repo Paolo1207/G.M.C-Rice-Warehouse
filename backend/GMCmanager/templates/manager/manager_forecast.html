@@ -530,6 +530,11 @@
           } else if (tabId === 'price') {
             // Clear price insights when switching to price tab
             clearPriceInsights();
+            // If price forecast was already generated, ensure the info section is visible
+            const priceInfoSection = document.getElementById('price-forecast-information');
+            if (priceInfoSection && priceInfoSection.querySelector('#price-forecast-information-content')?.innerHTML.trim()) {
+              priceInfoSection.style.display = 'block';
+            }
           }
         });
       });
@@ -1025,8 +1030,21 @@
               updatePriceInsights(data.price_insights || data.summary);
             }
             
-            // Display detailed price forecast information
+            // Display detailed price forecast information - always show, even if data is incomplete
+            console.log('DEBUG: Calling displayPriceForecastInformation with data:', data);
             await displayPriceForecastInformation(data, branchId, productId);
+            
+            // Ensure the section is visible and scroll into view
+            setTimeout(() => {
+              const infoSection = document.getElementById('price-forecast-information');
+              if (infoSection) {
+                infoSection.style.display = 'block';
+                infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                console.log('DEBUG: Price forecast information section displayed');
+              } else {
+                console.error('DEBUG: Price forecast information section not found in DOM');
+              }
+            }, 300);
           } else {
             console.error('Price forecast API Error:', data.error);
             showToast('Error generating price forecast: ' + (data.error || 'Unknown error'), 'error');
@@ -1646,16 +1664,27 @@
     // Display detailed price forecast information and pricing strategy guide
     async function displayPriceForecastInformation(priceData, branchId, productId) {
       try {
+        console.log('DEBUG displayPriceForecastInformation: Received data:', priceData);
+        
         const priceForecast = priceData.price_forecast || [];
         const priceInsights = priceData.price_insights || {};
         const modelInfo = priceData.model_info || {};
         
+        console.log('DEBUG displayPriceForecastInformation: Extracted values:', {
+          priceForecastLength: priceForecast.length,
+          priceInsights: priceInsights,
+          modelInfo: modelInfo
+        });
+        
         // Always show the information section, even if data is incomplete
         const infoSection = document.getElementById('price-forecast-information');
         if (!infoSection) {
-          console.error('Price forecast information section not found');
+          console.error('Price forecast information section not found in DOM');
           return;
         }
+        
+        // Always show the section
+        infoSection.style.display = 'block';
         
         if (!priceForecast || priceForecast.length === 0) {
           // Show message for no data
@@ -1679,9 +1708,8 @@
                 </p>
               </div>
             `;
-            infoSection.style.display = 'block';
           }
-          console.log('No price forecast data to display');
+          console.log('No price forecast data to display - showing empty state message');
           return;
         }
         
@@ -1847,16 +1875,19 @@
           </div>
         `;
         
-        // Show the information section
+        // Show the information section (already set to display above, but ensure it's visible)
         const infoSection = document.getElementById('price-forecast-information');
         if (infoSection) {
           infoSection.style.display = 'block';
-          // Scroll to the information section smoothly
+          console.log('DEBUG: Price forecast information section displayed successfully');
+          
+          // Scroll to the information section smoothly after a short delay
           setTimeout(() => {
             infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 100);
+            console.log('DEBUG: Scrolled to price forecast information section');
+          }, 200);
         } else {
-          console.error('Price forecast information section element not found');
+          console.error('Price forecast information section element not found in DOM');
         }
       } catch (error) {
         console.error('Error displaying price forecast information:', error);
