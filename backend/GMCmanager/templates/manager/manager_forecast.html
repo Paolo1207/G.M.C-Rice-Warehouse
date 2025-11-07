@@ -897,6 +897,17 @@
             
             // Display detailed forecast information with branch inventory
             await displayForecastInformation(data, branchId, productId);
+            
+            // Ensure the description section is visible after a short delay
+            setTimeout(() => {
+              const infoSection = document.getElementById('forecast-information');
+              if (infoSection) {
+                infoSection.style.display = 'block';
+                infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                console.log('DEBUG: Forecast information section displayed');
+              }
+            }, 500);
+            
             filtersDirty = false;
           } else {
             console.error('API Error:', data.error);
