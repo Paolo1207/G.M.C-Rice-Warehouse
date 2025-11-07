@@ -1847,8 +1847,7 @@
           </div>
         `;
         
-        // Show the information section
-        const infoSection = document.getElementById('price-forecast-information');
+        // Show the information section (infoSection already declared at top of function)
         if (infoSection) {
           infoSection.style.display = 'block';
           // Scroll to the information section smoothly
@@ -1860,8 +1859,7 @@
         }
       } catch (error) {
         console.error('Error displaying price forecast information:', error);
-        // Show error message in the section
-        const infoSection = document.getElementById('price-forecast-information');
+        // Show error message in the section (infoSection already declared at top of function)
         const infoContent = document.getElementById('price-forecast-information-content');
         if (infoSection && infoContent) {
           infoContent.innerHTML = `
