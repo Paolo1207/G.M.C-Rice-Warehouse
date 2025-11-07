@@ -269,21 +269,6 @@
             </div>
           </div>
 
-          <div class="forecast-table-container">
-            <h3><i class="fas fa-table"></i> Forecast Details</h3>
-            <table class="forecast-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Projected Quantity</th>
-                  <th>Confidence</th>
-                  <th>Trend</th>
-                </tr>
-              </thead>
-              <tbody id="forecastTableBody"></tbody>
-            </table>
-          </div>
-
           <!-- Forecast Information & Stock Preparation Guide -->
           <div class="glass-card" id="forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
             <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
@@ -654,12 +639,8 @@
             console.log('Invalid summary data - keeping existing values');
           }
           
-          if (details) {
-            console.log('DEBUG FRONTEND: Details data:', details);
-            renderForecastTable(details);
-          } else {
-            console.log('DEBUG FRONTEND: No details data received');
-          }
+          // Note: Forecast Details table removed - using description section instead
+          // Details are now shown in the forecast-information section below
         } else {
           console.warn('Invalid forecast data - generating sample data');
           generateSampleForecastData();
@@ -822,30 +803,8 @@
       }
     }
 
-    function renderForecastTable(data) {
-      const tbody = document.getElementById('forecastTableBody');
-      tbody.innerHTML = '';
-      
-      if (!data || data.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td colspan="4" style="text-align: center; color: #666;">No forecast data available</td>
-        `;
-        tbody.appendChild(tr);
-        return;
-      }
-      
-      data.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(item.date)}</td>
-          <td>${item.predicted_demand || item.projected || '--'} kg</td>
-          <td>${item.confidence || '--'}</td>
-          <td>${item.trend || '--'}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+    // renderForecastTable function removed - Forecast Details table has been removed
+    // Forecast information is now displayed in the forecast-information section below the chart
 
     // Load risk data from manager API
     async function loadRiskData() {
