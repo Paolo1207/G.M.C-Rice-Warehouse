@@ -197,24 +197,40 @@
         <div class="regional-widgets-row">
             <div class="glass-card regional-widget">
                 <h3>🏢 Branch Stock Levels Overview</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Current inventory stock from <code>InventoryItem</code> table (summed by branch).<br>
+                    <strong>Shows:</strong> Total stock in kilograms (kg) per branch. Hover over bars to see product count.
+                </p>
                 <div class="chart-container">
                     <canvas id="branchStockChart"></canvas>
                 </div>
             </div>
             <div class="glass-card regional-widget">
                 <h3>📈 Sales Performance by Region</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Real sales transactions from <code>SalesTransaction</code> table (last 6 months by default).<br>
+                    <strong>Shows:</strong> Monthly sales amount in Philippine Pesos (₱) per branch. Each line represents a branch's sales trend over time.
+                </p>
                 <div class="chart-container">
                     <canvas id="salesPerformanceChart"></canvas>
                 </div>
             </div>
             <div class="glass-card regional-widget">
                 <h3>⚖️ Demand & Supply Gaps</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Current stock from <code>InventoryItem</code> vs. forecasted demand from <code>ForecastData</code> (next 30 days).<br>
+                    <strong>Shows:</strong> Gap between current stock and predicted demand. <span style="color: #dc2626;">Red</span> = Critical shortage, <span style="color: #f59e0b;">Orange</span> = Warning (shortage/surplus), <span style="color: #3b82f6;">Blue</span> = Balanced.
+                </p>
                 <div class="regional-gap-list">
                     <!-- Gaps populated by JavaScript -->
                 </div>
             </div>
             <div class="glass-card regional-widget">
                 <h3>🔮 Regional Forecasting Data</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Average predicted demand from <code>ForecastData</code> table (grouped by month and branch).<br>
+                    <strong>Shows:</strong> Average predicted daily demand (kg) per month per branch. Based on ARIMA/ML forecast models.
+                </p>
                 <div class="chart-container">
                     <canvas id="regionalForecastChart"></canvas>
                 </div>

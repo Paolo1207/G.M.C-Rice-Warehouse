@@ -1694,7 +1694,7 @@ def api_regional_stock():
 @admin_bp.get("/api/regional/sales")
 @admin_required
 def api_regional_sales():
-    """Get sales performance by branch for regional insights"""
+    """Get sales performance by branch for regional insights - based on REAL SalesTransaction data"""
     from sqlalchemy import func, and_
     from datetime import datetime, timedelta
     
@@ -1704,51 +1704,119 @@ def api_regional_sales():
     from_date = request.args.get('from')
     to_date = request.args.get('to')
     
-    # Default to last 12 months if no dates provided
+    # Default to last 6 months if no dates provided
     if not from_date:
-        from_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+        from_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
     if not to_date:
         to_date = datetime.now().strftime('%Y-%m-%d')
     
-    # Generate sample data directly to avoid any SQLAlchemy Row issues
-    print(f"DEBUG: Regional Sales API - Generating sample data for date range: {from_date} to {to_date}")
+    try:
+        start_date = datetime.strptime(from_date, '%Y-%m-%d')
+        end_date = datetime.strptime(to_date, '%Y-%m-%d')
+    except:
+        start_date = datetime.now() - timedelta(days=180)
+        end_date = datetime.now()
     
-    # Generate last 6 months for better chart display
-    current_date = datetime.now()
-    months = []
-    for i in range(6):
-        month_date = current_date - timedelta(days=30*i)
-        month_str = month_date.strftime('%Y-%m')
-        months.append(month_str)
-    months.reverse()
+    # Query REAL sales data from SalesTransaction table
+    q = db.session.query(
+        func.to_char(SalesTransaction.transaction_date, 'YYYY-MM').label('month'),
+        Branch.name.label('branch_name'),
+        func.sum(SalesTransaction.total_amount).label('sales_amount'),
+        func.sum(SalesTransaction.quantity_sold).label('sales_kg')
+    ).join(Branch, SalesTransaction.branch_id == Branch.id)
     
-    # Get all branches
-    all_branches = Branch.query.all()
+    # Apply date filter
+    q = q.filter(
+        and_(
+            SalesTransaction.transaction_date >= start_date,
+            SalesTransaction.transaction_date <= end_date
+        )
+    )
+    
+    # Apply filters
+    if branch and branch != 'all':
+        q = q.filter(Branch.name.ilike(f'%{branch}%'))
+    
+    if product and product != 'all':
+        q = q.join(Product, SalesTransaction.product_id == Product.id)
+        q = q.filter(Product.name.ilike(f'%{product}%'))
+    
+    if category and category != 'all':
+        q = q.join(Product, SalesTransaction.product_id == Product.id)
+        q = q.filter(Product.category.ilike(f'%{category}%'))
+    
+    # Group by month and branch
+    results = q.group_by(
+        func.to_char(SalesTransaction.transaction_date, 'YYYY-MM'),
+        Branch.id, Branch.name
+    ).order_by('month').all()
+    
+    # Build response data
+    months_set = set()
     branch_data = {}
     
+    for result in results:
+        month = str(result.month)
+        branch_name = str(result.branch_name)
+        sales_amount = float(result.sales_amount or 0)
+        sales_kg = float(result.sales_kg or 0)
+        
+        months_set.add(month)
+        
+        if branch_name not in branch_data:
+            branch_data[branch_name] = []
+        
+        branch_data[branch_name].append({
+            'month': month,
+            'sales_amount': sales_amount,
+            'sales_kg': sales_kg
+        })
+    
+    # Sort months chronologically
+    months = sorted(list(months_set))
+    
+    # Ensure all branches have data for all months (fill missing months with 0)
+    all_branches = Branch.query.all()
     for branch_obj in all_branches:
         branch_name = branch_obj.name
-        branch_data[branch_name] = []
+        if branch_name not in branch_data:
+            branch_data[branch_name] = []
         
-        # Generate sample data for each month
+        # Fill missing months with 0
+        existing_months = {item['month'] for item in branch_data[branch_name]}
         for month in months:
-            # Generate realistic sample data
-            base_amount = 10000 + (hash(branch_name) % 5000)  # Vary by branch
-            month_variation = (hash(month) % 2000) - 1000  # Vary by month
-            sample_amount = max(0, base_amount + month_variation)
-            
-            branch_data[branch_name].append({
-                'month': month,
-                'sales_amount': float(sample_amount),
-                'sales_kg': float(sample_amount / 50)  # Assume ~50 pesos per kg
-            })
+            if month not in existing_months:
+                branch_data[branch_name].append({
+                    'month': month,
+                    'sales_amount': 0.0,
+                    'sales_kg': 0.0
+                })
+        
+        # Sort by month
+        branch_data[branch_name].sort(key=lambda x: x['month'])
     
-    # Debug logging
+    # If no data exists, return empty structure (don't generate fake data)
+    if not months:
+        # Generate month labels for last 6 months
+        current_date = datetime.now()
+        months = []
+        for i in range(6):
+            month_date = current_date - timedelta(days=30*(5-i))
+            months.append(month_date.strftime('%Y-%m'))
+        
+        # Initialize empty data for all branches
+        for branch_obj in all_branches:
+            branch_data[branch_obj.name] = [
+                {'month': month, 'sales_amount': 0.0, 'sales_kg': 0.0}
+                for month in months
+            ]
+    
     print(f"DEBUG: Regional Sales API - Date range: {from_date} to {to_date}")
-    print(f"DEBUG: Found {len(months)} months: {months}")
+    print(f"DEBUG: Found {len(months)} months with REAL data: {months}")
     print(f"DEBUG: Branch data keys: {list(branch_data.keys())}")
     for branch_name, data in branch_data.items():
-        print(f"DEBUG: {branch_name} has {len(data)} data points")
+        total_sales = sum(item['sales_amount'] for item in data)
+        print(f"DEBUG: {branch_name} - Total sales: ₱{total_sales:,.2f}")
     
     return jsonify({
         "ok": True,
