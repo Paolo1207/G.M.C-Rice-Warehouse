@@ -335,6 +335,41 @@
         document.getElementById('kpiAov').textContent   = '₱'+Number(j.kpis.avg_order_value||0).toLocaleString();
       }
 
+      // Format date labels to remove GMT time component
+      function formatDateLabel(dateStr) {
+        if (!dateStr) return '';
+        try {
+          // Handle different date formats
+          let date;
+          if (typeof dateStr === 'string') {
+            // Remove GMT time component if present
+            const cleanDateStr = dateStr.replace(/\s+\d{2}:\d{2}:\d{2}\s+GMT.*$/, '').trim();
+            // Try parsing as ISO date or other formats
+            date = new Date(cleanDateStr);
+            // If invalid, try parsing just the date part
+            if (isNaN(date.getTime())) {
+              const dateOnly = cleanDateStr.split(' ')[0]; // Get first part before space
+              date = new Date(dateOnly);
+            }
+          } else {
+            date = new Date(dateStr);
+          }
+          
+          if (isNaN(date.getTime())) {
+            return dateStr; // Return original if can't parse
+          }
+          
+          // Format as "Mon DD, YYYY" (e.g., "Sep 16, 2025")
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = months[date.getMonth()];
+          const day = date.getDate();
+          const year = date.getFullYear();
+          return `${month} ${day}, ${year}`;
+        } catch (e) {
+          return dateStr; // Return original if error
+        }
+      }
+
       async function loadTrend(){
         const j = await fetch('/admin/api/sales/trend?granularity=daily&'+params()).then(r=>r.json());
         const el = document.getElementById('dailySalesChart');
@@ -361,10 +396,13 @@
           '#ef4444'  // Light Red - Additional
         ];
         
+        // Format date labels to remove GMT time component
+        const formattedLabels = (j.labels || []).map(label => formatDateLabel(label));
+        
         dailyChart = new Chart(el.getContext('2d'), {
           type:'line',
           data:{ 
-            labels: j.labels || [], 
+            labels: formattedLabels, 
             datasets: (j.series || []).map((s, i) => ({
               label: s.branch_name || ('Branch ' + s.branch_id), 
               data: s.data || [], 
