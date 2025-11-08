@@ -1904,159 +1904,131 @@ def api_regional_forecast():
 def api_regional_gaps():
     """Get demand-supply gaps by branch"""
     from sqlalchemy import func, and_
+    from datetime import date, timedelta
     
     product = request.args.get('product')
     category = request.args.get('category')
     branch = request.args.get('branch')
     
-    # Query for inventory vs forecast demand
-    q = db.session.query(
+    # Get today's date for forecast filtering (use Philippines timezone if available)
+    today = date.today()
+    next_30_days = today + timedelta(days=30)
+    
+    # Query for inventory stock levels
+    stock_q = db.session.query(
+        Branch.id.label('branch_id'),
         Branch.name.label('branch_name'),
+        Product.id.label('product_id'),
         Product.name.label('product_name'),
-        func.sum(InventoryItem.stock_kg).label('current_stock'),
-        func.avg(ForecastData.predicted_demand).label('forecast_demand')
+        func.sum(InventoryItem.stock_kg).label('current_stock')
     ).join(InventoryItem, Branch.id == InventoryItem.branch_id)\
-     .join(Product, InventoryItem.product_id == Product.id)\
-     .outerjoin(ForecastData, and_(
-         ForecastData.branch_id == Branch.id,
-         ForecastData.product_id == Product.id
-     ))
+     .join(Product, InventoryItem.product_id == Product.id)
     
     # Apply filters
     if branch and branch != 'all':
-        q = q.filter(Branch.name.ilike(f'%{branch}%'))
+        stock_q = stock_q.filter(Branch.name.ilike(f'%{branch}%'))
     
     if product and product != 'all':
-        q = q.filter(Product.name.ilike(f'%{product}%'))
+        stock_q = stock_q.filter(Product.name.ilike(f'%{product}%'))
     
     if category and category != 'all':
-        q = q.filter(Product.category.ilike(f'%{category}%'))
+        stock_q = stock_q.filter(Product.category.ilike(f'%{category}%'))
     
     # Group by branch and product
-    results = q.group_by(Branch.id, Branch.name, Product.id, Product.name).all()
+    stock_results = stock_q.group_by(Branch.id, Branch.name, Product.id, Product.name).all()
+    
+    # Get forecasted demand for next 30 days (sum of upcoming forecasts)
+    forecast_q = db.session.query(
+        ForecastData.branch_id,
+        ForecastData.product_id,
+        func.sum(ForecastData.predicted_demand).label('forecast_demand')
+    ).filter(
+        and_(
+            ForecastData.forecast_date >= today,
+            ForecastData.forecast_date <= next_30_days
+        )
+    ).group_by(ForecastData.branch_id, ForecastData.product_id)
+    
+    # Create a map of (branch_id, product_id) -> forecast_demand
+    forecast_map = {}
+    for fid, pid, fdemand in forecast_q.all():
+        forecast_map[(fid, pid)] = float(fdemand or 0)
     
     # Calculate gaps
     gaps = []
-    for result in results:
+    for result in stock_results:
+        branch_id = result.branch_id
+        product_id = result.product_id
         current_stock = float(result.current_stock or 0)
-        forecast_demand = float(result.forecast_demand or 0)
+        
+        # Get forecasted demand for next 30 days, or use 0 if no forecast exists
+        forecast_demand = forecast_map.get((branch_id, product_id), 0.0)
+        
+        # If no forecast exists, calculate based on average daily sales from last 30 days
+        if forecast_demand == 0:
+            # Try to get average daily sales for this product/branch
+            from datetime import datetime, timedelta
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            avg_sales = db.session.query(
+                func.avg(SalesTransaction.quantity_sold).label('avg_daily')
+            ).filter(
+                and_(
+                    SalesTransaction.branch_id == branch_id,
+                    SalesTransaction.product_id == product_id,
+                    SalesTransaction.transaction_date >= thirty_days_ago
+                )
+            ).scalar()
+            
+            # Estimate 30-day demand based on average daily sales
+            if avg_sales:
+                forecast_demand = float(avg_sales) * 30
+            else:
+                # No sales data, use a conservative estimate
+                forecast_demand = current_stock * 0.5  # Assume 50% of current stock as demand
+        
         gap = current_stock - forecast_demand
         
-        if gap < -50:  # Shortage
-            status = 'critical'
-            gap_text = f'Shortage: {abs(gap):.0f}kg'
-        elif gap > 100:  # Surplus
+        # Calculate gap percentage for better classification
+        gap_percentage = (gap / forecast_demand * 100) if forecast_demand > 0 else 0
+        
+        # Classify gap status
+        if gap < 0:  # Shortage (negative gap)
+            if abs(gap) > forecast_demand * 0.5:  # More than 50% shortage
+                status = 'critical'
+                gap_text = f'Shortage: {abs(gap):.0f}kg'
+            else:  # Less than 50% shortage
+                status = 'warning'
+                gap_text = f'Shortage: {abs(gap):.0f}kg'
+        elif gap > forecast_demand * 0.2:  # Surplus more than 20% of demand
             status = 'warning'
             gap_text = f'Surplus: {gap:.0f}kg'
-        else:  # Balanced
+        else:  # Balanced (within ±20% of demand)
             status = 'info'
             gap_text = 'Balanced'
         
         gaps.append({
-            'branch_name': str(result.branch_name),  # Convert to string to avoid Row object issues
-            'product_name': str(result.product_name),  # Convert to string to avoid Row object issues
-            'current_stock': current_stock,
-            'forecast_demand': forecast_demand,
-            'gap': gap,
+            'branch_name': str(result.branch_name),
+            'product_name': str(result.product_name),
+            'current_stock': round(current_stock, 2),
+            'forecast_demand': round(forecast_demand, 2),
+            'gap': round(gap, 2),
             'status': status,
             'gap_text': gap_text
         })
     
-    # If no gaps data exists, check if the product actually exists in the branch's inventory
+    # If no gaps data exists, it means there are no inventory items matching the filters
+    # This is expected behavior - only show gaps for products that exist in inventory
     if not gaps:
-        print(f"DEBUG: No gaps data found, checking if product exists in branch inventory - product: {product}, branch: {branch}")
-        
-        # Check if the specific product exists in the specific branch's inventory
-        if product and product != 'all' and branch and branch != 'all':
-            # Check if this product actually exists in this branch's inventory
-            inventory_exists = db.session.query(InventoryItem).join(Branch, InventoryItem.branch_id == Branch.id)\
-                .join(Product, InventoryItem.product_id == Product.id)\
-                .filter(Branch.name.ilike(f'%{branch}%'))\
-                .filter(Product.name.ilike(f'%{product}%'))\
-                .first()
-            
-            if not inventory_exists:
-                print(f"DEBUG: Product '{product}' does not exist in '{branch}' inventory - showing 'Not Available'")
-                gaps.append({
-                    'branch_name': branch,
-                    'product_name': product,
-                    'current_stock': 0,
-                    'forecast_demand': 0,
-                    'gap': 0,
-                    'status': 'critical',
-                    'gap_text': 'Not Available in Inventory'
-                })
-            else:
-                print(f"DEBUG: Product '{product}' exists in '{branch}' inventory - generating sample data")
-                # Generate sample data only if the product actually exists in the branch
-                current_stock = 100 + (hash(branch + product) % 200)  # 100-300 kg
-                forecast_demand = 80 + (hash(product + branch) % 150)  # 80-230 kg
-                gap = current_stock - forecast_demand
-                
-                if gap < -50:  # Shortage
-                    status = 'critical'
-                    gap_text = f'Shortage: {abs(gap):.0f}kg'
-                elif gap > 100:  # Surplus
-                    status = 'warning'
-                    gap_text = f'Surplus: {gap:.0f}kg'
-                else:  # Balanced
-                    status = 'info'
-                    gap_text = 'Balanced'
-                
-                gaps.append({
-                    'branch_name': branch,
-                    'product_name': product,
-                    'current_stock': float(current_stock),
-                    'forecast_demand': float(forecast_demand),
-                    'gap': float(gap),
-                    'status': status,
-                    'gap_text': gap_text
-                })
-        else:
-            # For "all" filters, generate sample data as before
-            print(f"DEBUG: Generating sample data for 'all' filters")
-            branches_query = Branch.query
-            products_query = Product.query
-            
-            if branch and branch != 'all':
-                branches_query = branches_query.filter(Branch.name.ilike(f'%{branch}%'))
-            
-            if product and product != 'all':
-                products_query = products_query.filter(Product.name.ilike(f'%{product}%'))
-            
-            filtered_branches = branches_query.all()
-            filtered_products = products_query.all()
-            
-            for branch_obj in filtered_branches:
-                for product_obj in filtered_products:
-                    current_stock = 100 + (hash(branch_obj.name + product_obj.name) % 200)
-                    forecast_demand = 80 + (hash(product_obj.name + branch_obj.name) % 150)
-                    gap = current_stock - forecast_demand
-                    
-                    if gap < -50:
-                        status = 'critical'
-                        gap_text = f'Shortage: {abs(gap):.0f}kg'
-                    elif gap > 100:
-                        status = 'warning'
-                        gap_text = f'Surplus: {gap:.0f}kg'
-                    else:
-                        status = 'info'
-                        gap_text = 'Balanced'
-                    
-                    gaps.append({
-                        'branch_name': branch_obj.name,
-                        'product_name': product_obj.name,
-                        'current_stock': float(current_stock),
-                        'forecast_demand': float(forecast_demand),
-                        'gap': float(gap),
-                        'status': status,
-                        'gap_text': gap_text
-                    })
+        print(f"DEBUG: No inventory items found for filters - product: {product}, branch: {branch}")
+        # Don't generate fake data - return empty list
+        # This is more accurate than showing misleading sample data
     
-    # Sort by gap severity
-    gaps.sort(key=lambda x: x['gap'])
+    # Sort by gap severity (shortages first, then by gap amount)
+    gaps.sort(key=lambda x: (x['gap'] < 0, abs(x['gap'])), reverse=True)
     
     print(f"DEBUG: Regional Gaps API - Found {len(gaps)} gaps")
+    if gaps:
+        print(f"DEBUG: Sample gap - Branch: {gaps[0]['branch_name']}, Product: {gaps[0]['product_name']}, Stock: {gaps[0]['current_stock']}, Forecast: {gaps[0]['forecast_demand']}, Gap: {gaps[0]['gap']}")
     
     return jsonify({
         "ok": True,
@@ -2109,8 +2081,8 @@ def api_regional_export():
     gaps_response = api_regional_gaps()
     gaps_data = gaps_response[0].get_json()
     if gaps_data['ok']:
-        writer.writerow(['Demand-Supply Gaps'])
-        writer.writerow(['Branch', 'Product', 'Current Stock', 'Forecast Demand', 'Gap', 'Status'])
+        writer.writerow(['Demand-Supply Gaps (Next 30 Days)'])
+        writer.writerow(['Branch', 'Product', 'Current Stock (kg)', 'Forecast Demand (kg)', 'Gap (kg)', 'Status', 'Gap Description'])
         for gap in gaps_data['gaps']:
             writer.writerow([
                 gap['branch_name'],
@@ -2118,8 +2090,12 @@ def api_regional_export():
                 gap['current_stock'],
                 gap['forecast_demand'],
                 gap['gap'],
-                gap['status']
+                gap['status'],
+                gap['gap_text']
             ])
+        writer.writerow([])
+        writer.writerow(['Note: Forecast Demand is the sum of predicted demand for the next 30 days'])
+        writer.writerow(['Gap = Current Stock - Forecast Demand (positive = surplus, negative = shortage)'])
     
     # Create response
     output.seek(0)
