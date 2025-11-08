@@ -2423,6 +2423,142 @@ def mgr_mark_notification_read(notification_id):
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
 
+@manager_bp.route("/api/dashboard/alerts", methods=["GET"])
+@manager_required
+def mgr_dashboard_alerts():
+    """Get real-time alerts for manager dashboard (low stock, near expiry)"""
+    from models import InventoryItem, Product
+    from datetime import datetime, timedelta, date
+    from sqlalchemy import or_, and_
+    
+    # Get manager's branch ID
+    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
+    if not branch_id:
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    alerts = []
+    
+    try:
+        # 1. Low Stock Alerts - items below warn_level or below 100kg default
+        low_stock_items = (
+            db.session.query(InventoryItem, Product)
+            .join(Product, InventoryItem.product_id == Product.id)
+            .filter(
+                and_(
+                    InventoryItem.branch_id == branch_id,
+                    or_(
+                        and_(InventoryItem.warn_level.isnot(None), InventoryItem.stock_kg < InventoryItem.warn_level),
+                        and_(InventoryItem.warn_level.is_(None), InventoryItem.stock_kg < 100)
+                    ),
+                    InventoryItem.stock_kg > 0  # Only items that still have stock
+                )
+            )
+            .all()
+        )
+        
+        if low_stock_items:
+            low_stock_count = len(low_stock_items)
+            alerts.append({
+                "type": "low_stock",
+                "icon": "exclamation-triangle",
+                "message": f"Stock below reorder level for {low_stock_count} item{'s' if low_stock_count > 1 else ''}",
+                "severity": "caution",
+                "count": low_stock_count
+            })
+        
+        # 2. Near Expiry Alerts (if expiry_date exists in inventory)
+        # Note: This assumes expiry tracking - if not implemented, this will be empty
+        # For now, we'll check if there's a way to track expiry
+        # If InventoryItem has expiry_date field, use it; otherwise skip
+        try:
+            # Check if expiry_date column exists (some databases might not have it)
+            near_expiry_items = []
+            # For now, we'll create a placeholder that can be enhanced later
+            # If you have expiry_date in InventoryItem, uncomment and modify:
+            # expiry_threshold = date.today() + timedelta(days=30)
+            # near_expiry_items = (
+            #     db.session.query(InventoryItem, Product)
+            #     .join(Product, InventoryItem.product_id == Product.id)
+            #     .filter(
+            #         and_(
+            #             InventoryItem.branch_id == branch_id,
+            #             InventoryItem.expiry_date.isnot(None),
+            #             InventoryItem.expiry_date <= expiry_threshold,
+            #             InventoryItem.expiry_date >= date.today()
+            #         )
+            #     )
+            #     .all()
+            # )
+            
+            # Placeholder: Check for items with batch codes that might indicate age
+            # This is a simple heuristic - you can enhance this based on your business logic
+            if near_expiry_items:
+                expiry_count = len(near_expiry_items)
+                alerts.append({
+                    "type": "near_expiry",
+                    "icon": "exclamation-circle",
+                    "message": f"{expiry_count} item{'s' if expiry_count > 1 else ''} near expiry date",
+                    "severity": "warning",
+                    "count": expiry_count
+                })
+        except Exception as e:
+            # If expiry tracking is not implemented, skip this alert
+            print(f"Expiry tracking not available: {e}")
+            pass
+        
+    except Exception as e:
+        print(f"Error loading alerts: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return jsonify({
+        "ok": True,
+        "alerts": alerts
+    })
+
+@manager_bp.route("/api/dashboard/announcements", methods=["GET"])
+@manager_required
+def mgr_dashboard_announcements():
+    """Get branch announcements for manager dashboard"""
+    from models import Notification
+    from datetime import datetime, timedelta
+    
+    # Get manager's branch ID
+    branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
+    if not branch_id:
+        return jsonify({"ok": False, "error": "Manager branch not found"}), 400
+    
+    # Get recent announcements (last 30 days, limit 5)
+    since = datetime.now() - timedelta(days=30)
+    
+    announcements = (
+        Notification.query
+        .filter(
+            Notification.branch_id == branch_id,
+            Notification.type.in_(['announcement', 'manual_message', 'system_maintenance', 'delivery_notice']),
+            Notification.created_at >= since
+        )
+        .order_by(Notification.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    
+    return jsonify({
+        "ok": True,
+        "announcements": [
+            {
+                "id": ann.id,
+                "title": ann.message.split('\n')[0] if '\n' in ann.message else ann.message[:50] + ('...' if len(ann.message) > 50 else ''),
+                "message": ann.message,
+                "date": ann.date.strftime('%b %d, %Y') if ann.date else ann.created_at.strftime('%b %d, %Y'),
+                "sender": ann.sender,
+                "type": ann.type,
+                "created_at": ann.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+            for ann in announcements
+        ]
+    })
+
 @manager_bp.route("/api/notifications/<int:notification_id>", methods=["DELETE"])
 @manager_required
 def mgr_delete_notification(notification_id):

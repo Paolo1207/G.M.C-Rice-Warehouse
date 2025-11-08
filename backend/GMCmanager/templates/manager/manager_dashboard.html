@@ -177,34 +177,20 @@
         <div class="dashboard-grid">
           <div class="grid-item">
             <h3><i class="fas fa-bell"></i> Real-time Alerts</h3>
-            <div class="alert-list">
-              <div class="alert-item warning">
-                <i class="fas fa-exclamation-circle"></i>
-                <span>2 items near expiry date</span>
-              </div>
-              <div class="alert-item caution">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Stock below reorder level for 5 items</span>
+            <div class="alert-list" id="realTimeAlerts">
+              <div class="alert-item info" style="text-align: center; padding: 20px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading alerts...</span>
               </div>
             </div>
           </div>
 
           <div class="grid-item">
             <h3><i class="fas fa-bullhorn"></i> Announcements</h3>
-            <div class="announcement-list">
-              <div class="announcement-item">
-                <div class="announcement-header">
-                  <span class="title">System Maintenance</span>
-                  <span class="date">Mar 15, 2024</span>
-                </div>
-                <p>Scheduled maintenance on March 20, 2024, from 2 AM to 4 AM.</p>
-              </div>
-              <div class="announcement-item">
-                <div class="announcement-header">
-                  <span class="title">Delivery Delay Notice</span>
-                  <span class="date">Mar 14, 2024</span>
-                </div>
-                <p>Expected delivery delay for incoming stock due to weather conditions.</p>
+            <div class="announcement-list" id="branchAnnouncements">
+              <div class="announcement-item" style="text-align: center; padding: 20px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading announcements...</span>
               </div>
             </div>
           </div>
@@ -322,6 +308,121 @@
         }
       } catch (error) {
         console.error('Error loading KPI data:', error);
+      }
+    }
+
+    // Load Real-time Alerts
+    async function loadAlerts() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        parseInt(urlParams.get('branch_id')) || 
+                        parseInt(urlParams.get('branch')) ||
+                        null;
+        
+        let apiUrl = '/manager/api/dashboard/alerts';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const alertsContainer = document.getElementById('realTimeAlerts');
+        if (!alertsContainer) return;
+        
+        if (data.ok && data.alerts && data.alerts.length > 0) {
+          alertsContainer.innerHTML = data.alerts.map(alert => {
+            const severityClass = alert.severity === 'warning' ? 'warning' : 
+                                  alert.severity === 'caution' ? 'caution' : 'info';
+            return `
+              <div class="alert-item ${severityClass}">
+                <i class="fas fa-${alert.icon}"></i>
+                <span>${alert.message}</span>
+              </div>
+            `;
+          }).join('');
+        } else {
+          alertsContainer.innerHTML = `
+            <div class="alert-item info" style="text-align: center; padding: 20px;">
+              <i class="fas fa-check-circle"></i>
+              <span>All systems operational. No alerts at this time.</span>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading alerts:', error);
+        const alertsContainer = document.getElementById('realTimeAlerts');
+        if (alertsContainer) {
+          alertsContainer.innerHTML = `
+            <div class="alert-item info" style="text-align: center; padding: 20px;">
+              <i class="fas fa-info-circle"></i>
+              <span>Unable to load alerts. Please refresh the page.</span>
+            </div>
+          `;
+        }
+      }
+    }
+
+    // Load Branch Announcements
+    async function loadAnnouncements() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        parseInt(urlParams.get('branch_id')) || 
+                        parseInt(urlParams.get('branch')) ||
+                        null;
+        
+        let apiUrl = '/manager/api/dashboard/announcements';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const announcementsContainer = document.getElementById('branchAnnouncements');
+        if (!announcementsContainer) return;
+        
+        if (data.ok && data.announcements && data.announcements.length > 0) {
+          announcementsContainer.innerHTML = data.announcements.map(ann => {
+            // Extract title from message (first line or first 50 chars)
+            const title = ann.title || ann.message.split('\n')[0].substring(0, 50);
+            const description = ann.message.length > 100 ? ann.message.substring(0, 100) + '...' : ann.message;
+            
+            return `
+              <div class="announcement-item">
+                <div class="announcement-header">
+                  <span class="title">${title}</span>
+                  <span class="date">${ann.date}</span>
+                </div>
+                <p>${description}</p>
+              </div>
+            `;
+          }).join('');
+        } else {
+          announcementsContainer.innerHTML = `
+            <div class="announcement-item" style="text-align: center; padding: 20px;">
+              <i class="fas fa-info-circle"></i>
+              <p>No announcements at this time.</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading announcements:', error);
+        const announcementsContainer = document.getElementById('branchAnnouncements');
+        if (announcementsContainer) {
+          announcementsContainer.innerHTML = `
+            <div class="announcement-item" style="text-align: center; padding: 20px;">
+              <i class="fas fa-info-circle"></i>
+              <p>Unable to load announcements. Please refresh the page.</p>
+            </div>
+          `;
+        }
       }
     }
 
@@ -447,9 +548,17 @@
       // Load real data
       loadKPIData();
       loadChartData();
+      loadAlerts();
+      loadAnnouncements();
       
       // Setup filter event listeners
       setupFilterListeners();
+      
+      // Auto-refresh alerts and announcements every 60 seconds
+      setInterval(() => {
+        loadAlerts();
+        loadAnnouncements();
+      }, 60000);
     }
 
     // Update Sales Trend Chart
