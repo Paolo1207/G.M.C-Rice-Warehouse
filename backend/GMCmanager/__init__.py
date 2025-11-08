@@ -3262,6 +3262,7 @@ def manager_api_me():
     return jsonify({"ok": True, "user": user_data})
 
 @manager_bp.get("/api/users/me")
+@manager_required
 def manager_api_get_current_user():
     user_data = session.get('user')
     if not user_data:
@@ -3279,7 +3280,7 @@ def manager_api_get_current_user():
         "ok": True,
         "user": {
             "id": user.id,
-            "fullName": getattr(user, 'full_name', user.email.split('@')[0].replace('_', ' ').title()),
+            "fullName": user.full_name if user.full_name else (user.email.split('@')[0].replace('_', ' ').title()),
             "email": user.email,
             "role": user.role,
             "branch_id": user.branch_id
@@ -3287,6 +3288,7 @@ def manager_api_get_current_user():
     })
 
 @manager_bp.patch("/api/users/me")
+@manager_required
 def manager_api_update_current_user():
     # Temporarily disable CSRF validation for testing
     print("DEBUG MANAGER PATCH: CSRF validation temporarily disabled")
@@ -3375,14 +3377,12 @@ def manager_api_update_current_user():
     
     # Update other fields
     if 'fullName' in data:
-        # Since User model doesn't have full_name field, we'll skip this for now
-        # In a real application, you'd add a full_name column to the User table
-        pass
+        user.full_name = data['fullName'].strip() if data['fullName'] else None
     
     try:
         db.session.commit()
         # Update session
-        session['user']['fullName'] = getattr(user, 'full_name', user.email.split('@')[0].replace('_', ' ').title())
+        session['user']['fullName'] = user.full_name if user.full_name else (user.email.split('@')[0].replace('_', ' ').title())
         session['user']['email'] = user.email
         session.modified = True
         
@@ -3396,6 +3396,7 @@ def manager_api_update_current_user():
         return jsonify({"ok": False, "error": "Failed to update profile"}), 500
 
 @manager_bp.post("/api/auth/change_password")
+@manager_required
 def manager_api_change_password():
     # CSRF validation - temporarily disabled for debugging
     # The current password verification provides sufficient security

@@ -157,6 +157,7 @@ class User(db.Model):
     password_hash = db.Column(db.String, nullable=False)
     role = db.Column(db.String, default="manager")  # "admin" | "manager"
     branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), nullable=True)  # required for manager
+    full_name = db.Column(db.String(255), nullable=True)  # Full name for display
 
 class EmailVerification(db.Model):
     __tablename__ = "email_verifications"
