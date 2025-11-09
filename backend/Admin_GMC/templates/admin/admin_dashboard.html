@@ -788,6 +788,16 @@
             }
         }
 
+        // Branch color palette
+        const branchColors = [
+            { border: '#2e7d32', fill: 'rgba(46, 125, 50, 0.1)' },   // Green - Marawoy
+            { border: '#1976d2', fill: 'rgba(25, 118, 210, 0.1)' }, // Blue - Lipa
+            { border: '#f57c00', fill: 'rgba(245, 124, 0, 0.1)' },  // Orange - Malvar
+            { border: '#7b1fa2', fill: 'rgba(123, 31, 162, 0.1)' }, // Purple - Bulacnin
+            { border: '#c2185b', fill: 'rgba(194, 24, 91, 0.1)' },   // Pink - Boac
+            { border: '#0288d1', fill: 'rgba(2, 136, 209, 0.1)' },   // Light Blue - Sta. Cruz
+        ];
+
         // Update Sales Trend Chart
         function updateSalesTrendChart(data) {
             const ctx = document.getElementById('salesTrendChart');
@@ -797,35 +807,100 @@
                 window.salesTrendChart.destroy();
             }
 
-            // Handle empty data
-            if (!data || data.length === 0) {
-                data = [{ date: 'No Data', sales: 0 }];
-            }
-
-            const labels = data.map(item => item.date);
-            const salesData = data.map(item => item.sales);
-
-            // Determine selected period to reflect in the chart title
+            // Check if data is branch-specific (array of branch objects) or aggregated (array of date objects)
+            const isBranchSpecific = data && data.length > 0 && data[0].hasOwnProperty('branch_id');
+            const salesTrendBranch = document.getElementById('salesTrendBranch')?.value || '';
             const selectedPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+
+            let labels = [];
+            let datasets = [];
+
+            if (isBranchSpecific && !salesTrendBranch) {
+                // All branches - multiple lines
+                if (data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [{
+                        label: 'No Data',
+                        data: [0],
+                        borderColor: '#cccccc',
+                        backgroundColor: 'rgba(204, 204, 204, 0.1)',
+                        borderWidth: 2,
+                        fill: false
+                    }];
+                } else {
+                    // Get all unique dates from all branches
+                    const allDates = new Set();
+                    data.forEach(branch => {
+                        branch.data.forEach(item => allDates.add(item.date));
+                    });
+                    labels = Array.from(allDates).sort();
+
+                    // Create dataset for each branch
+                    data.forEach((branch, index) => {
+                        const colorIndex = (branch.branch_id - 1) % branchColors.length;
+                        const colors = branchColors[colorIndex];
+                        
+                        // Map branch data to labels
+                        const branchData = labels.map(date => {
+                            const item = branch.data.find(d => d.date === date);
+                            return item ? item.sales : 0;
+                        });
+
+                        datasets.push({
+                            label: branch.branch_name,
+                            data: branchData,
+                            borderColor: colors.border,
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+                    });
+                }
+            } else {
+                // Single branch or aggregated - single line
+                if (!data || data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [{
+                        label: 'Daily Sales (₱)',
+                        data: [0],
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }];
+                } else {
+                    labels = data.map(item => item.date);
+                    const salesData = data.map(item => item.sales);
+                    
+                    datasets = [{
+                        label: 'Daily Sales (₱)',
+                        data: salesData,
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2e7d32',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }];
+                }
+            }
 
             window.salesTrendChart = new Chart(ctx, {
             type: 'line',
             data: {
                     labels: labels,
-                datasets: [{
-                        label: 'Daily Sales (₱)',
-                        data: salesData,
-                    borderColor: '#2e7d32',
-                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '#2e7d32',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                    }]
+                datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -833,7 +908,15 @@
                     plugins: {
                         legend: {
                             display: true,
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8,
+                                font: {
+                                    size: 11
+                                },
+                                usePointStyle: true
+                            }
                         },
                         title: { 
                             display: true, 
@@ -895,60 +978,178 @@
                 window.forecastVsActualChart.destroy();
             }
 
-            // Handle empty data
-            if (!data || data.length === 0) {
-                data = [{ date: 'No Data', actual: 0, forecast: 0 }];
-            }
+            // Check if data is branch-specific (array of branch objects) or aggregated (array of date objects)
+            const isBranchSpecific = data && data.length > 0 && data[0].hasOwnProperty('branch_id');
+            const forecastBranch = document.getElementById('forecastBranch')?.value || '';
 
-            const labels = data.map(item => item.date);
-            const actualData = data.map(item => item.actual);
-            const forecastData = data.map(item => item.forecast);
+            let labels = [];
+            let datasets = [];
+
+            if (isBranchSpecific && !forecastBranch) {
+                // All branches - multiple lines for actual and forecast
+                if (data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [
+                        {
+                            label: 'Actual Sales (kg)',
+                            data: [0],
+                            borderColor: '#1976d2',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Forecast (kg)',
+                            data: [0],
+                            borderColor: '#ff9800',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ];
+                } else {
+                    // Get all unique dates from all branches
+                    const allDates = new Set();
+                    data.forEach(branch => {
+                        branch.data.forEach(item => allDates.add(item.date));
+                    });
+                    labels = Array.from(allDates).sort();
+
+                    // Create datasets for each branch (actual and forecast)
+                    data.forEach((branch, index) => {
+                        const colorIndex = (branch.branch_id - 1) % branchColors.length;
+                        const colors = branchColors[colorIndex];
+                        
+                        // Map branch data to labels
+                        const actualData = labels.map(date => {
+                            const item = branch.data.find(d => d.date === date);
+                            return item ? item.actual : 0;
+                        });
+
+                        const forecastData = labels.map(date => {
+                            const item = branch.data.find(d => d.date === date);
+                            return item ? item.forecast : 0;
+                        });
+
+                        // Actual line (solid)
+                        datasets.push({
+                            label: `${branch.branch_name} - Actual`,
+                            data: actualData,
+                            borderColor: colors.border,
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+
+                        // Forecast line (dashed, slightly lighter) - use same color but with opacity
+                        datasets.push({
+                            label: `${branch.branch_name} - Forecast`,
+                            data: forecastData,
+                            borderColor: colors.border + '80', // Add 50% opacity (hex 80 = 128/255)
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border + '80',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+                    });
+                }
+            } else {
+                // Single branch or aggregated - two lines (actual and forecast)
+                if (!data || data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [
+                        {
+                            label: 'Actual Sales (kg)',
+                            data: [0],
+                            borderColor: '#1976d2',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Forecast (kg)',
+                            data: [0],
+                            borderColor: '#ff9800',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ];
+                } else {
+                    labels = data.map(item => item.date);
+                    const actualData = data.map(item => item.actual);
+                    const forecastData = data.map(item => item.forecast);
+                    
+                    datasets = [
+                        {
+                            label: 'Actual Sales (kg)',
+                            data: actualData,
+                            borderColor: '#1976d2',
+                            backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: '#1976d2',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Forecast (kg)',
+                            data: forecastData,
+                            borderColor: '#ff9800',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            borderWidth: 3,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: '#ff9800',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ];
+                }
+            }
 
             window.forecastVsActualChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: 'Actual Sales (kg)',
-                        data: actualData,
-                        borderColor: '#1976d2',
-                        backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                        borderWidth: 3,
-                        fill: false,
-                        tension: 0.4,
-                        pointBackgroundColor: '#1976d2',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }, {
-                        label: 'Forecast (kg)',
-                        data: forecastData,
-                    borderColor: '#ff9800',
-                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                    borderWidth: 3,
-                    borderDash: [5, 5],
-                    fill: false,
-                    tension: 0.4,
-                    pointBackgroundColor: '#ff9800',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 4,
-                    pointHoverRadius: 6
-                }]
+                    datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        title: { 
-                            display: true, 
-                            text: 'Forecast vs Actual Sales',
-                            font: { size: 14, weight: 'bold' }
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8,
+                            font: {
+                                size: 11
+                            },
+                            usePointStyle: true
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: 'Forecast vs Actual Sales',
+                        font: { size: 14, weight: 'bold' }
                     },
                     tooltip: {
                         backgroundColor: 'rgba(0, 0, 0, 0.8)',

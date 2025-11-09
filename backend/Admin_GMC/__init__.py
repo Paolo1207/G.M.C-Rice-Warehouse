@@ -3085,7 +3085,11 @@ def api_dashboard_charts():
             sales_query = sales_query.filter(SalesTransaction.product_id == product_id)
             forecast_query = forecast_query.filter(ForecastData.product_id == product_id)
         
-        # Query all transactions in the date range, then group by Philippines date
+        # Get all branches for branch breakdown
+        all_branches = Branch.query.all()
+        branch_map = {b.id: b.name for b in all_branches}
+        
+        # Query all transactions in the date range, then group by Philippines date and branch
         # Since transactions are stored as naive UTC, we need to convert to Philippines time for date extraction
         all_sales = sales_query.filter(
             and_(
@@ -3094,73 +3098,176 @@ def api_dashboard_charts():
             )
         ).all()
         
-        # Group by Philippines date
-        sales_trend_dict = {}
-        for sale in all_sales:
-            # Convert UTC datetime to Philippines time and get date
-            if sale.transaction_date.tzinfo is None:
-                # Naive datetime, assume UTC
-                sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
-            else:
-                sale_utc = sale.transaction_date
-            sale_ph = sale_utc.astimezone(ph_tz)
-            sale_date = sale_ph.date()
+        # Group by date and branch (if no branch_id filter)
+        if branch_id:
+            # Single branch - aggregate all data
+            sales_trend_dict = {}
+            for sale in all_sales:
+                # Convert UTC datetime to Philippines time and get date
+                if sale.transaction_date.tzinfo is None:
+                    # Naive datetime, assume UTC
+                    sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
+                else:
+                    sale_utc = sale.transaction_date
+                sale_ph = sale_utc.astimezone(ph_tz)
+                sale_date = sale_ph.date()
+                
+                if start_date <= sale_date <= end_date:
+                    if sale_date not in sales_trend_dict:
+                        sales_trend_dict[sale_date] = {'sales': 0.0, 'quantity': 0.0}
+                    sales_trend_dict[sale_date]['sales'] += float(sale.total_amount)
+                    sales_trend_dict[sale_date]['quantity'] += float(sale.quantity_sold)
             
-            if start_date <= sale_date <= end_date:
-                if sale_date not in sales_trend_dict:
-                    sales_trend_dict[sale_date] = {'sales': 0.0, 'quantity': 0.0}
-                sales_trend_dict[sale_date]['sales'] += float(sale.total_amount)
-                sales_trend_dict[sale_date]['quantity'] += float(sale.quantity_sold)
-        
-        # Fill in missing dates with zero values - include today
-        sales_trend_filled = []
-        for i in range(days):
-            current_date = start_date + timedelta(days=i)
-            # Ensure we don't go past today
-            if current_date > end_date:
-                break
+            # Fill in missing dates with zero values - include today
+            sales_trend_filled = []
+            for i in range(days):
+                current_date = start_date + timedelta(days=i)
+                # Ensure we don't go past today
+                if current_date > end_date:
+                    break
+                
+                sales_trend_filled.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'sales': sales_trend_dict.get(current_date, {'sales': 0.0})['sales'],
+                    'quantity': sales_trend_dict.get(current_date, {'quantity': 0.0})['quantity']
+                })
+        else:
+            # All branches - group by branch and date
+            sales_trend_by_branch = {}  # {branch_id: {date: {sales, quantity}}}
             
-            sales_trend_filled.append({
-                'date': current_date.strftime('%Y-%m-%d'),
-                'sales': sales_trend_dict.get(current_date, {'sales': 0.0})['sales'],
-                'quantity': sales_trend_dict.get(current_date, {'quantity': 0.0})['quantity']
-            })
+            for sale in all_sales:
+                # Convert UTC datetime to Philippines time and get date
+                if sale.transaction_date.tzinfo is None:
+                    sale_utc = sale.transaction_date.replace(tzinfo=tz.utc)
+                else:
+                    sale_utc = sale.transaction_date
+                sale_ph = sale_utc.astimezone(ph_tz)
+                sale_date = sale_ph.date()
+                
+                if start_date <= sale_date <= end_date:
+                    bid = sale.branch_id
+                    if bid not in sales_trend_by_branch:
+                        sales_trend_by_branch[bid] = {}
+                    if sale_date not in sales_trend_by_branch[bid]:
+                        sales_trend_by_branch[bid][sale_date] = {'sales': 0.0, 'quantity': 0.0}
+                    sales_trend_by_branch[bid][sale_date]['sales'] += float(sale.total_amount)
+                    sales_trend_by_branch[bid][sale_date]['quantity'] += float(sale.quantity_sold)
+            
+            # Format as list of branch datasets
+            sales_trend_filled = []
+            for bid, branch_name in branch_map.items():
+                branch_data = []
+                for i in range(days):
+                    current_date = start_date + timedelta(days=i)
+                    if current_date > end_date:
+                        break
+                    
+                    branch_data.append({
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'sales': sales_trend_by_branch.get(bid, {}).get(current_date, {'sales': 0.0})['sales'],
+                        'quantity': sales_trend_by_branch.get(bid, {}).get(current_date, {'quantity': 0.0})['quantity']
+                    })
+                
+                sales_trend_filled.append({
+                    'branch_id': bid,
+                    'branch_name': branch_name,
+                    'data': branch_data
+                })
         
         # Forecast vs Actual data
-        forecast_vs_actual = []
-        for i in range(days):
-            current_date = start_date + timedelta(days=i)
-            # Ensure we don't go past today
-            if current_date > end_date:
-                break
+        if branch_id:
+            # Single branch - aggregate
+            forecast_vs_actual = []
+            for i in range(days):
+                current_date = start_date + timedelta(days=i)
+                if current_date > end_date:
+                    break
+                
+                # Get actual sales for this date (use Philippines timezone)
+                current_date_start_ph = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=ph_tz)
+                current_date_end_ph = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=ph_tz)
+                current_date_start_utc = current_date_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+                current_date_end_utc = current_date_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+                
+                actual_sales = sales_query.filter(
+                    and_(
+                        SalesTransaction.transaction_date >= current_date_start_utc,
+                        SalesTransaction.transaction_date <= current_date_end_utc
+                    )
+                ).with_entities(
+                    func.sum(SalesTransaction.quantity_sold)
+                ).scalar() or 0
+                
+                # Get forecast for this date - sum all forecasts for this date
+                forecast_sales = forecast_query.filter(
+                    ForecastData.forecast_date == current_date
+                ).with_entities(
+                    func.sum(ForecastData.predicted_demand)
+                ).scalar() or 0
+                
+                forecast_vs_actual.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'actual': float(actual_sales),
+                    'forecast': float(forecast_sales)
+                })
+        else:
+            # All branches - group by branch
+            forecast_vs_actual_by_branch = {}  # {branch_id: [{date, actual, forecast}]}
             
-            # Get actual sales for this date (use Philippines timezone)
-            current_date_start_ph = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=ph_tz)
-            current_date_end_ph = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=ph_tz)
-            current_date_start_utc = current_date_start_ph.astimezone(tz.utc).replace(tzinfo=None)
-            current_date_end_utc = current_date_end_ph.astimezone(tz.utc).replace(tzinfo=None)
-            
-            actual_sales = sales_query.filter(
-                and_(
-                    SalesTransaction.transaction_date >= current_date_start_utc,
-                    SalesTransaction.transaction_date <= current_date_end_utc
+            for bid in branch_map.keys():
+                forecast_vs_actual_by_branch[bid] = []
+                branch_sales_query = db.session.query(SalesTransaction).filter(
+                    SalesTransaction.branch_id == bid
                 )
-            ).with_entities(
-                func.sum(SalesTransaction.quantity_sold)
-            ).scalar() or 0
+                branch_forecast_query = db.session.query(ForecastData).filter(
+                    ForecastData.branch_id == bid
+                )
+                
+                if product_id:
+                    branch_sales_query = branch_sales_query.filter(SalesTransaction.product_id == product_id)
+                    branch_forecast_query = branch_forecast_query.filter(ForecastData.product_id == product_id)
+                
+                for i in range(days):
+                    current_date = start_date + timedelta(days=i)
+                    if current_date > end_date:
+                        break
+                    
+                    # Get actual sales for this date and branch
+                    current_date_start_ph = datetime.combine(current_date, datetime.min.time()).replace(tzinfo=ph_tz)
+                    current_date_end_ph = datetime.combine(current_date, datetime.max.time()).replace(tzinfo=ph_tz)
+                    current_date_start_utc = current_date_start_ph.astimezone(tz.utc).replace(tzinfo=None)
+                    current_date_end_utc = current_date_end_ph.astimezone(tz.utc).replace(tzinfo=None)
+                    
+                    actual_sales = branch_sales_query.filter(
+                        and_(
+                            SalesTransaction.transaction_date >= current_date_start_utc,
+                            SalesTransaction.transaction_date <= current_date_end_utc
+                        )
+                    ).with_entities(
+                        func.sum(SalesTransaction.quantity_sold)
+                    ).scalar() or 0
+                    
+                    # Get forecast for this date and branch
+                    forecast_sales = branch_forecast_query.filter(
+                        ForecastData.forecast_date == current_date
+                    ).with_entities(
+                        func.sum(ForecastData.predicted_demand)
+                    ).scalar() or 0
+                    
+                    forecast_vs_actual_by_branch[bid].append({
+                        'date': current_date.strftime('%Y-%m-%d'),
+                        'actual': float(actual_sales),
+                        'forecast': float(forecast_sales)
+                    })
             
-            # Get forecast for this date - sum all forecasts for this date
-            forecast_sales = forecast_query.filter(
-                ForecastData.forecast_date == current_date
-            ).with_entities(
-                func.sum(ForecastData.predicted_demand)
-            ).scalar() or 0
-            
-            forecast_vs_actual.append({
-                'date': current_date.strftime('%Y-%m-%d'),
-                'actual': float(actual_sales),
-                'forecast': float(forecast_sales)
-            })
+            # Format as list of branch datasets
+            forecast_vs_actual = []
+            for bid, branch_name in branch_map.items():
+                forecast_vs_actual.append({
+                    'branch_id': bid,
+                    'branch_name': branch_name,
+                    'data': forecast_vs_actual_by_branch.get(bid, [])
+                })
         
         # Top 5 products for the specified date range
         # Convert Philippines date range to UTC datetime range
