@@ -168,9 +168,17 @@ def mgr_inventory_create():
         db.session.add(product)
         try:
             db.session.flush()
+            # Refresh to ensure product.id is available
+            db.session.refresh(product)
         except IntegrityError:
             db.session.rollback()
             product = Product.query.filter_by(name=product_name).first()
+            if not product:
+                return jsonify({"ok": False, "error": "Failed to create or find product"}), 500
+
+    # Ensure product has an ID
+    if not product or not product.id:
+        return jsonify({"ok": False, "error": "Invalid product state"}), 500
 
     stock_kg   = _to_float(data.get("stock_kg")) or 0.0
     unit_price = _to_float(data.get("unit_price")) or 0.0
@@ -180,6 +188,7 @@ def mgr_inventory_create():
     # Check if this exact combination already exists (branch + product + batch_code)
     # Handle NULL batch_code properly - PostgreSQL treats NULL as distinct in unique constraints
     from sqlalchemy import and_
+    
     if batch_code:
         existing_item = InventoryItem.query.filter_by(
             branch_id=branch.id, 
@@ -197,11 +206,19 @@ def mgr_inventory_create():
         ).first()
     
     if existing_item:
-        # If same batch code exists, return error
-        return jsonify({
-            "ok": False, 
-            "error": f"Product '{product_name}' with batch code '{batch_code or '(none)'}' already exists in this branch. Please use a different batch code or update the existing item."
-        }), 409
+        # Get all existing batch codes for this product in this branch for better error message
+        all_batches = InventoryItem.query.filter_by(
+            branch_id=branch.id,
+            product_id=product.id
+        ).with_entities(InventoryItem.batch_code).all()
+        existing_batches = [b[0] for b in all_batches if b[0]]
+        
+        error_msg = f"Product '{product_name}' with batch code '{batch_code or '(none)'}' already exists in this branch."
+        if existing_batches:
+            error_msg += f" Existing batch codes: {', '.join(existing_batches)}"
+        error_msg += " Please use a different batch code or update the existing item."
+        
+        return jsonify({"ok": False, "error": error_msg}), 409
 
     # Create new inventory item
     item = InventoryItem(
@@ -231,7 +248,40 @@ def mgr_inventory_create():
         return jsonify({"ok": True, "item": item_to_dict(item)}), 201
     except IntegrityError as e:
         db.session.rollback()
-        return jsonify({"ok": False, "error": "Duplicate branch/product/batch (uq_branch_product_batch). Try a different batch code."}), 409
+        error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        
+        # Check what actually exists now (in case of race condition)
+        if batch_code:
+            existing_check = InventoryItem.query.filter_by(
+                branch_id=branch.id,
+                product_id=product.id,
+                batch_code=batch_code
+            ).first()
+        else:
+            existing_check = InventoryItem.query.filter(
+                and_(
+                    InventoryItem.branch_id == branch.id,
+                    InventoryItem.product_id == product.id,
+                    InventoryItem.batch_code.is_(None)
+                )
+            ).first()
+        
+        if existing_check:
+            # Get all existing batch codes for better error message
+            all_batches = InventoryItem.query.filter_by(
+                branch_id=branch.id,
+                product_id=product.id
+            ).with_entities(InventoryItem.batch_code).all()
+            existing_batches = [b[0] for b in all_batches if b[0]]
+            
+            error_response = f"Product '{product_name}' with batch code '{batch_code or '(none)'}' already exists in this branch."
+            if existing_batches:
+                error_response += f" Existing batch codes: {', '.join(existing_batches)}"
+            error_response += " Please use a different batch code or update the existing item."
+        else:
+            error_response = f"Duplicate branch/product/batch combination. Product: '{product_name}', Batch: '{batch_code or '(none)'}'. Try a different batch code."
+        
+        return jsonify({"ok": False, "error": error_response}), 409
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
