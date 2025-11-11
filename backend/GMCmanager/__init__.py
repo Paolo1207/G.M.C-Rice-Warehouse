@@ -155,9 +155,20 @@ def mgr_inventory_create():
     if not branch:
         return jsonify({"ok": False, "error": f"Branch {branch_id} not found"}), 404
 
-    # Find or create product by name
+    # Find or create product by name (case-sensitive match)
     product = Product.query.filter_by(name=product_name).first()
+    
+    # Debug: Check for case-insensitive matches
     if not product:
+        from sqlalchemy import func
+        similar_products = Product.query.filter(
+            func.lower(Product.name) == func.lower(product_name)
+        ).all()
+        if similar_products:
+            print(f"DEBUG: Product '{product_name}' not found, but found similar (case-different): {[p.name for p in similar_products]}")
+    
+    if not product:
+        print(f"DEBUG: Creating new product: '{product_name}'")
         product = Product(
             name=product_name,
             category=(data.get("category") or None),
@@ -170,11 +181,15 @@ def mgr_inventory_create():
             db.session.flush()
             # Refresh to ensure product.id is available
             db.session.refresh(product)
+            print(f"DEBUG: Created product id={product.id}, name='{product.name}'")
         except IntegrityError:
             db.session.rollback()
             product = Product.query.filter_by(name=product_name).first()
             if not product:
                 return jsonify({"ok": False, "error": "Failed to create or find product"}), 500
+            print(f"DEBUG: Product already existed after rollback, using id={product.id}")
+    else:
+        print(f"DEBUG: Found existing product id={product.id}, name='{product.name}'")
 
     # Ensure product has an ID
     if not product or not product.id:
@@ -185,16 +200,42 @@ def mgr_inventory_create():
     batch_code = (data.get("batch_code") or "").strip() or None
     grn_number = (data.get("grn_number") or data.get("grn") or "").strip() or None
 
+    # Debug logging
+    print(f"DEBUG: Creating inventory item - branch_id={branch.id}, product_id={product.id}, product_name='{product_name}', batch_code='{batch_code}'")
+
     # Check if this exact combination already exists (branch + product + batch_code)
     # Handle NULL batch_code properly - PostgreSQL treats NULL as distinct in unique constraints
-    from sqlalchemy import and_
+    from sqlalchemy import and_, func
+    
+    # Get all existing items for this product in this branch for debugging
+    all_existing = InventoryItem.query.filter_by(
+        branch_id=branch.id,
+        product_id=product.id
+    ).all()
+    
+    print(f"DEBUG: Found {len(all_existing)} existing inventory items for product_id={product.id} in branch_id={branch.id}")
+    for existing in all_existing:
+        print(f"DEBUG:   - Existing item id={existing.id}, batch_code='{existing.batch_code}'")
     
     if batch_code:
+        # Check for exact match (case-sensitive)
         existing_item = InventoryItem.query.filter_by(
             branch_id=branch.id, 
             product_id=product.id, 
             batch_code=batch_code
         ).first()
+        
+        # Also check case-insensitive match for better error message
+        if not existing_item:
+            existing_item_case_insensitive = InventoryItem.query.filter(
+                and_(
+                    InventoryItem.branch_id == branch.id,
+                    InventoryItem.product_id == product.id,
+                    func.lower(InventoryItem.batch_code) == func.lower(batch_code)
+                )
+            ).first()
+            if existing_item_case_insensitive:
+                print(f"DEBUG: Found case-insensitive match: '{existing_item_case_insensitive.batch_code}' vs '{batch_code}'")
     else:
         # For NULL batch_code, check explicitly
         existing_item = InventoryItem.query.filter(
@@ -218,6 +259,7 @@ def mgr_inventory_create():
             error_msg += f" Existing batch codes: {', '.join(existing_batches)}"
         error_msg += " Please use a different batch code or update the existing item."
         
+        print(f"DEBUG: Duplicate detected before commit: {error_msg}")
         return jsonify({"ok": False, "error": error_msg}), 409
 
     # Create new inventory item
@@ -245,10 +287,13 @@ def mgr_inventory_create():
 
     try:
         db.session.commit()
+        print(f"DEBUG: Successfully created inventory item id={item.id}")
         return jsonify({"ok": True, "item": item_to_dict(item)}), 201
     except IntegrityError as e:
         db.session.rollback()
         error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
+        print(f"DEBUG: IntegrityError caught: {error_msg}")
+        print(f"DEBUG: Attempted to create - branch_id={branch.id}, product_id={product.id}, product_name='{product_name}', batch_code='{batch_code}'")
         
         # Check what actually exists now (in case of race condition)
         if batch_code:
@@ -266,6 +311,16 @@ def mgr_inventory_create():
                 )
             ).first()
         
+        # Also check all items for this product to see what's there
+        all_items = InventoryItem.query.filter_by(
+            branch_id=branch.id,
+            product_id=product.id
+        ).all()
+        
+        print(f"DEBUG: After rollback, found {len(all_items)} items for this product:")
+        for it in all_items:
+            print(f"DEBUG:   - Item id={it.id}, batch_code='{it.batch_code}'")
+        
         if existing_check:
             # Get all existing batch codes for better error message
             all_batches = InventoryItem.query.filter_by(
@@ -279,8 +334,15 @@ def mgr_inventory_create():
                 error_response += f" Existing batch codes: {', '.join(existing_batches)}"
             error_response += " Please use a different batch code or update the existing item."
         else:
-            error_response = f"Duplicate branch/product/batch combination. Product: '{product_name}', Batch: '{batch_code or '(none)'}'. Try a different batch code."
+            # This shouldn't happen if our pre-check worked, but handle it anyway
+            error_response = f"Duplicate branch/product/batch combination detected. Product: '{product_name}' (ID: {product.id}), Branch: {branch.id}, Batch: '{batch_code or '(none)'}'. "
+            if all_items:
+                existing_batches = [it.batch_code for it in all_items if it.batch_code]
+                if existing_batches:
+                    error_response += f"Existing batch codes: {', '.join(existing_batches)}. "
+            error_response += "Please use a different batch code."
         
+        print(f"DEBUG: Returning error: {error_response}")
         return jsonify({"ok": False, "error": error_response}), 409
     except Exception as e:
         db.session.rollback()
