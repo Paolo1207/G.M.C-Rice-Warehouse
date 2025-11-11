@@ -62,6 +62,9 @@
                         <button class="btn secondary" onclick="exportInventory()">
                             <i class="fas fa-download"></i> Export
                         </button>
+                        <button class="btn secondary" id="printBtn" title="Print with preview">
+                            <i class="fas fa-print"></i> Print
+                        </button>
                     </div>
                 </div>
 
@@ -935,6 +938,110 @@
             URL.revokeObjectURL(url);
         }
 
+        // Print preview with branch name in header
+        function showManagerPrintPreview() {
+            // Derive branch name and id from template or URL
+            const branchNameParam = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name') || '';
+            const rawBranchName = branchNameParam ? decodeURIComponent(branchNameParam) : '';
+            const branchDisplay = rawBranchName || 'Branch';
+
+            // Collect table rows
+            const rows = [];
+            document.querySelectorAll('#inventoryTableBody tr').forEach(tr => {
+                const tds = Array.from(tr.children).map(td => td.textContent.trim());
+                // Expected columns: Product, Category, Batch, Quantity, Price, Status, Last Updated, Actions
+                rows.push({
+                    name: tds[0] || '',
+                    category: tds[1] || '',
+                    batch: tds[2] || '',
+                    qty: tds[3] || '',
+                    price: tds[4] || '',
+                    status: tds[5] || '',
+                    lastUpdated: tds[6] || ''
+                });
+            });
+
+            const generatedAt = new Date().toLocaleString();
+
+            // Build printable HTML
+            let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${branchDisplay} - Inventory Report</title>
+  <style>
+    @media print { @page { margin: 1cm; } .no-print { display:none !important; } }
+    body { font-family: Arial, sans-serif; margin: 20px; color:#1f2937; }
+    .header { border-bottom: 3px solid #1a365d; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h1 { margin: 0; color:#1a365d; font-size: 22px; }
+    .header p { margin: 4px 0; color:#4b5563; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+    th { background: #1a365d; color: #fff; }
+    tr:nth-child(even) { background: #f9fafb; }
+    .summary { margin-top: 14px; padding: 10px; background:#f3f4f6; border-radius:6px; }
+    .actions { text-align:center; margin-top: 16px; }
+    .btn { padding:10px 18px; background:#1a365d; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${branchDisplay} - Inventory Report</h1>
+    <p>Generated: ${generatedAt}</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Product Name</th>
+        <th>Category</th>
+        <th>Batch Code</th>
+        <th>Quantity</th>
+        <th>Price</th>
+        <th>Status</th>
+        <th>Last Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+`;
+            let totalQty = 0;
+            rows.forEach(r => {
+                const qtyNum = Number(String(r.qty).replace(/[^0-9.\-]/g,'')) || 0;
+                totalQty += qtyNum;
+                html += `
+      <tr>
+        <td>${r.name}</td>
+        <td>${r.category}</td>
+        <td>${r.batch}</td>
+        <td>${r.qty}</td>
+        <td>${r.price}</td>
+        <td>${r.status}</td>
+        <td>${r.lastUpdated}</td>
+      </tr>`;
+            });
+            html += `
+    </tbody>
+  </table>
+  <div class="summary">
+    <strong>Total Items:</strong> ${rows.length} &nbsp; | &nbsp;
+    <strong>Total Quantity (kg):</strong> ${totalQty.toLocaleString()}
+  </div>
+  <div class="actions no-print">
+    <button class="btn" onclick="window.print()">Print</button>
+  </div>
+</body>
+</html>`;
+
+            const w = window.open('', '_blank', 'width=900,height=700');
+            if (w) {
+                w.document.write(html);
+                w.document.close();
+                w.focus();
+            } else {
+                alert('Please allow popups to use the print feature.');
+            }
+        }
+
         // Update title and header based on branch selection
         function updateBranchTitle() {
             const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
@@ -964,6 +1071,11 @@
 
         // Call the function when page loads
         document.addEventListener('DOMContentLoaded', updateBranchTitle);
+        // Bind print button
+        document.addEventListener('DOMContentLoaded', function () {
+            const btn = document.getElementById('printBtn');
+            if (btn) btn.addEventListener('click', showManagerPrintPreview);
+        });
     </script>
      <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
 </body>
