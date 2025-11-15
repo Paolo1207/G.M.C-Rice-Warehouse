@@ -1878,8 +1878,9 @@ def _calculate_avg_daily_demand(product_id, branch_id, days):
     from sqlalchemy import func
     
     try:
-        end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=days)
+        # Use datetime for proper comparison with transaction_date (which is DateTime)
+        end_datetime = datetime.now()
+        start_datetime = end_datetime - timedelta(days=days)
         
         # Get total quantity sold for the product in the last N days
         total_sold = db.session.query(
@@ -1887,8 +1888,8 @@ def _calculate_avg_daily_demand(product_id, branch_id, days):
         ).filter(
             SalesTransaction.product_id == product_id,
             SalesTransaction.branch_id == branch_id,
-            SalesTransaction.sold_at >= start_date,
-            SalesTransaction.sold_at <= end_date
+            SalesTransaction.transaction_date >= start_datetime,
+            SalesTransaction.transaction_date <= end_datetime
         ).scalar() or 0
         
         # Calculate average daily demand
@@ -1898,6 +1899,8 @@ def _calculate_avg_daily_demand(product_id, branch_id, days):
         
     except Exception as e:
         print(f"Error calculating avg daily demand: {e}")
+        import traceback
+        traceback.print_exc()
         return 0.0
 
 def _classify_risk_by_doc(doc, current_stock, warn_level):
