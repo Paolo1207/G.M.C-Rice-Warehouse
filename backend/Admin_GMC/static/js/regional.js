@@ -797,12 +797,202 @@ class RegionalInsights {
                 
                 this.showToast('Data exported successfully', 'success');
             } else {
-                throw new Error('Export failed');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Export failed');
             }
         } catch (error) {
             console.error('Export error:', error);
-            this.showToast('Failed to export data', 'error');
+            this.showToast(error.message || 'Failed to export data', 'error');
         }
+    }
+    
+    /**
+     * Print regional insights page
+     */
+    printPage() {
+        // Create a print-friendly version
+        const printWindow = window.open('', '_blank', 'width=1200,height=800');
+        
+        if (!printWindow) {
+            this.showToast('Please allow popups to use the print feature', 'error');
+            return;
+        }
+        
+        const generatedAt = new Date().toLocaleString();
+        const productFilter = document.getElementById('product-select')?.value || 'all';
+        const branchFilter = document.getElementById('region-select')?.value || 'all';
+        
+        // Get chart data URLs (base64 images)
+        const stockChart = document.getElementById('branchStockChart');
+        const salesChart = document.getElementById('salesPerformanceChart');
+        const forecastChart = document.getElementById('regionalForecastChart');
+        
+        let stockChartImg = '';
+        let salesChartImg = '';
+        let forecastChartImg = '';
+        
+        // Convert charts to images
+        if (stockChart && this.charts.stock) {
+            stockChartImg = this.charts.stock.toBase64Image();
+        }
+        if (salesChart && this.charts.sales) {
+            salesChartImg = this.charts.sales.toBase64Image();
+        }
+        if (forecastChart && this.charts.forecast) {
+            forecastChartImg = this.charts.forecast.toBase64Image();
+        }
+        
+        // Get gaps data
+        const gapsContainer = document.querySelector('.regional-gap-list');
+        let gapsHTML = '';
+        if (gapsContainer) {
+            gapsHTML = gapsContainer.innerHTML;
+        }
+        
+        const printHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Regional Insights - Print</title>
+    <style>
+        @media print {
+            @page { margin: 1cm; size: landscape; }
+            .no-print { display: none !important; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #1f2937;
+        }
+        .header {
+            border-bottom: 3px solid #2e7d32;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #2e7d32;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 4px 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section h3 {
+            color: #2e7d32;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .section p {
+            font-size: 11px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+        .chart-img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        .gaps-list {
+            margin-top: 10px;
+        }
+        .gap-item {
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            border-left: 4px solid;
+            font-size: 11px;
+        }
+        .gap-item.critical {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+        }
+        .gap-item.warning {
+            background: #fffbeb;
+            border-left-color: #f59e0b;
+        }
+        .gap-item.info {
+            background: #f0f9ff;
+            border-left-color: #3b82f6;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Regional Insights Report</h1>
+        <p>Generated: ${generatedAt}</p>
+        <p>Filters: Product=${productFilter}, Branch=${branchFilter}</p>
+    </div>
+    
+    <div class="section">
+        <h3>🏢 Branch Stock Levels Overview</h3>
+        <p><strong>Data Source:</strong> Current inventory stock from InventoryItem table (summed by branch).</p>
+        ${stockChartImg ? `<img src="${stockChartImg}" class="chart-img" alt="Branch Stock Levels Chart">` : '<p>Chart data not available</p>'}
+    </div>
+    
+    <div class="section">
+        <h3>📈 Sales Performance by Region</h3>
+        <p><strong>Data Source:</strong> Real sales transactions from SalesTransaction table (last 6 months by default).</p>
+        ${salesChartImg ? `<img src="${salesChartImg}" class="chart-img" alt="Sales Performance Chart">` : '<p>Chart data not available</p>'}
+    </div>
+    
+    <div class="section">
+        <h3>⚖️ Demand & Supply Gaps</h3>
+        <p><strong>Data Source:</strong> Current stock from InventoryItem vs. forecasted demand from ForecastData (next 30 days).</p>
+        <div class="gaps-list">
+            ${gapsHTML || '<p>No gap data available</p>'}
+        </div>
+    </div>
+    
+    <div class="section">
+        <h3>🔮 Regional Forecasting Data</h3>
+        <p><strong>Data Source:</strong> Average predicted demand from ForecastData table (grouped by month and branch).</p>
+        ${forecastChartImg ? `<img src="${forecastChartImg}" class="chart-img" alt="Regional Forecast Chart">` : '<p>Chart data not available</p>'}
+    </div>
+    
+    <div class="actions no-print">
+        <button class="btn" onclick="window.print()">Print</button>
+    </div>
+</body>
+</html>`;
+        
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+        printWindow.focus();
+        
+        // Wait for images to load, then trigger print
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     }
 }
 
@@ -815,6 +1005,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
             window.regionalInsights.exportData();
+        });
+    }
+    
+    // Add print button event listener
+    const printBtn = document.getElementById('print-btn');
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            window.regionalInsights.printPage();
         });
     }
 });

@@ -9,6 +9,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <!-- Sidebar directly embedded -->
@@ -188,9 +189,12 @@
                     <!-- Options populated by JavaScript -->
                 </select>
             </div>
-            <div class="regional-filter-group">
+            <div class="regional-filter-group" style="display: flex; gap: 10px;">
                 <button id="export-btn" class="btn btn-primary">
                     <i class="fas fa-download"></i> Export CSV
+                </button>
+                <button id="print-btn" class="btn btn-primary">
+                    <i class="fas fa-print"></i> Print
                 </button>
             </div>
         </div>

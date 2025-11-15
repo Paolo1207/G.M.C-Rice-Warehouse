@@ -2115,6 +2115,8 @@ def api_regional_export():
     from flask import make_response
     import csv
     import io
+    from sqlalchemy import func, and_
+    from datetime import date, timedelta
     
     # Get current filters
     product = request.args.get('product', 'all')
@@ -2131,27 +2133,140 @@ def api_regional_export():
     writer.writerow([f'Filters: Product={product}, Category={category}, Branch={branch}'])
     writer.writerow([])
     
-    # Get stock data
-    stock_response = api_regional_stock()
-    stock_data = stock_response[0].get_json()
-    if stock_data['ok']:
+    # Get stock data directly
+    try:
+        stock_q = db.session.query(
+            Branch.name.label('branch_name'),
+            func.sum(InventoryItem.stock_kg).label('stock_kg'),
+            func.count(func.distinct(InventoryItem.product_id)).label('product_count')
+        ).join(InventoryItem, Branch.id == InventoryItem.branch_id)
+        
+        if branch and branch != 'all':
+            stock_q = stock_q.filter(Branch.name.ilike(f'%{branch}%'))
+        
+        if product and product != 'all':
+            stock_q = stock_q.join(Product, InventoryItem.product_id == Product.id)
+            stock_q = stock_q.filter(Product.name.ilike(f'%{product}%'))
+        
+        if category and category != 'all':
+            stock_q = stock_q.join(Product, InventoryItem.product_id == Product.id)
+            stock_q = stock_q.filter(Product.category.ilike(f'%{category}%'))
+        
+        stock_results = stock_q.group_by(Branch.id, Branch.name).all()
+        
         writer.writerow(['Branch Stock Levels'])
         writer.writerow(['Branch', 'Stock (kg)', 'Product Count'])
-        for branch_data in stock_data['branches']:
+        for result in stock_results:
             writer.writerow([
-                branch_data['branch_name'],
-                branch_data['stock_kg'],
-                branch_data['product_count']
+                result.branch_name,
+                float(result.stock_kg or 0),
+                int(result.product_count or 0)
             ])
         writer.writerow([])
+    except Exception as e:
+        print(f"Error exporting stock data: {e}")
+        writer.writerow(['Branch Stock Levels - Error loading data'])
+        writer.writerow([])
     
-    # Get gaps data
-    gaps_response = api_regional_gaps()
-    gaps_data = gaps_response[0].get_json()
-    if gaps_data['ok']:
+    # Get gaps data directly
+    try:
+        today = date.today()
+        next_30_days = today + timedelta(days=30)
+        
+        stock_q = db.session.query(
+            Branch.id.label('branch_id'),
+            Branch.name.label('branch_name'),
+            Product.id.label('product_id'),
+            Product.name.label('product_name'),
+            func.sum(InventoryItem.stock_kg).label('current_stock')
+        ).join(InventoryItem, Branch.id == InventoryItem.branch_id)\
+         .join(Product, InventoryItem.product_id == Product.id)
+        
+        if branch and branch != 'all':
+            stock_q = stock_q.filter(Branch.name.ilike(f'%{branch}%'))
+        
+        if product and product != 'all':
+            stock_q = stock_q.filter(Product.name.ilike(f'%{product}%'))
+        
+        if category and category != 'all':
+            stock_q = stock_q.filter(Product.category.ilike(f'%{category}%'))
+        
+        stock_results = stock_q.group_by(Branch.id, Branch.name, Product.id, Product.name).all()
+        
+        forecast_q = db.session.query(
+            ForecastData.branch_id,
+            ForecastData.product_id,
+            func.sum(ForecastData.predicted_demand).label('forecast_demand')
+        ).filter(
+            and_(
+                ForecastData.forecast_date >= today,
+                ForecastData.forecast_date <= next_30_days
+            )
+        )
+        
+        if branch and branch != 'all':
+            forecast_q = forecast_q.join(Branch, ForecastData.branch_id == Branch.id)
+            forecast_q = forecast_q.filter(Branch.name.ilike(f'%{branch}%'))
+        
+        if product and product != 'all':
+            forecast_q = forecast_q.join(Product, ForecastData.product_id == Product.id)
+            forecast_q = forecast_q.filter(Product.name.ilike(f'%{product}%'))
+        
+        if category and category != 'all':
+            forecast_q = forecast_q.join(Product, ForecastData.product_id == Product.id)
+            forecast_q = forecast_q.filter(Product.category.ilike(f'%{category}%'))
+        
+        forecast_results = forecast_q.group_by(ForecastData.branch_id, ForecastData.product_id).all()
+        forecast_map = {(r.branch_id, r.product_id): float(r.forecast_demand or 0) for r in forecast_results}
+        
+        gaps = []
+        for stock_result in stock_results:
+            forecast_demand = forecast_map.get((stock_result.branch_id, stock_result.product_id), 0.0)
+            current_stock = float(stock_result.current_stock or 0)
+            gap = current_stock - forecast_demand
+            
+            if forecast_demand == 0:
+                # Fallback: use average daily sales if no forecast
+                sales_q = db.session.query(
+                    func.avg(SalesTransaction.quantity_kg).label('avg_daily_sales')
+                ).filter(
+                    SalesTransaction.branch_id == stock_result.branch_id,
+                    SalesTransaction.product_id == stock_result.product_id
+                )
+                sales_result = sales_q.first()
+                avg_daily_sales = float(sales_result.avg_daily_sales or 0) if sales_result else 0
+                forecast_demand = avg_daily_sales * 30  # Estimate for 30 days
+                gap = current_stock - forecast_demand
+            
+            # Determine status
+            if gap < 0:
+                gap_percent = abs(gap / forecast_demand * 100) if forecast_demand > 0 else 0
+                if gap_percent >= 20:
+                    status = 'critical'
+                    gap_text = f'Critical shortage: {abs(gap):.2f} kg ({gap_percent:.1f}% below demand)'
+                else:
+                    status = 'warning'
+                    gap_text = f'Shortage: {abs(gap):.2f} kg ({gap_percent:.1f}% below demand)'
+            elif gap > forecast_demand * 0.2 if forecast_demand > 0 else False:
+                status = 'warning'
+                gap_text = f'Surplus: {gap:.2f} kg (exceeds demand by {gap/forecast_demand*100:.1f}%)'
+            else:
+                status = 'info'
+                gap_text = f'Balanced: {gap:.2f} kg gap'
+            
+            gaps.append({
+                'branch_name': stock_result.branch_name,
+                'product_name': stock_result.product_name,
+                'current_stock': current_stock,
+                'forecast_demand': forecast_demand,
+                'gap': gap,
+                'status': status,
+                'gap_text': gap_text
+            })
+        
         writer.writerow(['Demand-Supply Gaps (Next 30 Days)'])
         writer.writerow(['Branch', 'Product', 'Current Stock (kg)', 'Forecast Demand (kg)', 'Gap (kg)', 'Status', 'Gap Description'])
-        for gap in gaps_data['gaps']:
+        for gap in gaps:
             writer.writerow([
                 gap['branch_name'],
                 gap['product_name'],
@@ -2164,11 +2279,17 @@ def api_regional_export():
         writer.writerow([])
         writer.writerow(['Note: Forecast Demand is the sum of predicted demand for the next 30 days'])
         writer.writerow(['Gap = Current Stock - Forecast Demand (positive = surplus, negative = shortage)'])
+    except Exception as e:
+        print(f"Error exporting gaps data: {e}")
+        import traceback
+        traceback.print_exc()
+        writer.writerow(['Demand-Supply Gaps - Error loading data'])
+        writer.writerow([])
     
     # Create response
     output.seek(0)
     response = make_response(output.getvalue())
-    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
     response.headers['Content-Disposition'] = f'attachment; filename=regional_insights_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
     
     return response
