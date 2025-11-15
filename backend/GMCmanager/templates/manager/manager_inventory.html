@@ -434,7 +434,9 @@
                 });
                 const json = await res.json();
                 if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load');
-                const data = (json.items || []).map(mapItem);
+                // Store full data for print preview
+                _fullInventoryData = json.items || [];
+                const data = _fullInventoryData.map(mapItem);
             renderInventoryTable(data);
             } catch (e) {
                 console.error(e);
@@ -739,6 +741,7 @@
 
         let _managerInvItems = [];
         let _managerProducts = [];
+        let _fullInventoryData = []; // Store full item data for print preview
 
         async function loadRestockProducts() {
             try {
@@ -938,32 +941,33 @@
             URL.revokeObjectURL(url);
         }
 
-        // Print preview with branch name in header
+        // Print preview with branch name in header - shows ALL columns
         function showManagerPrintPreview() {
             // Derive branch name and id from template or URL
             const branchNameParam = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name') || '';
             const rawBranchName = branchNameParam ? decodeURIComponent(branchNameParam) : '';
             const branchDisplay = rawBranchName || 'Branch';
 
-            // Collect table rows
-            const rows = [];
-            document.querySelectorAll('#inventoryTableBody tr').forEach(tr => {
-                const tds = Array.from(tr.children).map(td => td.textContent.trim());
-                // Expected columns: Product, Category, Batch, Quantity, Price, Status, Last Updated, Actions
-                rows.push({
-                    name: tds[0] || '',
-                    category: tds[1] || '',
-                    batch: tds[2] || '',
-                    qty: tds[3] || '',
-                    price: tds[4] || '',
-                    status: tds[5] || '',
-                    lastUpdated: tds[6] || ''
-                });
-            });
-
+            // Use full inventory data (all fields available)
+            const items = _fullInventoryData || [];
             const generatedAt = new Date().toLocaleString();
 
-            // Build printable HTML
+            // Helper to format values
+            const formatValue = (val) => {
+                if (val === null || val === undefined || val === '') return '—';
+                if (typeof val === 'number') {
+                    if (val % 1 === 0) return val.toString();
+                    return val.toFixed(2);
+                }
+                return String(val);
+            };
+
+            const formatPrice = (val) => {
+                if (!val || val === 0) return '₱0.00';
+                return `₱${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            };
+
+            // Build printable HTML with all columns
             let html = `
 <!DOCTYPE html>
 <html>
@@ -971,23 +975,27 @@
   <meta charset="utf-8">
   <title>${branchDisplay} - Inventory Report</title>
   <style>
-    @media print { @page { margin: 1cm; } .no-print { display:none !important; } }
-    body { font-family: Arial, sans-serif; margin: 20px; color:#1f2937; }
+    @media print { 
+      @page { margin: 0.5cm; size: landscape; } 
+      .no-print { display:none !important; } 
+    }
+    body { font-family: Arial, sans-serif; margin: 15px; color:#1f2937; }
     .header { border-bottom: 3px solid #1a365d; padding-bottom: 12px; margin-bottom: 16px; }
     .header h1 { margin: 0; color:#1a365d; font-size: 22px; }
-    .header p { margin: 4px 0; color:#4b5563; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
-    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
-    th { background: #1a365d; color: #fff; }
+    .header p { margin: 4px 0; color:#4b5563; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
+    th, td { border: 1px solid #e5e7eb; padding: 6px 4px; text-align: left; }
+    th { background: #1a365d; color: #fff; font-weight: 600; position: sticky; top: 0; }
     tr:nth-child(even) { background: #f9fafb; }
-    .summary { margin-top: 14px; padding: 10px; background:#f3f4f6; border-radius:6px; }
+    td { word-wrap: break-word; max-width: 120px; }
+    .summary { margin-top: 14px; padding: 10px; background:#f3f4f6; border-radius:6px; font-size: 12px; }
     .actions { text-align:center; margin-top: 16px; }
     .btn { padding:10px 18px; background:#1a365d; color:#fff; border:none; border-radius:6px; cursor:pointer; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>${branchDisplay} - Inventory Report</h1>
+    <h1>${branchDisplay} - Complete Inventory Report</h1>
     <p>Generated: ${generatedAt}</p>
   </div>
   <table>
@@ -995,36 +1003,48 @@
       <tr>
         <th>Product Name</th>
         <th>Category</th>
+        <th>Barcode</th>
+        <th>SKU</th>
         <th>Batch Code</th>
-        <th>Quantity</th>
-        <th>Price</th>
+        <th>GRN Number</th>
+        <th>Quantity (kg)</th>
+        <th>Unit Price</th>
         <th>Status</th>
-        <th>Last Updated</th>
+        <th>Warning Threshold</th>
+        <th>Auto Order Level</th>
+        <th>Selling Margin</th>
+        <th>Description</th>
       </tr>
     </thead>
     <tbody>
 `;
             let totalQty = 0;
-            rows.forEach(r => {
-                const qtyNum = Number(String(r.qty).replace(/[^0-9.\-]/g,'')) || 0;
-                totalQty += qtyNum;
+            items.forEach(item => {
+                const qty = Number(item.stock || 0);
+                totalQty += qty;
                 html += `
       <tr>
-        <td>${r.name}</td>
-        <td>${r.category}</td>
-        <td>${r.batch}</td>
-        <td>${r.qty}</td>
-        <td>${r.price}</td>
-        <td>${r.status}</td>
-        <td>${r.lastUpdated}</td>
+        <td>${formatValue(item.product_name)}</td>
+        <td>${formatValue(item.category)}</td>
+        <td>${formatValue(item.barcode)}</td>
+        <td>${formatValue(item.sku)}</td>
+        <td>${formatValue(item.batch_code || item.batch)}</td>
+        <td>${formatValue(item.grn_number || item.grn)}</td>
+        <td>${formatValue(qty)}</td>
+        <td>${formatPrice(item.price || item.unit_price)}</td>
+        <td>${formatValue(item.status)}</td>
+        <td>${formatValue(item.warn || item.warn_level)}</td>
+        <td>${formatValue(item.auto || item.auto_level)}</td>
+        <td>${formatValue(item.margin)}</td>
+        <td>${formatValue(item.desc || item.description)}</td>
       </tr>`;
             });
             html += `
     </tbody>
   </table>
   <div class="summary">
-    <strong>Total Items:</strong> ${rows.length} &nbsp; | &nbsp;
-    <strong>Total Quantity (kg):</strong> ${totalQty.toLocaleString()}
+    <strong>Total Items:</strong> ${items.length} &nbsp; | &nbsp;
+    <strong>Total Quantity (kg):</strong> ${totalQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
   </div>
   <div class="actions no-print">
     <button class="btn" onclick="window.print()">Print</button>
@@ -1032,7 +1052,7 @@
 </body>
 </html>`;
 
-            const w = window.open('', '_blank', 'width=900,height=700');
+            const w = window.open('', '_blank', 'width=1400,height=800');
             if (w) {
                 w.document.write(html);
                 w.document.close();
