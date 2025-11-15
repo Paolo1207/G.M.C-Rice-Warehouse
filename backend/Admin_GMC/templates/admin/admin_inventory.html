@@ -1196,7 +1196,7 @@ restockSelect.addEventListener("change", function() {
   loadBatchCodesForProduct(this.value);
 });
 
-// Function to load batch codes for a product
+// Function to load batch codes for a product (filtered by current branch)
 async function loadBatchCodesForProduct(productId) {
   if (!productId) {
     restockBatchGroup.style.display = 'none';
@@ -1206,8 +1206,17 @@ async function loadBatchCodesForProduct(productId) {
     return;
   }
   
+  // Get current branch name from modal title
+  const branchName = currentBranch || '';
+  if (!branchName) {
+    console.error('No current branch set');
+    restockBatchGroup.style.display = 'none';
+    return;
+  }
+  
   try {
-    const response = await fetch(`/admin/api/products/${productId}/batch-codes`, {
+    // Pass branch_name as query parameter to filter batch codes by branch
+    const response = await fetch(`/admin/api/products/${productId}/batch-codes?branch_name=${encodeURIComponent(branchName)}`, {
       credentials: 'include'
     });
     const data = await response.json();

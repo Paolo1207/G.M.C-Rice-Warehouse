@@ -361,16 +361,30 @@ def api_branch_inventory(branch_id):
 
 @admin_bp.get("/api/products/<int:product_id>/batch-codes")
 def api_product_batch_codes(product_id):
-    """Get all batch codes for a specific product"""
-    # Get distinct batch codes for this product across all branches
-    batch_codes = db.session.query(
+    """Get batch codes for a specific product, optionally filtered by branch"""
+    # Get branch filter from query params
+    branch_id = request.args.get("branch_id", type=int)
+    branch_name = request.args.get("branch_name", type=str)
+    
+    # Build query for batch codes
+    query = db.session.query(
         InventoryItem.batch_code
     ).filter(
         InventoryItem.product_id == product_id,
         InventoryItem.batch_code.isnot(None),
         InventoryItem.batch_code != ''
-    ).distinct().all()
+    )
     
+    # Filter by branch if provided
+    if branch_id:
+        query = query.filter(InventoryItem.branch_id == branch_id)
+    elif branch_name:
+        branch = Branch.query.filter_by(name=branch_name).first()
+        if branch:
+            query = query.filter(InventoryItem.branch_id == branch.id)
+    
+    # Get distinct batch codes
+    batch_codes = query.distinct().all()
     batch_codes_list = [row[0] for row in batch_codes if row[0]]
     
     return jsonify({
