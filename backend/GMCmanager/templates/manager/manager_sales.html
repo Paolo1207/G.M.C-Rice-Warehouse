@@ -362,9 +362,9 @@
           id:r.id, 
           product:r.product_name, 
           quantity:r.qty, 
-          batch:r.batch_code || r.batch || '-',
+          batch:r.batch_code || '-',
           saleDate:r.date || r.transaction_date || r.datetime,
-          saleDateTime:r.datetime || r.transaction_date || r.date,
+          saleDateTime:r.transaction_date || r.datetime || (r.date ? `${r.date} 00:00:00` : null),
           branch:r.branch_name, 
           amount: r.amount || 0
         }));

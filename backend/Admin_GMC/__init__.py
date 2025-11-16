@@ -1246,9 +1246,10 @@ def api_sales_list():
         SalesTransaction.product_id,
         SalesTransaction.quantity_sold,
         SalesTransaction.total_amount,
+        SalesTransaction.batch_code,  # Get batch_code directly from SalesTransaction
         Product.name.label('product_name'),
         Branch.name.label('branch_name'),
-        batch_lookup.c.batch_code.label('batch_code')
+        batch_lookup.c.batch_code.label('fallback_batch_code')  # Fallback if SalesTransaction.batch_code is NULL
     ).join(Product, Product.id == SalesTransaction.product_id)
     q = q.join(Branch, Branch.id == SalesTransaction.branch_id)
     q = q.outerjoin(
@@ -1271,16 +1272,23 @@ def api_sales_list():
     qty_sum, amt_sum = totals.first()
 
     def serialize(r):
+        # Use batch_code from SalesTransaction if available, otherwise use fallback
+        batch_code = r.batch_code if hasattr(r, 'batch_code') and r.batch_code else None
+        if not batch_code and hasattr(r, 'fallback_batch_code'):
+            batch_code = r.fallback_batch_code
+        
         return {
             "id": r.id,
             "date": r.transaction_date.strftime('%Y-%m-%d'),
+            "datetime": r.transaction_date.strftime('%Y-%m-%d %H:%M:%S'),  # Include full datetime
+            "transaction_date": r.transaction_date.isoformat(),  # ISO format for JavaScript parsing
             "branch_id": r.branch_id,
             "branch_name": r.branch_name,
             "product_id": r.product_id,
             "product_name": r.product_name,
             "qty": float(r.quantity_sold or 0),
             "amount": float(r.total_amount or 0),
-            "batch_code": r.batch_code if hasattr(r, 'batch_code') else None,
+            "batch_code": batch_code,
         }
 
     return jsonify({
