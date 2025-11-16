@@ -276,6 +276,7 @@ class SalesTransaction(db.Model):
     unit_price = db.Column(db.Float, nullable=False)
     total_amount = db.Column(db.Float, nullable=False)
     transaction_date = db.Column(db.DateTime, default=datetime.utcnow)
+    batch_code = db.Column(db.String(120), nullable=True)  # Batch code used for this sale
     
     # Customer info (optional)
     customer_name = db.Column(db.String(255))
@@ -296,6 +297,7 @@ class SalesTransaction(db.Model):
             "unit_price": self.unit_price,
             "total_amount": self.total_amount,
             "transaction_date": self.transaction_date.strftime("%Y-%m-%d %H:%M:%S"),
+            "batch_code": self.batch_code,
             "customer_name": self.customer_name,
             "customer_contact": self.customer_contact,
         }

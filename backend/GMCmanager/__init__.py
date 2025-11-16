@@ -2879,9 +2879,12 @@ def mgr_purchases_recent():
             if unit_price == 0.0 and float(sale.quantity_sold) > 0:
                 unit_price = float(sale.total_amount) / float(sale.quantity_sold)
             
-            # Get batch_code for this product (use oldest batch as fallback)
-            batch_codes = product_batches_map.get(sale.product_id, [])
-            batch_code = batch_codes[0] if batch_codes else None
+            # Get batch_code from the sale transaction (stored when sale was made)
+            # Fallback to oldest batch if not stored
+            batch_code = sale.batch_code
+            if not batch_code:
+                batch_codes = product_batches_map.get(sale.product_id, [])
+                batch_code = batch_codes[0] if batch_codes else None
             
             # Calculate historical estimated remaining: current_stock + sum of sales AFTER this transaction
             # Since transactions are sorted by date DESC, we need to add back all sales that happened after
@@ -3019,7 +3022,8 @@ def mgr_sales_bulk():
                 quantity_sold=quantity_sold_kg,
                 unit_price=price_per_kg,
                 total_amount=total_amount,
-                transaction_date=transaction_date
+                transaction_date=transaction_date,
+                batch_code=requested_batch_code  # Store the batch code used for this sale
             )
             
             db.session.add(transaction)
