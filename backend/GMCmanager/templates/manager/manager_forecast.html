@@ -733,14 +733,25 @@
     function updateForecastSummary(summary) {
       if (summary) {
         const avgDemandEl = document.querySelector('.summary-card:nth-child(1) .number');
+        const avgDemandTrendEl = document.querySelector('.summary-card:nth-child(1) .trend');
         const peakDayEl = document.querySelector('.summary-card:nth-child(2) .date');
         const peakQtyEl = document.querySelector('.summary-card:nth-child(2) .quantity');
         const reorderEl = document.querySelector('.summary-card:nth-child(3) .number');
+        const reorderTrendEl = document.querySelector('.summary-card:nth-child(3) .trend');
         
         if (avgDemandEl) avgDemandEl.textContent = (summary.avg_demand || 0).toLocaleString();
+        if (avgDemandTrendEl) {
+          // Update trend text with confidence or model info
+          const confidence = summary.confidence || summary.accuracy_score || 0;
+          avgDemandTrendEl.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+        }
         if (peakDayEl) peakDayEl.textContent = summary.peak_date || 'N/A';
         if (peakQtyEl) peakQtyEl.textContent = (summary.peak_quantity || 0).toLocaleString() + ' kg';
         if (reorderEl) reorderEl.textContent = (summary.suggested_reorder || 0).toLocaleString();
+        if (reorderTrendEl) {
+          // Update trend text with recommendation
+          reorderTrendEl.textContent = 'Based on forecast analysis';
+        }
       }
     }
 
