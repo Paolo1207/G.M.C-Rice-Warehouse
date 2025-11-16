@@ -382,15 +382,22 @@
         tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-info-circle"></i> No product accuracy data available. Generate forecasts and record sales to see accuracy metrics.</td></tr>';
       } else {
         products.forEach(item => {
-          const trend = (item.actual || 0) > (item.forecasted || 0) ? 'up' : 'down';
-          const trendClass = trend === 'up' ? 'positive' : 'negative';
+          const forecasted = item.forecasted || 0;
+          const actual = item.actual || 0;
+          const accuracy = item.accuracy || 0;
+          
+          // Calculate trend: up if actual > forecasted, down if actual < forecasted
+          const trend = actual > forecasted ? 'up' : actual < forecasted ? 'down' : 'minus';
+          const trendClass = trend === 'up' ? 'positive' : trend === 'down' ? 'negative' : '';
+          const trendIcon = trend === 'up' ? 'fa-arrow-up' : trend === 'down' ? 'fa-arrow-down' : 'fa-minus';
+          
           const row = document.createElement('tr');
           row.innerHTML = `
             <td>${item.name || ('Product ' + item.product_id)}</td>
-            <td>${(item.forecasted || 0).toLocaleString()}</td>
-            <td>${(item.actual || 0).toLocaleString()}</td>
-            <td>${(item.accuracy || 0).toFixed(1)}%</td>
-            <td><i class="fas fa-arrow-${trend} ${trendClass}"></i></td>
+            <td>${forecasted.toLocaleString()}</td>
+            <td>${actual.toLocaleString()}</td>
+            <td>${accuracy.toFixed(1)}%</td>
+            <td><i class="fas ${trendIcon} ${trendClass}"></i></td>
           `;
           tbody.appendChild(row);
         });
