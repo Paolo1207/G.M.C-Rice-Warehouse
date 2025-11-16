@@ -201,13 +201,21 @@
                 <div class="analytics-subtitle">Visual insights into warehouse and sales performance across all branches</div>
             </div>
             <div class="analytics-controls">
-                <button class="export-btn">
+                <button class="export-btn" id="export-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7,10 12,15 17,10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
                     Export Data
+                </button>
+                <button class="export-btn" id="print-btn" style="margin-left: 10px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 6 2 18 2 18 9"/>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                        <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    Print
                 </button>
             </div>
         </div>
@@ -419,6 +427,21 @@
             loadAnalyticsData();
             // Load initial top products for Marawoy branch (ID: 1)
             loadTopProducts(1);
+            
+            // Setup export and print buttons
+            const exportBtn = document.getElementById('export-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', function() {
+                    window.location.href = '/admin/api/reports/export/sales?format=csv';
+                });
+            }
+
+            const printBtn = document.getElementById('print-btn');
+            if (printBtn) {
+                printBtn.addEventListener('click', function() {
+                    printAnalyticsPage();
+                });
+            }
         });
 
         let BRANCH_ID_BY_NAME = {};
@@ -1118,10 +1141,214 @@
             return { labels: uniqKeys, series: remap };
         }
 
-        // Export functionality
-        document.querySelector('.export-btn').addEventListener('click', function() {
-            window.location.href = '/admin/api/reports/export/sales?format=csv';
-        });
+        function printAnalyticsPage() {
+            const printWindow = window.open('', '_blank', 'width=1200,height=800');
+            if (!printWindow) {
+                alert('Please allow popups to use the print feature');
+                return;
+            }
+
+            const generatedAt = new Date().toLocaleString();
+            
+            // Get chart images
+            let stockChartImg = '';
+            let salesChartImg = '';
+            
+            if (stockPerBranchChartInstance) {
+                stockChartImg = stockPerBranchChartInstance.toBase64Image();
+            }
+            if (salesTrendsByBranchChartInstance) {
+                salesChartImg = salesTrendsByBranchChartInstance.toBase64Image();
+            }
+
+            // Get KPI values
+            const totalSales = document.getElementById('total-sales')?.textContent || '₱0';
+            const unitsSold = document.getElementById('units-sold')?.textContent || '0';
+            const avgOrderValue = document.getElementById('avg-order-value')?.textContent || '₱0';
+            const totalOrders = document.getElementById('total-orders')?.textContent || '0';
+
+            // Get demand/supply gaps
+            const gapsContainer = document.querySelector('.demand-supply-list');
+            let gapsHTML = '';
+            if (gapsContainer) {
+                gapsHTML = gapsContainer.innerHTML;
+            }
+
+            // Get turnover list
+            const turnoverContainer = document.getElementById('turnoverList');
+            let turnoverHTML = '';
+            if (turnoverContainer) {
+                turnoverHTML = turnoverContainer.innerHTML;
+            }
+
+            // Get top products
+            const topProductsContainer = document.getElementById('topProductsList');
+            let topProductsHTML = '';
+            if (topProductsContainer) {
+                topProductsHTML = topProductsContainer.innerHTML;
+            }
+
+            const printHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Analytics Report - Print</title>
+    <style>
+        @media print {
+            @page { margin: 1cm; size: landscape; }
+            .no-print { display: none !important; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #1f2937;
+        }
+        .header {
+            border-bottom: 3px solid #2e7d32;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #2e7d32;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 4px 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2e7d32;
+        }
+        .kpi-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        .kpi-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section h3 {
+            color: #2e7d32;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .chart-img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        .gaps-list, .turnover-list, .top-products-list {
+            margin-top: 10px;
+        }
+        .gap-item, .turnover-item, .product-item {
+            padding: 8px;
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #2e7d32;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Analytics Report</h1>
+        <p>Generated: ${generatedAt}</p>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Sales</div>
+            <div class="kpi-value">${totalSales}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Units Sold</div>
+            <div class="kpi-value">${unitsSold}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Avg Order Value</div>
+            <div class="kpi-value">${avgOrderValue}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Total Orders</div>
+            <div class="kpi-value">${totalOrders}</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🏢 Total Stock per Branch</h3>
+        ${stockChartImg ? `<img src="${stockChartImg}" class="chart-img" alt="Stock per Branch Chart">` : '<p>Chart data not available</p>'}
+    </div>
+
+    <div class="section">
+        <h3>📈 Sales Trends by Branch</h3>
+        ${salesChartImg ? `<img src="${salesChartImg}" class="chart-img" alt="Sales Trends Chart">` : '<p>Chart data not available</p>'}
+    </div>
+
+    <div class="section">
+        <h3>⚖️ Demand/Supply Gaps</h3>
+        <div class="gaps-list">
+            ${gapsHTML || '<p>No gap data available</p>'}
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🔄 Inventory Turnover Rate</h3>
+        <div class="turnover-list">
+            ${turnoverHTML || '<p>No turnover data available</p>'}
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>🏆 Top-Selling Products</h3>
+        <div class="top-products-list">
+            ${topProductsHTML || '<p>No products data available</p>'}
+        </div>
+    </div>
+
+    <div class="actions no-print">
+        <button class="btn" onclick="window.print()">Print</button>
+    </div>
+</body>
+</html>`;
+
+            printWindow.document.write(printHTML);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => { printWindow.print(); }, 500);
+        }
 
         // Demand/Supply gaps list (from overview API)
         function updateDemandSupplyList(rows) {
