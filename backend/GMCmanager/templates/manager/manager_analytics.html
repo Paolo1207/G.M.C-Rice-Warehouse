@@ -245,7 +245,7 @@
               <div class="kpi-icon"><i class="fas fa-money-bill-wave"></i></div>
             </div>
             <div class="kpi-value" id="kpi-today-sales">₱0.00</div>
-            <div class="kpi-change" id="kpi-today-change">--</div>
+            <div class="kpi-change">Sales for today</div>
           </div>
           
           <div class="kpi-card success">
@@ -254,7 +254,7 @@
               <div class="kpi-icon"><i class="fas fa-calendar-week"></i></div>
             </div>
             <div class="kpi-value" id="kpi-week-sales">₱0.00</div>
-            <div class="kpi-change" id="kpi-week-change">--</div>
+            <div class="kpi-change">Last 7 days</div>
           </div>
           
           <div class="kpi-card info">
@@ -263,7 +263,7 @@
               <div class="kpi-icon"><i class="fas fa-calendar-alt"></i></div>
             </div>
             <div class="kpi-value" id="kpi-month-sales">₱0.00</div>
-            <div class="kpi-change" id="kpi-month-change">--</div>
+            <div class="kpi-change">Current month</div>
           </div>
           
           <div class="kpi-card warning">
@@ -272,7 +272,7 @@
               <div class="kpi-icon"><i class="fas fa-weight"></i></div>
             </div>
             <div class="kpi-value" id="kpi-units-sold">0 kg</div>
-            <div class="kpi-change" id="kpi-units-change">This month</div>
+            <div class="kpi-change">This month</div>
           </div>
           
           <div class="kpi-card danger">
@@ -286,26 +286,16 @@
           
           <div class="kpi-card success">
             <div class="kpi-header">
-              <h3 class="kpi-title">Inventory Value</h3>
-              <div class="kpi-icon"><i class="fas fa-warehouse"></i></div>
+              <h3 class="kpi-title">Total Stock (kg)</h3>
+              <div class="kpi-icon"><i class="fas fa-boxes"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-inventory-value">₱0.00</div>
-            <div class="kpi-change">Current stock value</div>
+            <div class="kpi-value" id="kpi-total-stock">0 kg</div>
+            <div class="kpi-change">Current inventory</div>
           </div>
         </div>
 
         <!-- Charts Section -->
         <div class="analytics-charts-grid">
-          <div class="chart-card">
-            <h3><i class="fas fa-chart-line"></i> Sales Trend (Last 30 Days)</h3>
-            <canvas id="salesTrendChart"></canvas>
-          </div>
-          
-          <div class="chart-card">
-            <h3><i class="fas fa-star"></i> Top 5 Best Selling Products</h3>
-            <canvas id="topProductsChart"></canvas>
-          </div>
-          
           <div class="chart-card">
             <h3><i class="fas fa-boxes"></i> Stock by Category</h3>
             <canvas id="categoryStockChart"></canvas>
@@ -360,8 +350,6 @@
   <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
   <script>
     let chartInstances = {
-      salesTrend: null,
-      topProducts: null,
       categoryStock: null,
       stockMovement: null
     };
@@ -420,8 +408,6 @@
         
         // Load charts and analytics
         await Promise.all([
-          loadSalesTrend(),
-          loadTopProducts(),
           loadCategoryStock(),
           loadStockMovement(),
           loadProductPerformance(),
@@ -458,9 +444,9 @@
           // Low stock count
           document.getElementById('kpi-low-stock').textContent = (kpis.low_stock_count || 0).toString();
           
-          // Inventory value
-          const invValue = await fetchInventoryValue();
-          document.getElementById('kpi-inventory-value').textContent = `₱${invValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+          // Total stock (kg)
+          const totalStock = await fetchTotalStock();
+          document.getElementById('kpi-total-stock').textContent = `${totalStock.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
         }
       } catch (error) {
         console.error('Error loading KPIs:', error);
@@ -493,105 +479,23 @@
       return 0;
     }
 
-    async function fetchInventoryValue() {
+    async function fetchTotalStock() {
       try {
         const response = await fetch(`/manager/api/inventory?branch_id=${MANAGER_BRANCH_ID}`);
         const data = await response.json();
         if (data.ok && data.items) {
           return data.items.reduce((sum, item) => {
-            const stock = item.stock_kg || item.quantity_kg || 0;
-            const price = item.price || item.unit_price || 0;
-            return sum + (stock * price);
+            // API returns "stock" field (from stock_kg)
+            const stock = parseFloat(item.stock || item.stock_kg || item.quantity_kg || item.quantity || 0);
+            return sum + stock;
           }, 0);
         }
       } catch (e) {
-        console.error('Error fetching inventory value:', e);
+        console.error('Error fetching total stock:', e);
       }
       return 0;
     }
 
-    async function loadSalesTrend() {
-      try {
-        const response = await fetch(`/manager/api/dashboard/charts?branch_id=${MANAGER_BRANCH_ID}&days=30`);
-        const data = await response.json();
-        
-        if (data.ok && data.sales_trend) {
-          const trend = data.sales_trend;
-          
-          if (chartInstances.salesTrend) {
-            chartInstances.salesTrend.destroy();
-          }
-          
-          const ctx = document.getElementById('salesTrendChart').getContext('2d');
-          chartInstances.salesTrend = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: trend.labels || [],
-              datasets: [{
-                label: 'Sales (₱)',
-                data: trend.sales || [],
-                borderColor: '#1a365d',
-                backgroundColor: 'rgba(26, 54, 93, 0.1)',
-                tension: 0.4,
-                fill: true
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: true,
-              plugins: {
-                legend: { display: true, position: 'top' }
-              },
-              scales: {
-                y: { beginAtZero: true }
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error loading sales trend:', error);
-      }
-    }
-
-    async function loadTopProducts() {
-      try {
-        const response = await fetch(`/manager/api/dashboard/charts?branch_id=${MANAGER_BRANCH_ID}`);
-        const data = await response.json();
-        
-        if (data.ok && data.top_products) {
-          const products = data.top_products.slice(0, 5);
-          
-          if (chartInstances.topProducts) {
-            chartInstances.topProducts.destroy();
-          }
-          
-          const ctx = document.getElementById('topProductsChart').getContext('2d');
-          chartInstances.topProducts = new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: products.map(p => p.name || 'Unknown'),
-              datasets: [{
-                label: 'Quantity Sold (kg)',
-                data: products.map(p => p.quantity || 0),
-                backgroundColor: ['#1a365d', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
-              }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: true,
-              plugins: {
-                legend: { display: false }
-              },
-              scales: {
-                y: { beginAtZero: true }
-              }
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error loading top products:', error);
-      }
-    }
 
     async function loadCategoryStock() {
       try {
@@ -725,7 +629,9 @@
             });
           }
           const product = productMap.get(productName);
-          product.stock += parseFloat(item.stock_kg || item.quantity_kg || 0);
+          // Try multiple field names for stock (API returns "stock" from stock_kg)
+          const stock = parseFloat(item.stock || item.stock_kg || item.quantity_kg || item.quantity || 0);
+          product.stock += stock;
           
           // Match sales data by product name
           const sales = salesMap.get(productName);
@@ -821,19 +727,19 @@
           }
         }
         
-        // Inventory value insight
+        // Total stock insight
         if (inventoryData.ok && inventoryData.items) {
-          const totalValue = inventoryData.items.reduce((sum, item) => {
-            const stock = item.stock_kg || item.quantity_kg || 0;
-            const price = item.price || item.unit_price || 0;
-            return sum + (stock * price);
+          const totalStock = inventoryData.items.reduce((sum, item) => {
+            // API returns "stock" field (from stock_kg)
+            const stock = parseFloat(item.stock || item.stock_kg || item.quantity_kg || item.quantity || 0);
+            return sum + stock;
           }, 0);
           
-          if (totalValue > 0) {
+          if (totalStock > 0) {
             insights.push({
               type: 'info',
-              title: '💰 Inventory Value',
-              message: `Your current inventory is valued at ₱${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}. Monitor stock levels to optimize turnover.`
+              title: '📦 Total Stock',
+              message: `Your current inventory has ${totalStock.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg of products. Monitor stock levels to optimize turnover.`
             });
           }
         }
@@ -875,8 +781,6 @@
       // Get chart images
       let chartsHTML = '';
       const charts = [
-        { id: 'salesTrendChart', title: 'Sales Trend (Last 30 Days)', instance: chartInstances.salesTrend },
-        { id: 'topProductsChart', title: 'Top 5 Best Selling Products', instance: chartInstances.topProducts },
         { id: 'categoryStockChart', title: 'Stock by Category', instance: chartInstances.categoryStock },
         { id: 'stockMovementChart', title: 'Stock Movement (Last 7 Days)', instance: chartInstances.stockMovement }
       ];
@@ -904,7 +808,7 @@
             <div><strong>Month's Sales:</strong> ${document.getElementById('kpi-month-sales')?.textContent || '--'}</div>
             <div><strong>Units Sold:</strong> ${document.getElementById('kpi-units-sold')?.textContent || '--'}</div>
             <div><strong>Low Stock Alerts:</strong> ${document.getElementById('kpi-low-stock')?.textContent || '--'}</div>
-            <div><strong>Inventory Value:</strong> ${document.getElementById('kpi-inventory-value')?.textContent || '--'}</div>
+            <div><strong>Total Stock:</strong> ${document.getElementById('kpi-total-stock')?.textContent || '--'}</div>
           </div>
         </div>
       `;
