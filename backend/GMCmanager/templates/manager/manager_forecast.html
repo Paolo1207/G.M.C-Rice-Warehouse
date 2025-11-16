@@ -345,6 +345,10 @@
                 <option value="">All Products</option>
                 <!-- Products will be populated from inventory -->
               </select>
+              <select id="riskBatchFilter" style="display: none;">
+                <option value="">All batches</option>
+                <!-- Batch codes will be populated when product is selected -->
+              </select>
               <select id="riskCategoryFilter">
                 <option value="">All Categories</option>
                 <option value="shortage">Shortage</option>
@@ -778,6 +782,11 @@
           if (priceProductFilter && priceProductFilter.value) {
             await loadPriceBatchCodes(priceProductFilter.value);
           }
+          
+          const riskProductFilter = document.getElementById('riskProductFilter');
+          if (riskProductFilter && riskProductFilter.value) {
+            await loadRiskBatchCodes(riskProductFilter.value);
+          }
         }
       } catch (error) {
         console.error('Error loading branch products:', error);
@@ -899,6 +908,49 @@
         console.error('Error loading batch codes for price forecast:', error);
         priceBatchFilter.style.display = 'none';
         priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+      }
+    }
+
+    // Load batch codes for selected product (for risk analysis)
+    async function loadRiskBatchCodes(productId) {
+      const riskBatchFilter = document.getElementById('riskBatchFilter');
+      if (!riskBatchFilter) return;
+
+      if (!productId) {
+        riskBatchFilter.style.display = 'none';
+        riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+        return;
+      }
+
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+        const data = await response.json();
+
+        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+          // Show batch filter and populate options
+          riskBatchFilter.style.display = 'block';
+          riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+          data.batch_codes.forEach(batchCode => {
+            const option = document.createElement('option');
+            option.value = batchCode;
+            option.textContent = batchCode;
+            riskBatchFilter.appendChild(option);
+          });
+          console.log('Risk batch filter shown with', data.batch_codes.length, 'batches');
+        } else {
+          // Hide batch filter if no batches exist
+          riskBatchFilter.style.display = 'none';
+          riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+          console.log('No batches found for product', productId);
+        }
+      } catch (error) {
+        console.error('Error loading batch codes for risk analysis:', error);
+        riskBatchFilter.style.display = 'none';
+        riskBatchFilter.innerHTML = '<option value="">All batches</option>';
       }
     }
 
@@ -1180,29 +1232,37 @@
         
         // Get filter values
         const productId = document.getElementById('riskProductFilter')?.value || '';
+        const batchCode = document.getElementById('riskBatchFilter')?.value || '';
         const category = document.getElementById('riskCategoryFilter')?.value || '';
         const severity = document.getElementById('riskSeverityFilter')?.value || '';
         const days = document.getElementById('riskDateRange')?.value || '30';
         
-        console.log('Risk analysis parameters:', { productId, category, severity, days });
+        console.log('Risk analysis parameters:', { productId, batchCode, category, severity, days });
         
         // Get branch_id for the API call
         const branchId = {{ branch_id if branch_id else 'null' }} || 
                         new URLSearchParams(window.location.search).get('branch') || 
                         new URLSearchParams(window.location.search).get('branch_id');
         
+        const requestBody = {
+          product_id: productId,
+          category: category,
+          severity: severity,
+          days: parseInt(days),
+          branch_id: branchId
+        };
+        
+        // Include batch_code if selected
+        if (batchCode) {
+          requestBody.batch_code = batchCode;
+        }
+        
         const response = await fetch('/manager/api/forecast/risk', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            product_id: productId,
-            category: category,
-            severity: severity,
-            days: parseInt(days),
-            branch_id: branchId
-          })
+          body: JSON.stringify(requestBody)
         });
         
         const data = await response.json();
@@ -1418,8 +1478,24 @@
 
     // Setup filters with manager-specific functionality
     function setupRiskFilters() {
-      // Risk filters - make them passive (don't auto-trigger analysis)
-      ['riskProductFilter','riskCategoryFilter','riskSeverityFilter','riskDateRange']
+      // Risk product filter - load batch codes when product changes
+      const riskProductFilter = document.getElementById('riskProductFilter');
+      if (riskProductFilter) {
+        riskProductFilter.addEventListener('change', async () => {
+          const productId = riskProductFilter.value;
+          await loadRiskBatchCodes(productId);
+          showToast('Filters changed — click "Analyze Risks" to refresh', 'info');
+          // Enable the analyze button
+          const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+          if (analyzeBtn) {
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Other risk filters - make them passive (don't auto-trigger analysis)
+      ['riskCategoryFilter','riskSeverityFilter','riskDateRange']
         .forEach(id => {
           const el = document.getElementById(id);
           if (el) el.addEventListener('change', () => {
@@ -1432,6 +1508,19 @@
             }
           });
         });
+
+      // Risk batch filter change handler
+      const riskBatchFilter = document.getElementById('riskBatchFilter');
+      if (riskBatchFilter) {
+        riskBatchFilter.addEventListener('change', () => {
+          showToast('Filters changed — click "Analyze Risks" to refresh', 'info');
+          const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+          if (analyzeBtn) {
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = '1';
+          }
+        });
+      }
 
       // Forecast filters - mark as dirty but don't auto-generate
       const productFilter = document.getElementById('productFilter');
