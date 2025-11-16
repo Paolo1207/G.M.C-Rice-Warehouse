@@ -214,7 +214,7 @@
                 <option value="">Select a product</option>
                 <!-- Products will be populated from inventory -->
               </select>
-              <select id="batchFilter" style="display: none; margin-left: 10px;">
+              <select id="batchFilter" style="display: none;">
                 <option value="">Select batch (optional)</option>
                 <!-- Batch codes will be populated when product is selected -->
               </select>
@@ -231,7 +231,7 @@
                 <i class="fas fa-magic"></i> Generate Demand Forecast
               </button>
               <button class="btn secondary" onclick="exportForecast()">
-                <i class="fas fa-download"></i> Export Report
+                <i class="fas fa-download"></i> CSV
               </button>
               <button class="btn secondary" id="print-forecast-btn">
                 <i class="fas fa-print"></i> Print
@@ -286,7 +286,7 @@
                 <option value="">Select a product</option>
                 <!-- Products will be populated from inventory -->
               </select>
-              <select id="priceBatchFilter" style="display: none; margin-left: 10px;">
+              <select id="priceBatchFilter" style="display: none;">
                 <option value="">Select batch (optional)</option>
                 <!-- Batch codes will be populated when product is selected -->
               </select>
@@ -767,6 +767,17 @@
         const data = await response.json();
         if (data.ok && data.items) {
           populateProductFilters(data.items);
+          
+          // If a product is already selected, load its batch codes
+          const productFilter = document.getElementById('productFilter');
+          if (productFilter && productFilter.value) {
+            await loadBatchCodes(productFilter.value);
+          }
+          
+          const priceProductFilter = document.getElementById('priceProductFilter');
+          if (priceProductFilter && priceProductFilter.value) {
+            await loadPriceBatchCodes(priceProductFilter.value);
+          }
         }
       } catch (error) {
         console.error('Error loading branch products:', error);
@@ -774,16 +785,30 @@
     }
 
     function populateProductFilters(products) {
+      // Deduplicate products by product_id to avoid showing the same product multiple times
+      const uniqueProducts = new Map();
+      products.forEach(product => {
+        const productId = product.product_id || product.id;
+        if (!uniqueProducts.has(productId)) {
+          uniqueProducts.set(productId, product);
+        }
+      });
+      
+      const deduplicatedProducts = Array.from(uniqueProducts.values());
+      
       const filters = ['productFilter', 'priceProductFilter', 'riskProductFilter'];
       filters.forEach(filterId => {
         const select = document.getElementById(filterId);
         if (select) {
-          // Use "Select a product" for demand forecast, "All Products" for others
-          const placeholder = filterId === 'productFilter' ? 'Select a product' : 'All Products';
+          // Use "Select a product" for demand and price forecast, "All Products" for risk
+          const placeholder = (filterId === 'productFilter' || filterId === 'priceProductFilter') 
+            ? 'Select a product' 
+            : 'All Products';
           select.innerHTML = `<option value="">${placeholder}</option>`;
-          products.forEach(product => {
+          deduplicatedProducts.forEach(product => {
             const option = document.createElement('option');
-            option.value = product.id;
+            // Use product_id for the value, not the inventory item id
+            option.value = product.product_id || product.id;
             option.textContent = product.product_name || product.name || 'Unknown Product';
             select.appendChild(option);
           });
@@ -820,10 +845,12 @@
             option.textContent = batchCode;
             batchFilter.appendChild(option);
           });
+          console.log('Batch filter shown with', data.batch_codes.length, 'batches');
         } else {
           // Hide batch filter if no batches exist
           batchFilter.style.display = 'none';
           batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+          console.log('No batches found for product', productId);
         }
       } catch (error) {
         console.error('Error loading batch codes:', error);
@@ -861,10 +888,12 @@
             option.textContent = batchCode;
             priceBatchFilter.appendChild(option);
           });
+          console.log('Price batch filter shown with', data.batch_codes.length, 'batches');
         } else {
           // Hide batch filter if no batches exist
           priceBatchFilter.style.display = 'none';
           priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+          console.log('No batches found for product', productId);
         }
       } catch (error) {
         console.error('Error loading batch codes for price forecast:', error);
