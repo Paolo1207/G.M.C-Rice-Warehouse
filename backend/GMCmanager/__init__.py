@@ -2775,10 +2775,16 @@ def mgr_purchases_recent():
                 
             print(f"DEBUG: Using fallback branch_id={branch_id}")
         
-        # Get recent sales transactions for this branch
-        recent_sales = db.session.query(SalesTransaction).filter(
-            SalesTransaction.branch_id == branch_id
-        ).order_by(SalesTransaction.transaction_date.desc()).limit(50).all()
+        # Get recent sales transactions for this branch with eager loading of product
+        from sqlalchemy.orm import joinedload
+        recent_sales = (
+            db.session.query(SalesTransaction)
+            .options(joinedload(SalesTransaction.product))
+            .filter(SalesTransaction.branch_id == branch_id)
+            .order_by(SalesTransaction.transaction_date.desc())
+            .limit(50)
+            .all()
+        )
         
         # Get current stock for each product to calculate historical estimated remaining
         from sqlalchemy.orm import load_only
@@ -2806,8 +2812,7 @@ def mgr_purchases_recent():
             if inv_item.batch_code:
                 product_batches_map[inv_item.product_id].append(inv_item.batch_code)
         
-        # Get earliest restock dates for batch ordering
-        from sqlalchemy import func
+        # Get earliest restock dates for batch ordering (simplified approach)
         batch_restock_map = {}
         
         # Only query restock dates if we have inventory items
@@ -2815,16 +2820,17 @@ def mgr_purchases_recent():
             item_ids = [item.id for item in inventory_items]
             if item_ids:
                 try:
+                    from sqlalchemy import func
+                    # Use a simpler query that groups by product_id and batch_code only
                     restock_dates = (
                         db.session.query(
-                            InventoryItem.id.label('inventory_item_id'),
                             InventoryItem.product_id,
                             InventoryItem.batch_code,
                             func.min(RestockLog.created_at).label('earliest_restock')
                         )
                         .join(RestockLog, RestockLog.inventory_item_id == InventoryItem.id)
                         .filter(InventoryItem.id.in_(item_ids))
-                        .group_by(InventoryItem.id, InventoryItem.product_id, InventoryItem.batch_code)
+                        .group_by(InventoryItem.product_id, InventoryItem.batch_code)
                         .all()
                     )
                     
@@ -2835,6 +2841,10 @@ def mgr_purchases_recent():
                             batch_restock_map[key] = row.earliest_restock
                 except Exception as e:
                     print(f"WARNING: Error querying restock dates: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Rollback to clear the failed transaction
+                    db.session.rollback()
                     # Continue without batch ordering
         
         # Sort batches by oldest first for each product
