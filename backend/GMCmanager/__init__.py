@@ -2909,6 +2909,9 @@ def mgr_purchases_recent():
             # Convert to Philippines time
             dt_ph = dt_utc.astimezone(ph_tz)
             
+            # Calculate initial inventory: estimated remaining + quantity sold
+            initial_inventory = historical_remaining + float(sale.quantity_sold)
+            
             entry = {
                 "id": sale.id,
                 "date": dt_ph.strftime("%Y-%m-%d"),  # Keep for backward compatibility if needed
@@ -2921,7 +2924,7 @@ def mgr_purchases_recent():
                 "batch": batch_code,  # Alias for compatibility
                 "batchCode": batch_code,  # Alias for compatibility
                 "price": unit_price,
-                "initialInventory": 0.0,  # Not tracked in current system
+                "initialInventory": initial_inventory,  # Calculated: estimated remaining + quantity sold
                 "addedStocks": 0.0,  # Not tracked in current system
                 "totalSoldKg": float(sale.quantity_sold),
                 "totalAmount": float(sale.total_amount),
