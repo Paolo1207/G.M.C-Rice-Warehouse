@@ -742,8 +742,15 @@
         if (avgDemandEl) avgDemandEl.textContent = (summary.avg_demand || 0).toLocaleString();
         if (avgDemandTrendEl) {
           // Update trend text with confidence or model info
-          const confidence = summary.confidence || summary.accuracy_score || 0;
-          avgDemandTrendEl.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+          let confidence = summary.confidence || summary.accuracy_score || 0;
+          // If confidence is already a percentage (>= 1), use it directly; otherwise multiply by 100
+          if (confidence >= 1) {
+            // Already a percentage (e.g., 85.0 means 85%)
+            avgDemandTrendEl.textContent = `Confidence: ${confidence.toFixed(1)}%`;
+          } else {
+            // Decimal format (e.g., 0.85 means 85%)
+            avgDemandTrendEl.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+          }
         }
         if (peakDayEl) peakDayEl.textContent = summary.peak_date || 'N/A';
         if (peakQtyEl) peakQtyEl.textContent = (summary.peak_quantity || 0).toLocaleString() + ' kg';
