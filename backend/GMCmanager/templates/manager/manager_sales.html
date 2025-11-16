@@ -234,7 +234,10 @@
     }
 
     async function loadAll(){
-      await Promise.all([loadKPIs(), loadTrend(), loadTopShare(), loadSalesData()]);
+      // Load KPIs first to set the correct price immediately
+      await loadKPIs();
+      // Then load other data in parallel
+      await Promise.all([loadTrend(), loadTopShare(), loadSalesData()]);
     }
 
     async function hydrateProducts(){
@@ -384,8 +387,8 @@
           unitsSoldEl.textContent = `${total.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
         }
 
-        const days = new Set(data.map(x => x.saleDate)).size || 1;
-        document.querySelector('.overview-card:nth-child(2) .number').textContent = Math.round(total / days).toLocaleString();
+        // Don't update the second card (Total Price of Purchase) - it's handled by loadKPIs()
+        // The second card should only show the total price, not an average
 
         const byProduct = data.reduce((acc, r) => ((acc[r.product] = (acc[r.product] || 0) + r.quantity), acc), {});
         const [topName, topQty] = Object.entries(byProduct).sort((a,b)=>b[1]-a[1])[0] || [];
