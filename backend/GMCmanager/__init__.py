@@ -2783,20 +2783,57 @@ def mgr_purchases_recent():
     from sqlalchemy.orm import load_only
     from collections import defaultdict
     
-    # Get current inventory for all products in this branch (avoid grn_number column)
+    # Get current inventory for all products in this branch (include batch_code)
     inventory_items = (
         db.session.query(InventoryItem)
-        .options(load_only(InventoryItem.product_id, InventoryItem.stock_kg, InventoryItem.unit_price))
+        .options(load_only(InventoryItem.product_id, InventoryItem.stock_kg, InventoryItem.unit_price, InventoryItem.batch_code))
         .filter_by(branch_id=branch_id)
         .all()
     )
     
-    # Build maps: product_id -> current_stock, product_id -> unit_price
+    # Build maps: product_id -> current_stock, product_id -> unit_price, product_id -> batch_codes
     current_stock_map = {}
     unit_price_map = {}
+    product_batches_map = {}  # product_id -> list of batch_codes (oldest first)
     for inv_item in inventory_items:
         current_stock_map[inv_item.product_id] = float(inv_item.stock_kg) if inv_item.stock_kg else 0.0
         unit_price_map[inv_item.product_id] = float(inv_item.unit_price) if inv_item.unit_price else 0.0
+        
+        # Collect batch codes for each product (we'll sort by oldest later)
+        if inv_item.product_id not in product_batches_map:
+            product_batches_map[inv_item.product_id] = []
+        if inv_item.batch_code:
+            product_batches_map[inv_item.product_id].append(inv_item.batch_code)
+    
+    # Get earliest restock dates for batch ordering
+    from sqlalchemy import func
+    item_ids = [item.id for item in inventory_items]
+    restock_dates = (
+        db.session.query(
+            RestockLog.inventory_item_id,
+            InventoryItem.product_id,
+            InventoryItem.batch_code,
+            func.min(RestockLog.created_at).label('earliest_restock')
+        )
+        .join(InventoryItem, RestockLog.inventory_item_id == InventoryItem.id)
+        .filter(RestockLog.inventory_item_id.in_(item_ids))
+        .group_by(InventoryItem.id, InventoryItem.product_id, InventoryItem.batch_code)
+        .all()
+    )
+    
+    # Build map: (product_id, batch_code) -> earliest_restock
+    batch_restock_map = {}
+    for row in restock_dates:
+        key = (row.product_id, row.batch_code)
+        if key not in batch_restock_map or (row.earliest_restock and (not batch_restock_map[key] or row.earliest_restock < batch_restock_map[key])):
+            batch_restock_map[key] = row.earliest_restock
+    
+    # Sort batches by oldest first for each product
+    for product_id in product_batches_map:
+        product_batches_map[product_id] = sorted(
+            product_batches_map[product_id],
+            key=lambda bc: (batch_restock_map.get((product_id, bc)) or datetime.max, bc)
+        )
     
     # Group sales by product and calculate historical remaining for each transaction
     # For each sale, historical_remaining = current_stock + sum of all sales AFTER this transaction
@@ -2818,6 +2855,10 @@ def mgr_purchases_recent():
         # If unit_price is 0, calculate it from the sales transaction
         if unit_price == 0.0 and float(sale.quantity_sold) > 0:
             unit_price = float(sale.total_amount) / float(sale.quantity_sold)
+        
+        # Get batch_code for this product (use oldest batch as fallback)
+        batch_codes = product_batches_map.get(sale.product_id, [])
+        batch_code = batch_codes[0] if batch_codes else None
         
         # Calculate historical estimated remaining: current_stock + sum of sales AFTER this transaction
         # Since transactions are sorted by date DESC, we need to add back all sales that happened after
@@ -2850,6 +2891,9 @@ def mgr_purchases_recent():
             "timestamp": dt_ph.isoformat(),  # Ensure this is also timezone-aware
             "riceVariant": product_name.lower().replace(' ', '-').replace('_', '-'),
             "product_name": product_name,
+            "batch_code": batch_code,  # Include batch_code (oldest batch for this product)
+            "batch": batch_code,  # Alias for compatibility
+            "batchCode": batch_code,  # Alias for compatibility
             "price": unit_price,
             "initialInventory": 0.0,  # Not tracked in current system
             "addedStocks": 0.0,  # Not tracked in current system
