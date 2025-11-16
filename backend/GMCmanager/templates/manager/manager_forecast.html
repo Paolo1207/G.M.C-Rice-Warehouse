@@ -283,8 +283,12 @@
           <div class="forecast-filters">
             <div class="filter-group">
               <select id="priceProductFilter">
-                <option value="">All Products</option>
+                <option value="">Select a product</option>
                 <!-- Products will be populated from inventory -->
+              </select>
+              <select id="priceBatchFilter" style="display: none; margin-left: 10px;">
+                <option value="">Select batch (optional)</option>
+                <!-- Batch codes will be populated when product is selected -->
               </select>
               <select id="priceTimeRange">
                 <option value="30">Last 30 Days</option>
@@ -787,7 +791,7 @@
       });
     }
 
-    // Load batch codes for selected product
+    // Load batch codes for selected product (for demand forecast)
     async function loadBatchCodes(productId) {
       const batchFilter = document.getElementById('batchFilter');
       if (!batchFilter) return;
@@ -825,6 +829,47 @@
         console.error('Error loading batch codes:', error);
         batchFilter.style.display = 'none';
         batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+      }
+    }
+
+    // Load batch codes for selected product (for price forecast)
+    async function loadPriceBatchCodes(productId) {
+      const priceBatchFilter = document.getElementById('priceBatchFilter');
+      if (!priceBatchFilter) return;
+
+      if (!productId) {
+        priceBatchFilter.style.display = 'none';
+        priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        return;
+      }
+
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+        const data = await response.json();
+
+        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+          // Show batch filter and populate options
+          priceBatchFilter.style.display = 'block';
+          priceBatchFilter.innerHTML = '<option value="">All batches</option>';
+          data.batch_codes.forEach(batchCode => {
+            const option = document.createElement('option');
+            option.value = batchCode;
+            option.textContent = batchCode;
+            priceBatchFilter.appendChild(option);
+          });
+        } else {
+          // Hide batch filter if no batches exist
+          priceBatchFilter.style.display = 'none';
+          priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        }
+      } catch (error) {
+        console.error('Error loading batch codes for price forecast:', error);
+        priceBatchFilter.style.display = 'none';
+        priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
       }
     }
 
@@ -1020,28 +1065,37 @@
           }
           
           const productId = document.getElementById('priceProductFilter')?.value || '';
+          const batchCode = document.getElementById('priceBatchFilter')?.value || '';
           const timeRange = document.getElementById('priceTimeRange')?.value || '30';
           
           console.log('DEBUG PRICE FORECAST FRONTEND: Product ID:', productId);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Batch Code:', batchCode);
           console.log('DEBUG PRICE FORECAST FRONTEND: Time Range:', timeRange);
-          console.log('Price forecast parameters:', { productId, timeRange });
+          console.log('Price forecast parameters:', { productId, batchCode, timeRange });
           
           // Get branch_id for the API call
           const branchId = {{ branch_id if branch_id else 'null' }} || 
                           new URLSearchParams(window.location.search).get('branch') || 
                           new URLSearchParams(window.location.search).get('branch_id');
           
+          const requestBody = {
+            product_id: productId,
+            days: parseInt(timeRange),
+            model_type: 'holt_winters',  // Always use Holt-Winters for price forecast
+            branch_id: branchId
+          };
+          
+          // Include batch_code if selected
+          if (batchCode) {
+            requestBody.batch_code = batchCode;
+          }
+          
           const response = await fetch('/manager/api/forecast/price', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              product_id: productId,
-              days: parseInt(timeRange),
-              model_type: 'holt_winters',  // Always use Holt-Winters for price forecast
-              branch_id: branchId
-            })
+            body: JSON.stringify(requestBody)
           });
           
           console.log('Price forecast API Response status:', response.status);
@@ -1391,21 +1445,46 @@
       }
 
       // Price filters - mark as dirty but don't auto-generate
-      ['priceProductFilter', 'priceTimeRange']
-        .forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.addEventListener('change', () => {
-            showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
-            // Clear current price insights when filters change
-            clearPriceInsights();
-            // Enable the generate button
-            const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
-            if (generateBtn) {
-              generateBtn.disabled = false;
-              generateBtn.style.opacity = '1';
-            }
-          });
+      const priceProductFilter = document.getElementById('priceProductFilter');
+      if (priceProductFilter) {
+        priceProductFilter.addEventListener('change', async () => {
+          const productId = priceProductFilter.value;
+          await loadPriceBatchCodes(productId);
+          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+          // Clear current price insights when filters change
+          clearPriceInsights();
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
         });
+      }
+
+      const priceTimeRangeFilter = document.getElementById('priceTimeRange');
+      if (priceTimeRangeFilter) {
+        priceTimeRangeFilter.addEventListener('change', () => {
+          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+          // Clear current price insights when filters change
+          clearPriceInsights();
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Price batch filter change handler
+      const priceBatchFilter = document.getElementById('priceBatchFilter');
+      if (priceBatchFilter) {
+        priceBatchFilter.addEventListener('change', () => {
+          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+          clearPriceInsights();
+        });
+      }
     }
 
     // Helpers
