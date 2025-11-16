@@ -723,7 +723,7 @@
       return defaultPrices[varietyName] || 45; // Default to 45 if not found
     }
 
-    function hydrateItemInitialInventory(itemId) {
+    async function hydrateItemInitialInventory(itemId) {
       const varietyEl = document.getElementById(`${itemId}_riceVariant`);
       const batchEl = document.getElementById(`${itemId}_batchCode`);
       const dateEl = document.getElementById('purchaseDate');
@@ -737,24 +737,24 @@
       
       if (!variety || !dateStr) return;
       
-      // If batch is selected, fetch stock for that specific batch
-      if (batchCode && batchCode !== '') {
-        fetchBatchStock(itemId, variety, batchCode, dateStr);
-        return;
-      }
-      
-      // Prefer live API stock for the branch; fallback to previous entries
-      const apiStock = currentStockByKey[variety];
-      const initial = (apiStock != null ? apiStock : getInitialInventoryFor(variety, dateStr));
-      initialEl.value = toFixedOrEmpty(initial);
-      computeItemTotals(itemId);
+      // Always fetch current stock from API for accuracy
+      await fetchCurrentStock(itemId, variety, batchCode, dateStr);
     }
 
-    // Fetch stock for a specific batch
-    async function fetchBatchStock(itemId, varietyKey, batchCode, dateStr) {
+    // Fetch current stock from API (for both batch-specific and non-batch cases)
+    async function fetchCurrentStock(itemId, varietyKey, batchCode, dateStr) {
       try {
         const variety = availableRiceVarieties.find(v => v.key === varietyKey);
-        if (!variety) return;
+        if (!variety) {
+          // Fallback to previous entries if variety not found
+          const initial = getInitialInventoryFor(varietyKey, dateStr);
+          const initialEl = document.getElementById(`${itemId}_initialInventory`);
+          if (initialEl) {
+            initialEl.value = toFixedOrEmpty(initial);
+            computeItemTotals(itemId);
+          }
+          return;
+        }
         
         const branchId = {{ branch_id if branch_id else 'null' }} || 
                         new URLSearchParams(window.location.search).get('branch') || 
@@ -769,31 +769,60 @@
         const response = await fetch(apiUrl);
         const data = await response.json();
         
+        const initialEl = document.getElementById(`${itemId}_initialInventory`);
+        if (!initialEl) return;
+        
         if (data.ok && data.items) {
-          // Find the product by name and batch code
-          const productItem = data.items.find(item => 
-            item.product_name && 
-                 item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim() &&
-                 (item.batch_code || item.batch || '') === batchCode
-          );
+          let stockKg = 0;
           
-          const initialEl = document.getElementById(`${itemId}_initialInventory`);
-          if (productItem) {
-            const stockKg = (productItem.quantity_kg ?? productItem.stock_kg ?? productItem.stock ?? productItem.quantity ?? 0);
-            initialEl.value = toFixedOrEmpty(parseFloat(stockKg) || 0);
+          if (batchCode && batchCode !== '') {
+            // Find the product by name and batch code (specific batch)
+            const productItem = data.items.find(item => 
+              item.product_name && 
+              item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim() &&
+              (item.batch_code || item.batch || '') === batchCode
+            );
+            
+            if (productItem) {
+              stockKg = parseFloat(productItem.quantity_kg ?? productItem.stock_kg ?? productItem.stock ?? productItem.quantity ?? 0) || 0;
+            }
           } else {
-            // Fallback to previous entries
+            // No batch selected - sum all batches of this product
+            const matchingItems = data.items.filter(item => 
+              item.product_name && 
+              item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim()
+            );
+            
+            if (matchingItems.length > 0) {
+              stockKg = matchingItems.reduce((sum, item) => {
+                const itemStock = parseFloat(item.quantity_kg ?? item.stock_kg ?? item.stock ?? item.quantity ?? 0) || 0;
+                return sum + itemStock;
+              }, 0);
+            }
+          }
+          
+          if (stockKg > 0) {
+            initialEl.value = toFixedOrEmpty(stockKg);
+          } else {
+            // Fallback to previous entries if no stock found
             const initial = getInitialInventoryFor(varietyKey, dateStr);
             initialEl.value = toFixedOrEmpty(initial);
           }
+        } else {
+          // API error - fallback to previous entries
+          const initial = getInitialInventoryFor(varietyKey, dateStr);
+          initialEl.value = toFixedOrEmpty(initial);
+        }
+        
+        computeItemTotals(itemId);
+      } catch (error) {
+        console.error('Error fetching current stock:', error);
+        const initialEl = document.getElementById(`${itemId}_initialInventory`);
+        if (initialEl) {
+          const initial = getInitialInventoryFor(varietyKey, dateStr);
+          initialEl.value = toFixedOrEmpty(initial);
           computeItemTotals(itemId);
         }
-      } catch (error) {
-        console.error('Error fetching batch stock:', error);
-        const initialEl = document.getElementById(`${itemId}_initialInventory`);
-        const initial = getInitialInventoryFor(varietyKey, dateStr);
-        initialEl.value = toFixedOrEmpty(initial);
-        computeItemTotals(itemId);
       }
     }
 
