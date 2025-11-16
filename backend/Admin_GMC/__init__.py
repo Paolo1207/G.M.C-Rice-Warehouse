@@ -1209,34 +1209,32 @@ def api_sales_list():
         try: start = datetime.strptime(frm, '%Y-%m-%d')
         except: pass
 
-    # Get batch code from inventory items (get oldest batch for each product/branch)
+    # Get batch code from inventory items (simplified: get first batch for each product/branch)
+    # Using a simpler approach: get the first inventory item's batch_code for each product/branch
     from sqlalchemy import func
-    oldest_batch = (
+    first_batch = (
         db.session.query(
             InventoryItem.product_id,
             InventoryItem.branch_id,
             InventoryItem.batch_code,
-            func.min(RestockLog.created_at).label('earliest_restock'),
             func.min(InventoryItem.id).label('min_id')
         )
-        .outerjoin(RestockLog, RestockLog.inventory_item_id == InventoryItem.id)
         .group_by(InventoryItem.product_id, InventoryItem.branch_id, InventoryItem.batch_code)
         .subquery()
     )
     
-    # Get the first batch (oldest) for each product/branch
-    first_batch = (
+    # Get the first batch (lowest ID = oldest) for each product/branch
+    batch_lookup = (
         db.session.query(
-            oldest_batch.c.product_id,
-            oldest_batch.c.branch_id,
-            oldest_batch.c.batch_code
+            first_batch.c.product_id,
+            first_batch.c.branch_id,
+            first_batch.c.batch_code
         )
-        .distinct(oldest_batch.c.product_id, oldest_batch.c.branch_id)
+        .distinct(first_batch.c.product_id, first_batch.c.branch_id)
         .order_by(
-            oldest_batch.c.product_id,
-            oldest_batch.c.branch_id,
-            oldest_batch.c.earliest_restock.asc().nullslast(),
-            oldest_batch.c.min_id.asc()
+            first_batch.c.product_id,
+            first_batch.c.branch_id,
+            first_batch.c.min_id.asc()
         )
         .subquery()
     )
@@ -1250,13 +1248,13 @@ def api_sales_list():
         SalesTransaction.total_amount,
         Product.name.label('product_name'),
         Branch.name.label('branch_name'),
-        first_batch.c.batch_code.label('batch_code')
+        batch_lookup.c.batch_code.label('batch_code')
     ).join(Product, Product.id == SalesTransaction.product_id)
     q = q.join(Branch, Branch.id == SalesTransaction.branch_id)
     q = q.outerjoin(
-        first_batch,
-        (first_batch.c.product_id == SalesTransaction.product_id) & 
-        (first_batch.c.branch_id == SalesTransaction.branch_id)
+        batch_lookup,
+        (batch_lookup.c.product_id == SalesTransaction.product_id) & 
+        (batch_lookup.c.branch_id == SalesTransaction.branch_id)
     )
     q = q.filter(and_(SalesTransaction.transaction_date >= start, SalesTransaction.transaction_date <= end))
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
