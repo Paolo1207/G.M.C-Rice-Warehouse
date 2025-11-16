@@ -221,9 +221,6 @@
             <button class="btn primary" onclick="showPurchaseHistory()">
               <i class="fas fa-history"></i> Purchase History
             </button>
-            <button class="btn secondary" onclick="exportPurchaseData()">
-              <i class="fas fa-download"></i> Export
-            </button>
           </div>
         </div>
 
@@ -308,6 +305,7 @@
                 <tr>
                   <th>Date & Time</th>
                   <th>Variety</th>
+                  <th>Batch</th>
                   <th>Price/kg</th>
                   <th>Initial</th>
                   <th>Added</th>
@@ -484,11 +482,19 @@
           <div class="form-row">
             <div class="form-group">
               <label for="${itemId}_riceVariant">Rice Variety *</label>
-              <select id="${itemId}_riceVariant" required onchange="updateItemPrice('${itemId}')">
+              <select id="${itemId}_riceVariant" required onchange="updateItemPrice('${itemId}'); loadItemBatchCodes('${itemId}');">
                 <option value="">${availableRiceVarieties.length > 0 ? 'Select Rice Type' : 'Loading rice types...'}</option>
                 ${availableRiceVarieties.map(variety => 
                   `<option value="${variety.key}">${variety.name}</option>`
                 ).join('')}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="${itemId}_batchCode">Batch Code</label>
+              <select id="${itemId}_batchCode" style="display: none;" onchange="updateItemPrice('${itemId}'); hydrateItemInitialInventory('${itemId}');">
+                <option value="">Please select batch</option>
+                <!-- Batch codes will be populated when product is selected -->
               </select>
             </div>
 
@@ -506,7 +512,7 @@
 
             <div class="form-group">
               <label for="${itemId}_addedStocks">Added Stocks (kg)</label>
-              <input type="number" id="${itemId}_addedStocks" min="0" step="0.01" placeholder="Deliveries received today" onchange="computeItemTotals('${itemId}')">
+              <input type="number" id="${itemId}_addedStocks" min="0" step="0.01" placeholder="Enter quantity" onchange="computeItemTotals('${itemId}')">
             </div>
           </div>
 
@@ -595,6 +601,7 @@
       if (varietyEl) {
         varietyEl.addEventListener('change', () => {
           updateItemPrice(itemId);
+          loadItemBatchCodes(itemId);
           hydrateItemInitialInventory(itemId);
           computeItemTotals(itemId);
         });
@@ -605,6 +612,84 @@
           hydrateItemInitialInventory(itemId);
           computeItemTotals(itemId);
         });
+      }
+    }
+
+    // Load batch codes for a specific item's product
+    async function loadItemBatchCodes(itemId) {
+      const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+      const batchEl = document.getElementById(`${itemId}_batchCode`);
+      
+      if (!varietyEl || !batchEl) return;
+      
+      const varietyKey = varietyEl.value;
+      if (!varietyKey) {
+        batchEl.style.display = 'none';
+        batchEl.innerHTML = '<option value="">Please select batch</option>';
+        return;
+      }
+      
+      // Find the product name from the variety
+      const variety = availableRiceVarieties.find(v => v.key === varietyKey);
+      if (!variety) {
+        batchEl.style.display = 'none';
+        batchEl.innerHTML = '<option value="">Please select batch</option>';
+        return;
+      }
+      
+      // Find product_id from inventory data
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.ok && data.items) {
+          // Find the product by name
+          const productItem = data.items.find(item => 
+            item.product_name && item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim()
+          );
+          
+          if (productItem && productItem.product_id) {
+            // Fetch batch codes for this product
+            const batchResponse = await fetch(`/manager/api/products/${productItem.product_id}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+            const batchData = await batchResponse.json();
+            
+            if (batchData.ok && Array.isArray(batchData.batch_codes) && batchData.batch_codes.length > 0) {
+              // Show batch filter and populate options
+              batchEl.style.display = 'block';
+              batchEl.innerHTML = '<option value="">Please select batch</option>';
+              batchData.batch_codes.forEach(batchCode => {
+                const option = document.createElement('option');
+                option.value = batchCode;
+                option.textContent = batchCode;
+                batchEl.appendChild(option);
+              });
+            } else {
+              // Hide batch filter if no batches exist
+              batchEl.style.display = 'none';
+              batchEl.innerHTML = '<option value="">Please select batch</option>';
+            }
+          } else {
+            batchEl.style.display = 'none';
+            batchEl.innerHTML = '<option value="">Please select batch</option>';
+          }
+        } else {
+          batchEl.style.display = 'none';
+          batchEl.innerHTML = '<option value="">Please select batch</option>';
+        }
+      } catch (error) {
+        console.error('Error loading batch codes for item:', error);
+        batchEl.style.display = 'none';
+        batchEl.innerHTML = '<option value="">Please select batch</option>';
       }
     }
 
@@ -787,6 +872,7 @@
       itemsContainer.forEach(item => {
         const itemId = item.id;
         const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+        const batchEl = document.getElementById(`${itemId}_batchCode`);
         
         if (!varietyEl || !varietyEl.value) return; // Skip empty items
         
@@ -800,6 +886,7 @@
         const actualRemainingStr = document.getElementById(`${itemId}_actualRemaining`).value;
         const actualRemaining = actualRemainingStr === '' ? null : parseFloatOrZero(actualRemainingStr);
         const remarks = document.getElementById(`${itemId}_remarks`).value || '';
+        const batchCode = batchEl && batchEl.style.display !== 'none' ? (batchEl.value || '') : '';
 
         const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + halfKiloKg);
         const totalAmount = totalSoldKg * Math.max(0, price);
@@ -810,6 +897,7 @@
         id: cryptoRandomId(),
         date: document.getElementById('purchaseDate').value,
           riceVariant: varietyEl.value,
+        batchCode: batchCode,
         price: round2(price),
         initialInventory: round2(initial),
         addedStocks: round2(added),
@@ -841,13 +929,20 @@
         const payload = {
           branch_id: parseInt(managerBranchId),
           date: date,
-          items: items.map(item => ({
-            product_name: formatVariant(item.riceVariant),
-            price_per_kg: item.price,
-            quantity_sold_kg: item.totalSoldKg,
-            total_amount: item.totalAmount,
-            remarks: item.remarks
-          }))
+          items: items.map(item => {
+            const itemPayload = {
+              product_name: formatVariant(item.riceVariant),
+              price_per_kg: item.price,
+              quantity_sold_kg: item.totalSoldKg,
+              total_amount: item.totalAmount,
+              remarks: item.remarks
+            };
+            // Include batch_code if provided
+            if (item.batchCode && item.batchCode !== '') {
+              itemPayload.batch_code = item.batchCode;
+            }
+            return itemPayload;
+          })
         };
 
         const response = await fetch('/manager/api/sales/bulk', {
@@ -921,9 +1016,11 @@
     function addToRecentPurchases(entry) {
       const tbody = document.getElementById('recentPurchasesTable');
       const row = document.createElement('tr');
+      const batchCode = entry.batchCode || entry.batch_code || entry.batch || '';
       row.innerHTML = `
         <td>${formatDateTime(entry)}</td>
         <td>${entry.product_name || formatVariant(entry.riceVariant)}</td>
+        <td>${batchCode ? batchCode : '-'}</td>
         <td>₱${entry.price.toFixed(2)}</td>
         <td>${entry.initialInventory.toFixed(2)}</td>
         <td>${entry.addedStocks.toFixed(2)}</td>
@@ -1050,7 +1147,7 @@
         }
         
         // Create CSV content with proper formatting
-        const headers = ['Date & Time', 'Variety', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit'];
+        const headers = ['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit'];
         
         // Process each row to format data properly
         const csvRows = rows.map(row => {
@@ -1070,19 +1167,24 @@
                   cellText = `${datePart} ${timePart}`;
                 }
               }
-            } else if (index === 2 || index === 6) { // Price/kg and Total columns
+            } else if (index === 2) { // Batch column
+              // Keep batch code as is, or empty if "-"
+              if (cellText === '-') {
+                cellText = '';
+              }
+            } else if (index === 3 || index === 7) { // Price/kg and Total columns (adjusted for new Batch column)
               // Remove currency symbol and ensure proper number format
               cellText = cellText.replace(/[₱â,±]/g, '').trim();
               // Ensure it's a valid number
               if (cellText && !isNaN(parseFloat(cellText))) {
                 cellText = parseFloat(cellText).toFixed(2);
               }
-            } else if (index === 3 || index === 4 || index === 5 || index === 7) { // Numeric columns
+            } else if (index === 4 || index === 5 || index === 6 || index === 8) { // Numeric columns (adjusted for new Batch column)
               // Ensure proper number formatting
               if (cellText && !isNaN(parseFloat(cellText))) {
                 cellText = parseFloat(cellText).toFixed(2);
               }
-            } else if (index === 8 || index === 9) { // Actual and Excess/Deficit columns
+            } else if (index === 9 || index === 10) { // Actual and Excess/Deficit columns (adjusted for new Batch column)
               // Handle dash values
               if (cellText === '-') {
                 cellText = '';
@@ -1129,7 +1231,7 @@
         const ws_data = [];
         
         // Add headers
-        ws_data.push(['Date & Time', 'Variety', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit']);
+        ws_data.push(['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit']);
         
         // Process each row
         rows.forEach(row => {
@@ -1146,12 +1248,15 @@
                 }
               }
               return cellText;
-            } else if (index === 2 || index === 6) { // Price/kg and Total columns
+            } else if (index === 2) { // Batch column
+              // Return batch code or empty string
+              return cellText === '-' ? '' : cellText;
+            } else if (index === 3 || index === 7) { // Price/kg and Total columns (adjusted for new Batch column)
               cellText = cellText.replace(/[₱â,±]/g, '').trim();
               return cellText && !isNaN(parseFloat(cellText)) ? parseFloat(cellText) : cellText;
-            } else if (index === 3 || index === 4 || index === 5 || index === 7) { // Numeric columns
+            } else if (index === 4 || index === 5 || index === 6 || index === 8) { // Numeric columns (adjusted for new Batch column)
               return cellText && !isNaN(parseFloat(cellText)) ? parseFloat(cellText) : cellText;
-            } else if (index === 8 || index === 9) { // Actual and Excess/Deficit columns
+            } else if (index === 9 || index === 10) { // Actual and Excess/Deficit columns (adjusted for new Batch column)
               return cellText === '-' ? '' : cellText;
             }
             
@@ -1167,6 +1272,7 @@
         ws['!cols'] = [
           { wch: 12 }, // Date
           { wch: 15 }, // Variety
+          { wch: 10 }, // Batch
           { wch: 10 }, // Price/kg
           { wch: 8 },  // Initial
           { wch: 8 },  // Added
