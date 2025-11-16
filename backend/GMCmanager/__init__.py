@@ -2817,13 +2817,13 @@ def mgr_purchases_recent():
                 try:
                     restock_dates = (
                         db.session.query(
-                            RestockLog.inventory_item_id,
+                            InventoryItem.id.label('inventory_item_id'),
                             InventoryItem.product_id,
                             InventoryItem.batch_code,
                             func.min(RestockLog.created_at).label('earliest_restock')
                         )
-                        .join(InventoryItem, RestockLog.inventory_item_id == InventoryItem.id)
-                        .filter(RestockLog.inventory_item_id.in_(item_ids))
+                        .join(RestockLog, RestockLog.inventory_item_id == InventoryItem.id)
+                        .filter(InventoryItem.id.in_(item_ids))
                         .group_by(InventoryItem.id, InventoryItem.product_id, InventoryItem.batch_code)
                         .all()
                     )
