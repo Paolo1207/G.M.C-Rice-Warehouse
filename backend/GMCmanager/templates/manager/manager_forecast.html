@@ -211,8 +211,12 @@
           <div class="forecast-filters">
             <div class="filter-group">
               <select id="productFilter" required>
-                <option value="">Please select a product</option>
+                <option value="">Select a product</option>
                 <!-- Products will be populated from inventory -->
+              </select>
+              <select id="batchFilter" style="display: none; margin-left: 10px;">
+                <option value="">Select batch (optional)</option>
+                <!-- Batch codes will be populated when product is selected -->
               </select>
             </div>
             <div class="date-range">
@@ -228,6 +232,9 @@
               </button>
               <button class="btn secondary" onclick="exportForecast()">
                 <i class="fas fa-download"></i> Export Report
+              </button>
+              <button class="btn secondary" id="print-forecast-btn">
+                <i class="fas fa-print"></i> Print
               </button>
             </div>
           </div>
@@ -421,6 +428,14 @@
     document.addEventListener('DOMContentLoaded', () => {
       initializeManagerForecast();
       initCharts(); // Initialize charts
+      
+      // Setup print button
+      const printBtn = document.getElementById('print-forecast-btn');
+      if (printBtn) {
+        printBtn.addEventListener('click', function() {
+          printForecastPage();
+        });
+      }
       
       // Ensure chart is ready
       setTimeout(() => {
@@ -759,7 +774,9 @@
       filters.forEach(filterId => {
         const select = document.getElementById(filterId);
         if (select) {
-          select.innerHTML = '<option value="">All Products</option>';
+          // Use "Select a product" for demand forecast, "All Products" for others
+          const placeholder = filterId === 'productFilter' ? 'Select a product' : 'All Products';
+          select.innerHTML = `<option value="">${placeholder}</option>`;
           products.forEach(product => {
             const option = document.createElement('option');
             option.value = product.id;
@@ -768,6 +785,47 @@
           });
         }
       });
+    }
+
+    // Load batch codes for selected product
+    async function loadBatchCodes(productId) {
+      const batchFilter = document.getElementById('batchFilter');
+      if (!batchFilter) return;
+
+      if (!productId) {
+        batchFilter.style.display = 'none';
+        batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        return;
+      }
+
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+        const data = await response.json();
+
+        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+          // Show batch filter and populate options
+          batchFilter.style.display = 'block';
+          batchFilter.innerHTML = '<option value="">All batches</option>';
+          data.batch_codes.forEach(batchCode => {
+            const option = document.createElement('option');
+            option.value = batchCode;
+            option.textContent = batchCode;
+            batchFilter.appendChild(option);
+          });
+        } else {
+          // Hide batch filter if no batches exist
+          batchFilter.style.display = 'none';
+          batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        }
+      } catch (error) {
+        console.error('Error loading batch codes:', error);
+        batchFilter.style.display = 'none';
+        batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+      }
     }
 
     // Load forecast data from manager API
@@ -848,6 +906,7 @@
           }
           
           const productId = document.getElementById('productFilter')?.value || '';
+          const batchCode = document.getElementById('batchFilter')?.value || '';
           const timeRange = document.getElementById('timeRange')?.value || '30';
           
           // Validate that a product is selected
@@ -860,24 +919,31 @@
             return;
           }
           
-          console.log('Forecast parameters:', { productId, timeRange });
+          console.log('Forecast parameters:', { productId, batchCode, timeRange });
           
           // Get branch_id for the API call
           const branchId = {{ branch_id if branch_id else 'null' }} || 
                           new URLSearchParams(window.location.search).get('branch') || 
                           new URLSearchParams(window.location.search).get('branch_id');
           
+          const requestBody = {
+            product_id: productId,
+            days: parseInt(timeRange),
+            model_type: 'arima',
+            branch_id: branchId
+          };
+          
+          // Include batch_code if selected
+          if (batchCode) {
+            requestBody.batch_code = batchCode;
+          }
+          
           const response = await fetch('/manager/api/forecast', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              product_id: productId,
-              days: parseInt(timeRange),
-              model_type: 'arima',
-              branch_id: branchId
-            }),
+            body: JSON.stringify(requestBody),
             signal: activeForecastController.signal
           });
           
@@ -1285,20 +1351,44 @@
         });
 
       // Forecast filters - mark as dirty but don't auto-generate
-      ['productFilter', 'timeRange']
-        .forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.addEventListener('change', () => {
-            filtersDirty = true;
-            showToast('Filters changed — click Generate to refresh', 'info');
-            // Enable the generate button
-            const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
-            if (generateBtn) {
-              generateBtn.disabled = false;
-              generateBtn.style.opacity = '1';
-            }
-          });
+      const productFilter = document.getElementById('productFilter');
+      if (productFilter) {
+        productFilter.addEventListener('change', async () => {
+          const productId = productFilter.value;
+          await loadBatchCodes(productId);
+          filtersDirty = true;
+          showToast('Filters changed — click Generate to refresh', 'info');
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
         });
+      }
+
+      const timeRangeFilter = document.getElementById('timeRange');
+      if (timeRangeFilter) {
+        timeRangeFilter.addEventListener('change', () => {
+          filtersDirty = true;
+          showToast('Filters changed — click Generate to refresh', 'info');
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Batch filter change handler
+      const batchFilter = document.getElementById('batchFilter');
+      if (batchFilter) {
+        batchFilter.addEventListener('change', () => {
+          filtersDirty = true;
+          showToast('Filters changed — click Generate to refresh', 'info');
+        });
+      }
 
       // Price filters - mark as dirty but don't auto-generate
       ['priceProductFilter', 'priceTimeRange']
@@ -1885,6 +1975,167 @@
           infoSection.style.display = 'block';
         }
       }
+    }
+
+    function printForecastPage() {
+      const printWindow = window.open('', '_blank', 'width=1200,height=800');
+      if (!printWindow) {
+        alert('Please allow popups to use the print feature');
+        return;
+      }
+
+      const generatedAt = new Date().toLocaleString();
+      const productId = document.getElementById('productFilter')?.value || '';
+      const batchCode = document.getElementById('batchFilter')?.value || '';
+      const timeRange = document.getElementById('timeRange')?.value || '30';
+      
+      const productFilter = document.getElementById('productFilter');
+      const productName = productFilter?.options[productFilter.selectedIndex]?.text || 'Not Selected';
+      const branchName = MANAGER_BRANCH_NAME || 'Your Branch';
+
+      // Get chart image
+      let chartImg = '';
+      if (demandChart) {
+        chartImg = demandChart.toBase64Image();
+      }
+
+      // Get forecast summary
+      const summaryCards = document.querySelectorAll('.summary-card');
+      let summaryHTML = '';
+      summaryCards.forEach((card, index) => {
+        const title = card.querySelector('h4')?.textContent || '';
+        const number = card.querySelector('.number')?.textContent || card.querySelector('.date')?.textContent || '--';
+        const trend = card.querySelector('.trend')?.textContent || card.querySelector('.quantity')?.textContent || '';
+        summaryHTML += `
+          <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+            <strong style="color: #64748b; font-size: 0.9rem;">${title}</strong>
+            <div style="font-size: 1.2rem; font-weight: 700; color: #1a365d;">${number}</div>
+            ${trend ? `<div style="font-size: 0.85rem; color: #666; margin-top: 4px;">${trend}</div>` : ''}
+          </div>
+        `;
+      });
+
+      // Get forecast information
+      const forecastInfoContent = document.getElementById('forecast-information-content');
+      let forecastInfoHTML = '';
+      if (forecastInfoContent && document.getElementById('forecast-information').style.display !== 'none') {
+        forecastInfoHTML = forecastInfoContent.innerHTML;
+      }
+
+      const printHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Forecast Report - Print</title>
+    <style>
+        @media print {
+            @page { margin: 1cm; size: landscape; }
+            .no-print { display: none !important; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #1f2937;
+        }
+        .header {
+            border-bottom: 3px solid #1a365d;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #1a365d;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 4px 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section h3 {
+            color: #1a365d;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .chart-img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        .summary-content, .forecast-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #1a365d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Demand Forecast Report - ${branchName}</h1>
+        <p>Generated: ${generatedAt}</p>
+        <p>Product: ${productName}${batchCode ? ` | Batch: ${batchCode}` : ''} | Period: ${timeRange} days</p>
+    </div>
+
+    <div class="section">
+        <h3>📋 Forecast Summary</h3>
+        <div class="summary-content">
+            ${summaryHTML || '<p>No forecast summary available. Please generate a forecast first.</p>'}
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📈 Demand Forecast Chart</h3>
+        ${chartImg ? `<img src="${chartImg}" class="chart-img" alt="Demand Forecast Chart">` : '<p>Chart data not available. Please generate a forecast first.</p>'}
+    </div>
+
+    ${forecastInfoHTML ? `
+    <div class="section">
+        <h3>📖 Forecast Interpretation & Stock Preparation Guide</h3>
+        <div class="forecast-info">
+            ${forecastInfoHTML}
+        </div>
+    </div>
+    ` : ''}
+
+    <div class="actions no-print">
+        <button class="btn" onclick="window.print()">Print</button>
+    </div>
+</body>
+</html>`;
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 500);
     }
 
     // Call the function when page loads
