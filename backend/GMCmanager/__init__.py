@@ -2761,7 +2761,7 @@ def mgr_clear_all_notifications():
 @manager_required
 def mgr_purchases_recent():
     """Get recent purchases for manager's branch"""
-    from datetime import timezone, timedelta
+    from datetime import datetime, timezone, timedelta
     
     branch_id = _current_manager_branch_id()
     if not branch_id:

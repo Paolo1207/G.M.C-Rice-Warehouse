@@ -312,8 +312,6 @@
                   <th>Sold (kg)</th>
                   <th>Total (₱)</th>
                   <th>Est Rem</th>
-                  <th>Actual</th>
-                  <th>Excess/Deficit</th>
                 </tr>
               </thead>
               <tbody id="recentPurchasesTable">
@@ -500,7 +498,7 @@
 
             <div class="form-group">
               <label for="${itemId}_price">Price per kg *</label>
-              <input type="number" id="${itemId}_price" class="highlight-value" required min="0" step="0.01" placeholder="Auto-filled by variety">
+              <input type="number" id="${itemId}_price" class="highlight-value computed" required min="0" step="0.01" placeholder="Auto-filled by variety" readonly>
             </div>
           </div>
 
@@ -545,11 +543,6 @@
           </div>
 
           <div class="form-row">
-            <div class="form-group">
-              <label for="${itemId}_actualRemaining">Actual Remaining (kg)</label>
-              <input type="number" id="${itemId}_actualRemaining" min="0" step="0.01" placeholder="Physical count" onchange="computeItemTotals('${itemId}')">
-            </div>
-
             <div class="form-group">
               <label for="${itemId}_remarks">Remarks</label>
               <input type="text" id="${itemId}_remarks" placeholder="Optional notes">
@@ -938,15 +931,12 @@
         const sacksSold = parseFloatOrZero(document.getElementById(`${itemId}_sacksSold`).value);
         const halfKiloKg = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
         const sackWeight = parseFloatOrZero(document.getElementById(`${itemId}_sackWeightKg`).value) || 50;
-        const actualRemainingStr = document.getElementById(`${itemId}_actualRemaining`).value;
-        const actualRemaining = actualRemainingStr === '' ? null : parseFloatOrZero(actualRemainingStr);
         const remarks = document.getElementById(`${itemId}_remarks`).value || '';
         const batchCode = batchEl && batchEl.style.display !== 'none' ? (batchEl.value || '') : '';
 
         const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + halfKiloKg);
         const totalAmount = totalSoldKg * Math.max(0, price);
         const estimatedRemaining = initial + added - totalSoldKg;
-        const discrepancy = actualRemaining == null ? null : (actualRemaining - estimatedRemaining);
 
         items.push({
         id: cryptoRandomId(),
@@ -963,8 +953,6 @@
         totalSoldKg: round2(totalSoldKg),
         totalAmount: round2(totalAmount),
         estimatedRemaining: round2(estimatedRemaining),
-        actualRemaining: actualRemaining == null ? null : round2(actualRemaining),
-        discrepancy: discrepancy == null ? null : round2(discrepancy),
           remarks: remarks
         });
       });
@@ -1062,7 +1050,6 @@
         }
       }
       if (!latest) return 0;
-      if (isFinite(latest.actualRemaining)) return latest.actualRemaining;
       if (isFinite(latest.estimatedRemaining)) return latest.estimatedRemaining;
       return 0;
     }
@@ -1202,7 +1189,7 @@
         }
         
         // Create CSV content with proper formatting
-        const headers = ['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit'];
+        const headers = ['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem'];
         
         // Process each row to format data properly
         const csvRows = rows.map(row => {
@@ -1238,11 +1225,6 @@
               // Ensure proper number formatting
               if (cellText && !isNaN(parseFloat(cellText))) {
                 cellText = parseFloat(cellText).toFixed(2);
-              }
-            } else if (index === 9 || index === 10) { // Actual and Excess/Deficit columns (adjusted for new Batch column)
-              // Handle dash values
-              if (cellText === '-') {
-                cellText = '';
               }
             }
             
@@ -1286,7 +1268,7 @@
         const ws_data = [];
         
         // Add headers
-        ws_data.push(['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem', 'Actual', 'Excess/Deficit']);
+        ws_data.push(['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Added', 'Sold (kg)', 'Total (₱)', 'Est Rem']);
         
         // Process each row
         rows.forEach(row => {
@@ -1311,8 +1293,6 @@
               return cellText && !isNaN(parseFloat(cellText)) ? parseFloat(cellText) : cellText;
             } else if (index === 4 || index === 5 || index === 6 || index === 8) { // Numeric columns (adjusted for new Batch column)
               return cellText && !isNaN(parseFloat(cellText)) ? parseFloat(cellText) : cellText;
-            } else if (index === 9 || index === 10) { // Actual and Excess/Deficit columns (adjusted for new Batch column)
-              return cellText === '-' ? '' : cellText;
             }
             
             return cellText;
@@ -1333,9 +1313,7 @@
           { wch: 8 },  // Added
           { wch: 10 }, // Sold (kg)
           { wch: 12 }, // Total (₱)
-          { wch: 10 }, // Est Rem
-          { wch: 8 },  // Actual
-          { wch: 12 }  // Excess/Deficit
+          { wch: 10 }  // Est Rem
         ];
         
         // Add worksheet to workbook
@@ -1362,7 +1340,7 @@
       const header = [
         'Date','Variety','PricePerKg','InitialInventory','AddedStocks','KilosSold',
         'SacksSold','HalfKiloSold','SackWeightKg','TotalSoldKg','TotalAmount',
-        'EstimatedRemaining','ActualRemaining','Discrepancy','Remarks'
+        'EstimatedRemaining','Remarks'
       ];
       const rows = entries.map(e => [
         e.date,
@@ -1377,8 +1355,6 @@
         e.totalSoldKg,
         e.totalAmount,
         e.estimatedRemaining,
-        e.actualRemaining == null ? '' : e.actualRemaining,
-        e.discrepancy == null ? '' : e.discrepancy,
         (e.remarks || '').replace(/\n/g,' ')
       ]);
 
