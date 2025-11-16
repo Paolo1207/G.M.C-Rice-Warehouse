@@ -1069,8 +1069,6 @@
         <td>${entry.totalSoldKg.toFixed(2)}</td>
         <td>₱${entry.totalAmount.toFixed(2)}</td>
         <td>${entry.estimatedRemaining.toFixed(2)}</td>
-        <td>${entry.actualRemaining == null ? '-' : entry.actualRemaining.toFixed(2)}</td>
-        <td>${formatDiscrepancy(entry.discrepancy)}</td>
       `;
       tbody.insertBefore(row, tbody.firstChild);
       if (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
@@ -1113,7 +1111,7 @@
         console.error('Error loading recent purchases:', error);
         // Fallback to empty table
         const tbody = document.getElementById('recentPurchasesTable');
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #666;">Error loading recent purchases</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666;">Error loading recent purchases</td></tr>';
       }
     }
 
