@@ -53,15 +53,32 @@
         <div class="analytics-header">
           <h2>Analytics</h2>
           <div class="analytics-actions">
-            <button class="btn primary" onclick="exportAnalytics()">
-              <i class="fas fa-download"></i> Export Analytics
+            <button class="btn primary" id="print-analytics-btn">
+              <i class="fas fa-print"></i> Print
             </button>
           </div>
+        </div>
+        
+        <!-- Analytics Description -->
+        <div class="analytics-description" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border-left: 4px solid #1a365d;">
+          <h3 style="margin: 0 0 0.5rem 0; color: #1a365d; font-size: 1.1rem;">
+            <i class="fas fa-info-circle"></i> About Analytics
+          </h3>
+          <p style="margin: 0; color: #374151; line-height: 1.6;">
+            This analytics dashboard provides insights into your branch's performance, including forecast accuracy, inventory trends, sales patterns, and risk analysis. 
+            Data is updated in real-time based on your branch's transactions and inventory. Use these insights to make informed decisions about stock management, purchasing, and sales strategies.
+          </p>
         </div>
 
         <!-- Forecast Accuracy -->
         <div class="analytics-section">
-          <h3>Forecast Accuracy</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Forecast Accuracy</h3>
+          </div>
+          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            <i class="fas fa-lightbulb"></i> Compares predicted demand (from forecasts) with actual sales to measure how accurate your demand predictions are. 
+            Higher accuracy means your forecasts are reliable for inventory planning.
+          </p>
           <div class="accuracy-overview">
             <div class="accuracy-card">
               <div class="accuracy-icon"><i class="fas fa-bullseye"></i></div>
@@ -97,7 +114,13 @@
 
         <!-- Inventory Trends -->
         <div class="analytics-section">
-          <h3>Inventory Trends</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Inventory Trends</h3>
+          </div>
+          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            <i class="fas fa-lightbulb"></i> Tracks daily stock movements (restocks and sales) and shows how inventory is distributed across product categories. 
+            Helps identify which categories need more attention and when stock levels change.
+          </p>
           <div class="trends-grid">
             <div class="chart-container">
               <h4>Stock Movement</h4>
@@ -112,7 +135,13 @@
 
         <!-- Sales Trends -->
         <div class="analytics-section">
-          <h3>Sales Trends</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Sales Trends</h3>
+          </div>
+          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            <i class="fas fa-lightbulb"></i> Shows your best-selling products and weekly sales performance. 
+            Use this to identify popular items and understand sales patterns over time.
+          </p>
           <div class="trends-grid">
             <div class="chart-container">
               <h4>Top 5 Bestselling Items</h4>
@@ -127,7 +156,13 @@
 
         <!-- Risk Visualization -->
         <div class="analytics-section">
-          <h3>Risk Visualization</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3>Risk Visualization</h3>
+          </div>
+          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
+            <i class="fas fa-lightbulb"></i> Identifies products at risk of stockout (shortage) or overstock situations. 
+            High-risk items require immediate attention to prevent lost sales or excess inventory costs.
+          </p>
           <div class="risk-grid">
             <div class="chart-container">
               <h4>Product Risk Heatmap</h4>
@@ -344,7 +379,7 @@
       const tbody = document.getElementById('productAccuracyBody');
       tbody.innerHTML = '';
       if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No product accuracy data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-info-circle"></i> No product accuracy data available. Generate forecasts and record sales to see accuracy metrics.</td></tr>';
       } else {
         products.forEach(item => {
           const trend = (item.actual || 0) > (item.forecasted || 0) ? 'up' : 'down';
@@ -505,7 +540,7 @@
       const tbody = document.getElementById('riskTableBody');
       tbody.innerHTML = '';
       if (risks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No risk items found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-check-circle" style="color: #10b981;"></i> No risk items found. Your inventory levels are balanced.</td></tr>';
       } else {
         risks.forEach(item => {
           const row = document.createElement('tr');
@@ -520,14 +555,196 @@
       }
     }
 
-    function exportAnalytics() {
-      try {
-        showNotification('Exporting analytics data...', 'info');
-        setTimeout(() => { showNotification('Analytics exported successfully', 'success'); }, 1500);
-      } catch (err) {
-        console.error('Error exporting analytics:', err);
-        showNotification('Error exporting analytics', 'error');
+    function printAnalyticsPage() {
+      const printWindow = window.open('', '_blank', 'width=1200,height=800');
+      if (!printWindow) {
+        alert('Please allow popups to use the print feature');
+        return;
       }
+
+      const generatedAt = new Date().toLocaleString();
+      const { branchName } = getBranchParams();
+      const branchDisplayName = branchName ? decodeURIComponent(branchName) : 'Your Branch';
+
+      // Get chart images
+      let chartsHTML = '';
+      const chartIds = ['forecastAccuracyChart', 'stockMovementChart', 'categoryStockChart', 'topProductsChart', 'weeklySalesChart', 'riskHeatmap'];
+      const chartTitles = ['Forecast vs Actual Sales', 'Stock Movement', 'Category Stock Levels', 'Top 5 Bestselling Items', 'Weekly Sales Performance', 'Product Risk Heatmap'];
+      
+      chartIds.forEach((chartId, index) => {
+        const chart = chartInstances[chartId.replace('Chart', '')] || 
+                     (chartId === 'forecastAccuracyChart' ? chartInstances.forecastAccuracy :
+                      chartId === 'stockMovementChart' ? chartInstances.stockMovement :
+                      chartId === 'categoryStockChart' ? chartInstances.categoryStock :
+                      chartId === 'topProductsChart' ? chartInstances.topProducts :
+                      chartId === 'weeklySalesChart' ? chartInstances.weeklySales :
+                      chartId === 'riskHeatmap' ? chartInstances.riskHeatmap : null);
+        
+        if (chart) {
+          const chartImg = chart.toBase64Image();
+          chartsHTML += `
+            <div class="section">
+              <h3>${chartTitles[index]}</h3>
+              <img src="${chartImg}" class="chart-img" alt="${chartTitles[index]}">
+            </div>
+          `;
+        }
+      });
+
+      // Get overall accuracy
+      const overallAccuracy = document.getElementById('overallAccuracyValue')?.textContent || '--';
+      const accuracyPeriod = document.getElementById('accuracyPeriod')?.textContent || '--';
+
+      // Get product accuracy table
+      const productAccuracyTable = document.getElementById('productAccuracyBody')?.innerHTML || '<tr><td colspan="5">No data available</td></tr>';
+
+      // Get risk table
+      const riskTable = document.getElementById('riskTableBody')?.innerHTML || '<tr><td colspan="4">No risk items found</td></tr>';
+
+      const printHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Analytics Report - Print</title>
+    <style>
+        @media print {
+            @page { margin: 1cm; size: landscape; }
+            .no-print { display: none !important; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #1f2937;
+        }
+        .header {
+            border-bottom: 3px solid #1a365d;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #1a365d;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 4px 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section h3 {
+            color: #1a365d;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .chart-img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        table th, table td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        table th {
+            background: #f3f4f6;
+            font-weight: 600;
+        }
+        .kpi-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #1a365d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Analytics Report - ${branchDisplayName}</h1>
+        <p>Generated: ${generatedAt}</p>
+    </div>
+
+    <div class="section">
+        <h3>📊 Overall Forecast Accuracy</h3>
+        <div class="kpi-box">
+            <strong>Overall Accuracy:</strong> ${overallAccuracy}<br>
+            <strong>Period:</strong> ${accuracyPeriod}
+        </div>
+    </div>
+
+    ${chartsHTML}
+
+    <div class="section">
+        <h3>📋 Accuracy by Product</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Forecasted</th>
+                    <th>Actual</th>
+                    <th>Accuracy</th>
+                    <th>Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${productAccuracyTable}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>⚠️ High-Risk Products</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Risk Level</th>
+                    <th>Forecasted Shortage/Overstock</th>
+                    <th>Suggested Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${riskTable}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="actions no-print">
+        <button class="btn" onclick="window.print()">Print</button>
+    </div>
+</body>
+</html>`;
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 500);
     }
 
     // Update title and header based on branch selection
