@@ -479,7 +479,7 @@
           <div class="form-row">
             <div class="form-group">
               <label for="${itemId}_riceVariant">Rice Variety *</label>
-              <select id="${itemId}_riceVariant" required onchange="updateItemPrice('${itemId}'); loadItemBatchCodes('${itemId}');">
+              <select id="${itemId}_riceVariant" required onchange="updateItemPrice('${itemId}'); loadItemBatchCodes('${itemId}'); hydrateItemInitialInventory('${itemId}');">
                 <option value="">${availableRiceVarieties.length > 0 ? 'Select Rice Type' : 'Loading rice types...'}</option>
                 ${availableRiceVarieties.map(variety => 
                   `<option value="${variety.key}">${variety.name}</option>`
