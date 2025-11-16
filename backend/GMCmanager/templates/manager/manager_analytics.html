@@ -698,33 +698,37 @@
           return;
         }
         
-        // Create a map of product sales
+        // Create a map of product sales by product name (case-insensitive)
         const salesMap = new Map();
         if (salesData.ok && salesData.rows) {
           salesData.rows.forEach(row => {
-            salesMap.set(row.product_id, {
-              quantity: row.quantity || 0,
-              sales: row.sales || 0
-            });
+            const productName = (row.name || '').toLowerCase().trim();
+            if (productName) {
+              salesMap.set(productName, {
+                quantity: parseFloat(row.quantity || 0),
+                sales: parseFloat(row.sales || 0)
+              });
+            }
           });
         }
         
-        // Get unique products from inventory
+        // Get unique products from inventory and aggregate by product name
         const productMap = new Map();
         inventoryData.items.forEach(item => {
-          const productId = item.product_id || item.id;
-          if (!productMap.has(productId)) {
-            productMap.set(productId, {
+          const productName = (item.product_name || item.name || 'Unknown').toLowerCase().trim();
+          if (!productMap.has(productName)) {
+            productMap.set(productName, {
               name: item.product_name || item.name || 'Unknown',
               stock: 0,
               sold: 0,
               revenue: 0
             });
           }
-          const product = productMap.get(productId);
-          product.stock += (item.stock_kg || item.quantity_kg || 0);
+          const product = productMap.get(productName);
+          product.stock += parseFloat(item.stock_kg || item.quantity_kg || 0);
           
-          const sales = salesMap.get(productId);
+          // Match sales data by product name
+          const sales = salesMap.get(productName);
           if (sales) {
             product.sold = sales.quantity;
             product.revenue = sales.sales;
@@ -747,8 +751,8 @@
           
           row.innerHTML = `
             <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${product.name}</td>
-            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.stock.toLocaleString()} kg</td>
-            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.sold.toLocaleString()} kg</td>
+            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.stock.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg</td>
+            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.sold.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg</td>
             <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">₱${product.revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             <td style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">
               <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; background: ${statusColor === '#ef4444' ? '#fee2e2' : statusColor === '#f59e0b' ? '#fef3c7' : '#d1fae5'}; color: ${statusColor};">${statusText}</span>
@@ -880,10 +884,11 @@
       charts.forEach(chart => {
         if (chart.instance) {
           const chartImg = chart.instance.toBase64Image();
+          const isDoughnut = chart.id === 'categoryStockChart';
           chartsHTML += `
             <div class="section">
               <h3>${chart.title}</h3>
-              <img src="${chartImg}" class="chart-img" alt="${chart.title}">
+              <img src="${chartImg}" class="chart-img ${isDoughnut ? 'doughnut' : ''}" alt="${chart.title}">
             </div>
           `;
         }
@@ -957,6 +962,11 @@
             margin: 10px 0;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
+        }
+        .chart-img.doughnut {
+            max-width: 400px;
+            margin: 10px auto;
+            display: block;
         }
         table {
             width: 100%;

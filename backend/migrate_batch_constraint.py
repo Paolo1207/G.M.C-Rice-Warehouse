@@ -95,6 +95,60 @@ def migrate():
     print("🔄 Starting batch constraint migration...")
     print("=" * 60)
     
+    # Helper: drop any unknown unique constraints or indexes that still enforce (branch_id, product_id)
+    def drop_conflicting_uniques(engine):
+        try:
+            with engine.connect() as conn:
+                print("🔎 Scanning for conflicting unique constraints on (branch_id, product_id)...")
+                # Find unique constraints on the table
+                rows = conn.execute(text("""
+                    SELECT c.conname AS name, pg_get_constraintdef(c.oid) AS definition
+                    FROM pg_constraint c
+                    JOIN pg_class t ON t.oid = c.conrelid
+                    WHERE t.relname = 'inventory_items'
+                      AND c.contype = 'u'
+                """)).fetchall()
+
+                to_drop = []
+                for r in rows:
+                    name = r[0]
+                    definition = r[1] or ''
+                    if name != 'uq_branch_product_batch' and 'branch_id' in definition and 'product_id' in definition and 'batch_code' not in definition:
+                        to_drop.append(name)
+
+                if to_drop:
+                    for name in to_drop:
+                        print(f"⚠️  Dropping conflicting unique constraint: {name}")
+                        conn.execute(text(f"ALTER TABLE inventory_items DROP CONSTRAINT IF EXISTS {name}"))
+                    conn.commit()
+                else:
+                    print("✅ No conflicting unique constraints found")
+
+                # Also check for unique indexes on (branch_id, product_id)
+                print("🔎 Scanning for conflicting unique indexes on (branch_id, product_id)...")
+                idx_rows = conn.execute(text("""
+                    SELECT indexname, indexdef
+                    FROM pg_indexes
+                    WHERE tablename = 'inventory_items'
+                """)).fetchall()
+
+                idx_to_drop = []
+                for idx in idx_rows:
+                    name = idx[0]
+                    definition = (idx[1] or '').upper()
+                    if 'UNIQUE' in definition and 'BRANCH_ID' in definition and 'PRODUCT_ID' in definition and 'BATCH_CODE' not in definition:
+                        idx_to_drop.append(name)
+
+                if idx_to_drop:
+                    for name in idx_to_drop:
+                        print(f"⚠️  Dropping conflicting unique index: {name}")
+                        conn.execute(text(f"DROP INDEX IF EXISTS {name}"))
+                    conn.commit()
+                else:
+                    print("✅ No conflicting unique indexes found")
+        except Exception as e:
+            print(f"❌ Error scanning/dropping conflicting uniques: {e}")
+    
     database_url = get_database_url()
     
     # Mask the password in the URL for display
@@ -123,6 +177,9 @@ def migrate():
         old_constraints = ['uq_branch_product', 'uq_inventory_branch_product']
         for old_constraint in old_constraints:
             drop_constraint(engine, old_constraint)
+
+        # Step 1b: Drop any other conflicting uniques on (branch_id, product_id)
+        drop_conflicting_uniques(engine)
         
         print()
         

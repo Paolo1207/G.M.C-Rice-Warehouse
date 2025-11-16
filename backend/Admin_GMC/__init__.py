@@ -1393,9 +1393,13 @@ def api_sales_top_products():
     if frm:
         try: start = datetime.strptime(frm, '%Y-%m-%d')
         except: pass
-    # Total sold and sales revenue
-    q = db.session.query(Product.id, Product.name, func.sum(SalesTransaction.quantity_sold).label('qty'), func.sum(SalesTransaction.total_amount).label('amt'))
-    q = q.join(Product, Product.id == SalesTransaction.product_id)
+    # Total sold and sales revenue - start from SalesTransaction and join Product
+    q = db.session.query(
+        Product.id,
+        Product.name,
+        func.sum(SalesTransaction.quantity_sold).label('qty'),
+        func.sum(SalesTransaction.total_amount).label('amt')
+    ).select_from(SalesTransaction).join(Product, Product.id == SalesTransaction.product_id)
     q = q.filter(and_(SalesTransaction.transaction_date >= start, SalesTransaction.transaction_date <= end))
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
     if product_id: q = q.filter(SalesTransaction.product_id == product_id)
