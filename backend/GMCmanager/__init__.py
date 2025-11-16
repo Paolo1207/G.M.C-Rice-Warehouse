@@ -3004,6 +3004,9 @@ def mgr_sales_bulk():
             if not product_name or quantity_sold_kg <= 0:
                 continue  # Skip invalid items
             
+            # Get batch_code from request if provided
+            requested_batch_code = item.get('batch_code', '').strip() if item.get('batch_code') else None
+            
             # Find or create product
             product = Product.query.filter_by(name=product_name).first()
             if not product:
