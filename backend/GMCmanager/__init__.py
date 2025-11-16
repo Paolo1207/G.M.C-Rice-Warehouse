@@ -2761,155 +2761,180 @@ def mgr_clear_all_notifications():
 @manager_required
 def mgr_purchases_recent():
     """Get recent purchases for manager's branch"""
-    from datetime import datetime, timezone, timedelta
-    
-    branch_id = _current_manager_branch_id()
-    if not branch_id:
-        # Fallback: try to get branch from URL parameters or default to 1
-        url_branch = request.args.get('branch')
-        if url_branch:
-            branch_id = int(url_branch)
-        else:
-            branch_id = 1  # Default to branch 1 for testing
+    try:
+        from datetime import datetime, timezone, timedelta
+        
+        branch_id = _current_manager_branch_id()
+        if not branch_id:
+            # Fallback: try to get branch from URL parameters or default to 1
+            url_branch = request.args.get('branch')
+            if url_branch:
+                branch_id = int(url_branch)
+            else:
+                branch_id = 1  # Default to branch 1 for testing
+                
+            print(f"DEBUG: Using fallback branch_id={branch_id}")
+        
+        # Get recent sales transactions for this branch
+        recent_sales = db.session.query(SalesTransaction).filter(
+            SalesTransaction.branch_id == branch_id
+        ).order_by(SalesTransaction.transaction_date.desc()).limit(50).all()
+        
+        # Get current stock for each product to calculate historical estimated remaining
+        from sqlalchemy.orm import load_only
+        from collections import defaultdict
+        
+        # Get current inventory for all products in this branch (include batch_code)
+        inventory_items = (
+            db.session.query(InventoryItem)
+            .options(load_only(InventoryItem.product_id, InventoryItem.stock_kg, InventoryItem.unit_price, InventoryItem.batch_code))
+            .filter_by(branch_id=branch_id)
+            .all()
+        )
+        
+        # Build maps: product_id -> current_stock, product_id -> unit_price, product_id -> batch_codes
+        current_stock_map = {}
+        unit_price_map = {}
+        product_batches_map = {}  # product_id -> list of batch_codes (oldest first)
+        for inv_item in inventory_items:
+            current_stock_map[inv_item.product_id] = float(inv_item.stock_kg) if inv_item.stock_kg else 0.0
+            unit_price_map[inv_item.product_id] = float(inv_item.unit_price) if inv_item.unit_price else 0.0
             
-        print(f"DEBUG: Using fallback branch_id={branch_id}")
-    
-    # Get recent sales transactions for this branch
-    recent_sales = db.session.query(SalesTransaction).filter(
-        SalesTransaction.branch_id == branch_id
-    ).order_by(SalesTransaction.transaction_date.desc()).limit(50).all()
-    
-    # Get current stock for each product to calculate historical estimated remaining
-    from sqlalchemy.orm import load_only
-    from collections import defaultdict
-    
-    # Get current inventory for all products in this branch (include batch_code)
-    inventory_items = (
-        db.session.query(InventoryItem)
-        .options(load_only(InventoryItem.product_id, InventoryItem.stock_kg, InventoryItem.unit_price, InventoryItem.batch_code))
-        .filter_by(branch_id=branch_id)
-        .all()
-    )
-    
-    # Build maps: product_id -> current_stock, product_id -> unit_price, product_id -> batch_codes
-    current_stock_map = {}
-    unit_price_map = {}
-    product_batches_map = {}  # product_id -> list of batch_codes (oldest first)
-    for inv_item in inventory_items:
-        current_stock_map[inv_item.product_id] = float(inv_item.stock_kg) if inv_item.stock_kg else 0.0
-        unit_price_map[inv_item.product_id] = float(inv_item.unit_price) if inv_item.unit_price else 0.0
+            # Collect batch codes for each product (we'll sort by oldest later)
+            if inv_item.product_id not in product_batches_map:
+                product_batches_map[inv_item.product_id] = []
+            if inv_item.batch_code:
+                product_batches_map[inv_item.product_id].append(inv_item.batch_code)
         
-        # Collect batch codes for each product (we'll sort by oldest later)
-        if inv_item.product_id not in product_batches_map:
-            product_batches_map[inv_item.product_id] = []
-        if inv_item.batch_code:
-            product_batches_map[inv_item.product_id].append(inv_item.batch_code)
+        # Get earliest restock dates for batch ordering
+        from sqlalchemy import func
+        batch_restock_map = {}
+        
+        # Only query restock dates if we have inventory items
+        if inventory_items:
+            item_ids = [item.id for item in inventory_items]
+            if item_ids:
+                try:
+                    restock_dates = (
+                        db.session.query(
+                            RestockLog.inventory_item_id,
+                            InventoryItem.product_id,
+                            InventoryItem.batch_code,
+                            func.min(RestockLog.created_at).label('earliest_restock')
+                        )
+                        .join(InventoryItem, RestockLog.inventory_item_id == InventoryItem.id)
+                        .filter(RestockLog.inventory_item_id.in_(item_ids))
+                        .group_by(InventoryItem.id, InventoryItem.product_id, InventoryItem.batch_code)
+                        .all()
+                    )
+                    
+                    # Build map: (product_id, batch_code) -> earliest_restock
+                    for row in restock_dates:
+                        key = (row.product_id, row.batch_code)
+                        if key not in batch_restock_map or (row.earliest_restock and (not batch_restock_map[key] or row.earliest_restock < batch_restock_map[key])):
+                            batch_restock_map[key] = row.earliest_restock
+                except Exception as e:
+                    print(f"WARNING: Error querying restock dates: {e}")
+                    # Continue without batch ordering
+        
+        # Sort batches by oldest first for each product
+        for product_id in product_batches_map:
+            try:
+                product_batches_map[product_id] = sorted(
+                    product_batches_map[product_id],
+                    key=lambda bc: (batch_restock_map.get((product_id, bc)) or datetime.max, bc)
+                )
+            except Exception as e:
+                print(f"WARNING: Error sorting batches for product {product_id}: {e}")
+                # Keep original order if sorting fails
+        
+        # Group sales by product and calculate historical remaining for each transaction
+        # For each sale, historical_remaining = current_stock + sum of all sales AFTER this transaction
+        # Sort by date descending (newest first) for proper calculation
+        sales_by_product = defaultdict(list)
+        for sale in recent_sales:
+            sales_by_product[sale.product_id].append(sale)
+        
+        # Calculate historical remaining for each transaction
+        logbook_entries = []
+        for sale in recent_sales:
+            # Get product name
+            product_name = sale.product.name if sale.product else "Unknown Product"
+            
+            # Get current stock for this product
+            current_stock = current_stock_map.get(sale.product_id, 0.0)
+            unit_price = unit_price_map.get(sale.product_id, 0.0)
+            
+            # If unit_price is 0, calculate it from the sales transaction
+            if unit_price == 0.0 and float(sale.quantity_sold) > 0:
+                unit_price = float(sale.total_amount) / float(sale.quantity_sold)
+            
+            # Get batch_code for this product (use oldest batch as fallback)
+            batch_codes = product_batches_map.get(sale.product_id, [])
+            batch_code = batch_codes[0] if batch_codes else None
+            
+            # Calculate historical estimated remaining: current_stock + sum of sales AFTER this transaction
+            # Since transactions are sorted by date DESC, we need to add back all sales that happened after
+            historical_remaining = current_stock
+            for other_sale in sales_by_product[sale.product_id]:
+                # If this sale happened AFTER the current sale (newer date), add it back
+                if other_sale.transaction_date > sale.transaction_date:
+                    historical_remaining += float(other_sale.quantity_sold)
+                # If same date but different ID and this one is newer (higher ID means later insertion)
+                elif other_sale.transaction_date == sale.transaction_date and other_sale.id > sale.id:
+                    historical_remaining += float(other_sale.quantity_sold)
+            
+            # Ensure datetime is timezone-aware (assume UTC if naive, then convert to Philippines time)
+            ph_tz = timezone(timedelta(hours=8))
+            
+            if sale.transaction_date.tzinfo is None:
+                # If naive datetime, assume it's UTC
+                dt_utc = sale.transaction_date.replace(tzinfo=timezone.utc)
+            else:
+                dt_utc = sale.transaction_date
+            
+            # Convert to Philippines time
+            dt_ph = dt_utc.astimezone(ph_tz)
+            
+            entry = {
+                "id": sale.id,
+                "date": dt_ph.strftime("%Y-%m-%d"),  # Keep for backward compatibility if needed
+                "datetime": dt_ph.strftime("%Y-%m-%d %H:%M:%S"),
+                "created_at": dt_ph.isoformat(),  # Ensure this is also timezone-aware
+                "timestamp": dt_ph.isoformat(),  # Ensure this is also timezone-aware
+                "riceVariant": product_name.lower().replace(' ', '-').replace('_', '-'),
+                "product_name": product_name,
+                "batch_code": batch_code,  # Include batch_code (oldest batch for this product)
+                "batch": batch_code,  # Alias for compatibility
+                "batchCode": batch_code,  # Alias for compatibility
+                "price": unit_price,
+                "initialInventory": 0.0,  # Not tracked in current system
+                "addedStocks": 0.0,  # Not tracked in current system
+                "totalSoldKg": float(sale.quantity_sold),
+                "totalAmount": float(sale.total_amount),
+                "estimatedRemaining": historical_remaining,  # Historical estimated remaining at time of transaction
+                "actualRemaining": None,  # Not tracked in current system
+                "discrepancy": None  # Not tracked in current system
+            }
+            logbook_entries.append(entry)
     
-    # Get earliest restock dates for batch ordering
-    from sqlalchemy import func
-    item_ids = [item.id for item in inventory_items]
-    restock_dates = (
-        db.session.query(
-            RestockLog.inventory_item_id,
-            InventoryItem.product_id,
-            InventoryItem.batch_code,
-            func.min(RestockLog.created_at).label('earliest_restock')
-        )
-        .join(InventoryItem, RestockLog.inventory_item_id == InventoryItem.id)
-        .filter(RestockLog.inventory_item_id.in_(item_ids))
-        .group_by(InventoryItem.id, InventoryItem.product_id, InventoryItem.batch_code)
-        .all()
-    )
-    
-    # Build map: (product_id, batch_code) -> earliest_restock
-    batch_restock_map = {}
-    for row in restock_dates:
-        key = (row.product_id, row.batch_code)
-        if key not in batch_restock_map or (row.earliest_restock and (not batch_restock_map[key] or row.earliest_restock < batch_restock_map[key])):
-            batch_restock_map[key] = row.earliest_restock
-    
-    # Sort batches by oldest first for each product
-    for product_id in product_batches_map:
-        product_batches_map[product_id] = sorted(
-            product_batches_map[product_id],
-            key=lambda bc: (batch_restock_map.get((product_id, bc)) or datetime.max, bc)
-        )
-    
-    # Group sales by product and calculate historical remaining for each transaction
-    # For each sale, historical_remaining = current_stock + sum of all sales AFTER this transaction
-    # Sort by date descending (newest first) for proper calculation
-    sales_by_product = defaultdict(list)
-    for sale in recent_sales:
-        sales_by_product[sale.product_id].append(sale)
-    
-    # Calculate historical remaining for each transaction
-    logbook_entries = []
-    for sale in recent_sales:
-        # Get product name
-        product_name = sale.product.name if sale.product else "Unknown Product"
-        
-        # Get current stock for this product
-        current_stock = current_stock_map.get(sale.product_id, 0.0)
-        unit_price = unit_price_map.get(sale.product_id, 0.0)
-        
-        # If unit_price is 0, calculate it from the sales transaction
-        if unit_price == 0.0 and float(sale.quantity_sold) > 0:
-            unit_price = float(sale.total_amount) / float(sale.quantity_sold)
-        
-        # Get batch_code for this product (use oldest batch as fallback)
-        batch_codes = product_batches_map.get(sale.product_id, [])
-        batch_code = batch_codes[0] if batch_codes else None
-        
-        # Calculate historical estimated remaining: current_stock + sum of sales AFTER this transaction
-        # Since transactions are sorted by date DESC, we need to add back all sales that happened after
-        historical_remaining = current_stock
-        for other_sale in sales_by_product[sale.product_id]:
-            # If this sale happened AFTER the current sale (newer date), add it back
-            if other_sale.transaction_date > sale.transaction_date:
-                historical_remaining += float(other_sale.quantity_sold)
-            # If same date but different ID and this one is newer (higher ID means later insertion)
-            elif other_sale.transaction_date == sale.transaction_date and other_sale.id > sale.id:
-                historical_remaining += float(other_sale.quantity_sold)
-        
-        # Ensure datetime is timezone-aware (assume UTC if naive, then convert to Philippines time)
-        ph_tz = timezone(timedelta(hours=8))
-        
-        if sale.transaction_date.tzinfo is None:
-            # If naive datetime, assume it's UTC
-            dt_utc = sale.transaction_date.replace(tzinfo=timezone.utc)
-        else:
-            dt_utc = sale.transaction_date
-        
-        # Convert to Philippines time
-        dt_ph = dt_utc.astimezone(ph_tz)
-        
-        entry = {
-            "id": sale.id,
-            "date": dt_ph.strftime("%Y-%m-%d"),  # Keep for backward compatibility if needed
-            "datetime": dt_ph.strftime("%Y-%m-%d %H:%M:%S"),
-            "created_at": dt_ph.isoformat(),  # Ensure this is also timezone-aware
-            "timestamp": dt_ph.isoformat(),  # Ensure this is also timezone-aware
-            "riceVariant": product_name.lower().replace(' ', '-').replace('_', '-'),
-            "product_name": product_name,
-            "batch_code": batch_code,  # Include batch_code (oldest batch for this product)
-            "batch": batch_code,  # Alias for compatibility
-            "batchCode": batch_code,  # Alias for compatibility
-            "price": unit_price,
-            "initialInventory": 0.0,  # Not tracked in current system
-            "addedStocks": 0.0,  # Not tracked in current system
-            "totalSoldKg": float(sale.quantity_sold),
-            "totalAmount": float(sale.total_amount),
-            "estimatedRemaining": historical_remaining,  # Historical estimated remaining at time of transaction
-            "actualRemaining": None,  # Not tracked in current system
-            "discrepancy": None  # Not tracked in current system
-        }
-        logbook_entries.append(entry)
-    
-    return jsonify({
-        "ok": True,
-        "entries": logbook_entries,
-        "branch_id": branch_id
-    })
+        return jsonify({
+            "ok": True,
+            "entries": logbook_entries,
+            "branch_id": branch_id
+        })
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"ERROR in mgr_purchases_recent: {str(e)}")
+        print(f"Traceback: {error_trace}")
+        db.session.rollback()
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "entries": [],
+            "branch_id": branch_id if 'branch_id' in locals() else None
+        }), 500
 
 @manager_bp.route("/api/sales/bulk", methods=["POST"])
 @manager_required
