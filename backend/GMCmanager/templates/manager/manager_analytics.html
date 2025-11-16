@@ -11,6 +11,186 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    .analytics-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .kpi-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-left: 4px solid #1a365d;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .kpi-card.primary { border-left-color: #1a365d; }
+    .kpi-card.success { border-left-color: #10b981; }
+    .kpi-card.warning { border-left-color: #f59e0b; }
+    .kpi-card.danger { border-left-color: #ef4444; }
+    .kpi-card.info { border-left-color: #3b82f6; }
+    
+    .kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    
+    .kpi-title {
+      font-size: 0.875rem;
+      color: #64748b;
+      font-weight: 500;
+      margin: 0;
+    }
+    
+    .kpi-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+    
+    .kpi-card.primary .kpi-icon { background: #e0e7ff; color: #1a365d; }
+    .kpi-card.success .kpi-icon { background: #d1fae5; color: #10b981; }
+    .kpi-card.warning .kpi-icon { background: #fef3c7; color: #f59e0b; }
+    .kpi-card.danger .kpi-icon { background: #fee2e2; color: #ef4444; }
+    .kpi-card.info .kpi-icon { background: #dbeafe; color: #3b82f6; }
+    
+    .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin: 0.5rem 0;
+    }
+    
+    .kpi-change {
+      font-size: 0.875rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    
+    .kpi-change.positive { color: #10b981; }
+    .kpi-change.negative { color: #ef4444; }
+    
+    .analytics-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .chart-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .chart-card h3 {
+      margin: 0 0 1rem 0;
+      color: #1a365d;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    .insights-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    
+    .insights-section h3 {
+      margin: 0 0 1rem 0;
+      color: #1a365d;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    .insight-item {
+      padding: 1rem;
+      border-left: 3px solid #e5e7eb;
+      margin-bottom: 0.75rem;
+      border-radius: 4px;
+      background: #f9fafb;
+    }
+    
+    .insight-item.warning { border-left-color: #f59e0b; background: #fef3c7; }
+    .insight-item.danger { border-left-color: #ef4444; background: #fee2e2; }
+    .insight-item.success { border-left-color: #10b981; background: #d1fae5; }
+    
+    .insight-item h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.95rem;
+      color: #1f2937;
+      font-weight: 600;
+    }
+    
+    .insight-item p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+    
+    .analytics-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .analytics-header h2 {
+      margin: 0;
+      color: #1a365d;
+    }
+    
+    .btn.primary {
+      background: #1a365d;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: background 0.2s;
+    }
+    
+    .btn.primary:hover {
+      background: #1e40af;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #64748b;
+    }
+    
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: #d1d5db;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -51,514 +231,630 @@
     <main class="main-content">
       <div class="analytics-container">
         <div class="analytics-header">
-          <h2>Analytics</h2>
-          <div class="analytics-actions">
-            <button class="btn primary" id="print-analytics-btn">
-              <i class="fas fa-print"></i> Print
-            </button>
-          </div>
-        </div>
-        
-        <!-- Analytics Description -->
-        <div class="analytics-description" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border-left: 4px solid #1a365d;">
-          <h3 style="margin: 0 0 0.5rem 0; color: #1a365d; font-size: 1.1rem;">
-            <i class="fas fa-info-circle"></i> About Analytics
-          </h3>
-          <p style="margin: 0; color: #374151; line-height: 1.6;">
-            This analytics dashboard provides insights into your branch's performance, including forecast accuracy, inventory trends, sales patterns, and risk analysis. 
-            Data is updated in real-time based on your branch's transactions and inventory. Use these insights to make informed decisions about stock management, purchasing, and sales strategies.
-          </p>
+          <h2><i class="fas fa-chart-bar"></i> Branch Analytics</h2>
+          <button class="btn primary" id="print-analytics-btn">
+            <i class="fas fa-print"></i> Print Report
+          </button>
         </div>
 
-        <!-- Forecast Accuracy -->
-        <div class="analytics-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3>Forecast Accuracy</h3>
+        <!-- Key Performance Indicators -->
+        <div class="analytics-kpi-grid">
+          <div class="kpi-card primary">
+            <div class="kpi-header">
+              <h3 class="kpi-title">Today's Sales</h3>
+              <div class="kpi-icon"><i class="fas fa-money-bill-wave"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-today-sales">₱0.00</div>
+            <div class="kpi-change" id="kpi-today-change">--</div>
           </div>
-          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
-            <i class="fas fa-lightbulb"></i> Compares predicted demand (from forecasts) with actual sales to measure how accurate your demand predictions are. 
-            Higher accuracy means your forecasts are reliable for inventory planning.
-          </p>
-          <div class="accuracy-overview">
-            <div class="accuracy-card">
-              <div class="accuracy-icon"><i class="fas fa-bullseye"></i></div>
-              <div class="accuracy-info">
-                <h4>Overall Accuracy</h4>
-                <p class="accuracy-value" id="overallAccuracyValue">--</p>
-                <p class="accuracy-period" id="accuracyPeriod">Loading...</p>
-              </div>
+          
+          <div class="kpi-card success">
+            <div class="kpi-header">
+              <h3 class="kpi-title">This Week's Sales</h3>
+              <div class="kpi-icon"><i class="fas fa-calendar-week"></i></div>
             </div>
-            <div class="chart-container">
-              <canvas id="forecastAccuracyChart"></canvas>
-            </div>
+            <div class="kpi-value" id="kpi-week-sales">₱0.00</div>
+            <div class="kpi-change" id="kpi-week-change">--</div>
           </div>
-
-          <div class="product-accuracy">
-            <h4>Accuracy by Product</h4>
-            <div class="table-container">
-              <table class="accuracy-table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Forecasted</th>
-                    <th>Actual</th>
-                    <th>Accuracy</th>
-                    <th>Trend</th>
-                  </tr>
-                </thead>
-                <tbody id="productAccuracyBody"></tbody>
-              </table>
+          
+          <div class="kpi-card info">
+            <div class="kpi-header">
+              <h3 class="kpi-title">This Month's Sales</h3>
+              <div class="kpi-icon"><i class="fas fa-calendar-alt"></i></div>
             </div>
+            <div class="kpi-value" id="kpi-month-sales">₱0.00</div>
+            <div class="kpi-change" id="kpi-month-change">--</div>
           </div>
-        </div>
-
-        <!-- Inventory Trends -->
-        <div class="analytics-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3>Inventory Trends</h3>
+          
+          <div class="kpi-card warning">
+            <div class="kpi-header">
+              <h3 class="kpi-title">Total Units Sold (kg)</h3>
+              <div class="kpi-icon"><i class="fas fa-weight"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-units-sold">0 kg</div>
+            <div class="kpi-change" id="kpi-units-change">This month</div>
           </div>
-          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
-            <i class="fas fa-lightbulb"></i> Tracks daily stock movements (restocks and sales) and shows how inventory is distributed across product categories. 
-            Helps identify which categories need more attention and when stock levels change.
-          </p>
-          <div class="trends-grid">
-            <div class="chart-container">
-              <h4>Stock Movement</h4>
-              <canvas id="stockMovementChart"></canvas>
+          
+          <div class="kpi-card danger">
+            <div class="kpi-header">
+              <h3 class="kpi-title">Low Stock Alerts</h3>
+              <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
             </div>
-            <div class="chart-container">
-              <h4>Category Stock Levels</h4>
-              <canvas id="categoryStockChart"></canvas>
+            <div class="kpi-value" id="kpi-low-stock">0</div>
+            <div class="kpi-change">Items need restocking</div>
+          </div>
+          
+          <div class="kpi-card success">
+            <div class="kpi-header">
+              <h3 class="kpi-title">Inventory Value</h3>
+              <div class="kpi-icon"><i class="fas fa-warehouse"></i></div>
             </div>
+            <div class="kpi-value" id="kpi-inventory-value">₱0.00</div>
+            <div class="kpi-change">Current stock value</div>
           </div>
         </div>
 
-        <!-- Sales Trends -->
-        <div class="analytics-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3>Sales Trends</h3>
+        <!-- Charts Section -->
+        <div class="analytics-charts-grid">
+          <div class="chart-card">
+            <h3><i class="fas fa-chart-line"></i> Sales Trend (Last 30 Days)</h3>
+            <canvas id="salesTrendChart"></canvas>
           </div>
-          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
-            <i class="fas fa-lightbulb"></i> Shows your best-selling products and weekly sales performance. 
-            Use this to identify popular items and understand sales patterns over time.
-          </p>
-          <div class="trends-grid">
-            <div class="chart-container">
-              <h4>Top 5 Bestselling Items</h4>
-              <canvas id="topProductsChart"></canvas>
-            </div>
-            <div class="chart-container">
-              <h4>Weekly Sales Performance</h4>
-              <canvas id="weeklySalesChart"></canvas>
+          
+          <div class="chart-card">
+            <h3><i class="fas fa-star"></i> Top 5 Best Selling Products</h3>
+            <canvas id="topProductsChart"></canvas>
+          </div>
+          
+          <div class="chart-card">
+            <h3><i class="fas fa-boxes"></i> Stock by Category</h3>
+            <canvas id="categoryStockChart"></canvas>
+          </div>
+          
+          <div class="chart-card">
+            <h3><i class="fas fa-exchange-alt"></i> Stock Movement (Last 7 Days)</h3>
+            <canvas id="stockMovementChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Quick Insights -->
+        <div class="insights-section">
+          <h3><i class="fas fa-lightbulb"></i> Quick Insights & Recommendations</h3>
+          <div id="insightsContainer">
+            <div class="empty-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <p>Loading insights...</p>
             </div>
           </div>
         </div>
 
-        <!-- Risk Visualization -->
-        <div class="analytics-section">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3>Risk Visualization</h3>
-          </div>
-          <p style="color: #64748b; margin-bottom: 1.5rem; font-size: 0.9rem;">
-            <i class="fas fa-lightbulb"></i> Identifies products at risk of stockout (shortage) or overstock situations. 
-            High-risk items require immediate attention to prevent lost sales or excess inventory costs.
-          </p>
-          <div class="risk-grid">
-            <div class="chart-container">
-              <h4>Product Risk Heatmap</h4>
-              <canvas id="riskHeatmap"></canvas>
-            </div>
-            <div class="risk-table-container">
-              <h4>High-Risk Products</h4>
-              <div class="table-container">
-                <table class="risk-table">
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Risk Level</th>
-                      <th>Forecasted Shortage/Overstock</th>
-                      <th>Suggested Action</th>
-                    </tr>
-                  </thead>
-                  <tbody id="riskTableBody"></tbody>
-                </table>
-              </div>
-            </div>
+        <!-- Top Products Table -->
+        <div class="insights-section">
+          <h3><i class="fas fa-list"></i> Product Performance Summary</h3>
+          <div class="table-container">
+            <table class="analytics-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #f3f4f6;">
+                  <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Product</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Stock (kg)</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Sold (kg)</th>
+                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Revenue (₱)</th>
+                  <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Status</th>
+                </tr>
+              </thead>
+              <tbody id="productPerformanceBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">
+                    <i class="fas fa-spinner fa-spin"></i> Loading product data...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-
       </div>
     </main>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Manager JS -->
   <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
-
   <script>
-    // Store chart instances for updating
     let chartInstances = {
-      forecastAccuracy: null,
-      stockMovement: null,
-      categoryStock: null,
+      salesTrend: null,
       topProducts: null,
-      weeklySales: null,
-      riskHeatmap: null
+      categoryStock: null,
+      stockMovement: null
     };
 
-    let refreshInterval = null;
+    let MANAGER_BRANCH_ID = null;
+    let MANAGER_BRANCH_NAME = null;
 
     document.addEventListener('DOMContentLoaded', function () { 
       initAnalytics();
-      // Set up auto-refresh every 30 seconds
-      refreshInterval = setInterval(() => {
-        refreshAnalytics();
-      }, 30000);
-      // Listen for data update events
-      document.addEventListener('inventoryDataUpdated', refreshAnalytics);
-      document.addEventListener('salesDataUpdated', refreshAnalytics);
-    });
-
-    // Clean up on page unload
-    window.addEventListener('beforeunload', function() {
-      if (refreshInterval) clearInterval(refreshInterval);
-      // Destroy all charts
-      Object.values(chartInstances).forEach(chart => {
-        if (chart) chart.destroy();
-      });
+      
+      // Setup print button
+      const printBtn = document.getElementById('print-analytics-btn');
+      if (printBtn) {
+        printBtn.addEventListener('click', function() {
+          printAnalyticsPage();
+        });
+      }
     });
 
     async function initAnalytics() {
-      updateBranchTitle();
-      const { branchId, branchName } = getBranchParams();
-      if (!branchId) {
-        console.error('No branch ID found in URL parameters');
-        showError('Branch ID is missing. Please access this page from the dashboard or login with a branch selected.');
-        // Try to get branch from manager session
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        MANAGER_BRANCH_ID = urlParams.get('branch') || urlParams.get('branch_id') || null;
+        MANAGER_BRANCH_NAME = urlParams.get('branch_name') || null;
+        
+        updateBranchTitle();
+        await loadAnalyticsData();
+      } catch (error) {
+        console.error('Error initializing analytics:', error);
+        showNotification('Error loading analytics data', 'error');
+      }
+    }
+
+    async function loadAnalyticsData() {
+      if (!MANAGER_BRANCH_ID) {
+        // Try to get from session
         try {
           const whoami = await fetch('/whoami');
           const userData = await whoami.json();
           if (userData.ok && userData.user && userData.user.branch_id) {
-            const detectedBranchId = userData.user.branch_id;
-            console.log(`Detected branch ID from session: ${detectedBranchId}`);
-            await loadAnalyticsData(detectedBranchId);
+            MANAGER_BRANCH_ID = userData.user.branch_id;
           }
         } catch (e) {
-          console.error('Could not detect branch from session:', e);
+          console.error('Could not detect branch:', e);
         }
+      }
+      
+      if (!MANAGER_BRANCH_ID) {
+        showNotification('Branch ID is required. Please access this page from the dashboard.', 'error');
         return;
       }
-      console.log(`Initializing analytics for branch: ${branchId} (${branchName || 'Unknown'})`);
-      await loadAnalyticsData(branchId);
-    }
-
-    async function refreshAnalytics() {
-      const { branchId } = getBranchParams();
-      if (!branchId) return;
-      await loadAnalyticsData(branchId);
-    }
-
-    async function loadAnalyticsData(branchId) {
+      
       try {
-        if (!branchId) {
-          showError('Branch ID is required. Please select a branch.');
-          return;
-        }
+        // Load KPIs
+        await loadKPIs();
         
-        // Show loading state
-        document.getElementById('overallAccuracyValue').textContent = 'Loading...';
-        document.getElementById('accuracyPeriod').textContent = 'Fetching data...';
-        
-        const data = await fetchBranchAnalytics(branchId);
-        if (!data || !data.ok) {
-          const errorMsg = data?.error || 'Failed to fetch analytics data';
-          console.error('Failed to fetch analytics:', errorMsg);
-          showError(errorMsg);
-          return;
-        }
-        const a = data.analytics || {};
-        console.log(`Analytics data loaded for branch ${branchId}:`, {
-          forecast_count: a.forecast_vs_actual_7d?.length || 0,
-          product_accuracy_count: a.product_accuracy?.length || 0,
-          top_products_count: a.top_products_month?.length || 0,
-          risks_count: a.branch_risks?.length || 0
-        });
-        renderForecastAccuracy(a);
-        renderInventoryTrends(a);
-        renderSalesTrends(a);
-        renderRiskVisualization(a);
+        // Load charts and analytics
+        await Promise.all([
+          loadSalesTrend(),
+          loadTopProducts(),
+          loadCategoryStock(),
+          loadStockMovement(),
+          loadProductPerformance(),
+          loadInsights()
+        ]);
       } catch (error) {
         console.error('Error loading analytics:', error);
-        showError('An error occurred while loading analytics data. Please try again.');
+        showNotification('Error loading analytics data', 'error');
       }
     }
 
-    function showError(message) {
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'error-message';
-      errorDiv.style.cssText = 'background: #ffebee; color: #c62828; padding: 15px; margin: 20px; border-radius: 5px; border-left: 4px solid #c62828;';
-      errorDiv.textContent = message;
-      const container = document.querySelector('.analytics-container');
-      const existingError = container.querySelector('.error-message');
-      if (existingError) existingError.remove();
-      container.insertBefore(errorDiv, container.firstChild);
-      setTimeout(() => errorDiv.remove(), 5000);
-    }
-
-    // Fetch analytics for branch
-    async function fetchBranchAnalytics(branchId) {
+    async function loadKPIs() {
       try {
-        if (!branchId) {
-          console.error('No branch ID provided');
-          return null;
+        const response = await fetch(`/manager/api/dashboard/kpis?branch_id=${MANAGER_BRANCH_ID}`);
+        const data = await response.json();
+        
+        if (data.ok && data.kpis) {
+          const kpis = data.kpis;
+          
+          // Today's sales
+          document.getElementById('kpi-today-sales').textContent = `₱${(kpis.today_sales || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+          
+          // Week's sales (calculate from last 7 days)
+          const weekSales = await fetchWeekSales();
+          document.getElementById('kpi-week-sales').textContent = `₱${weekSales.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+          
+          // Month's sales
+          document.getElementById('kpi-month-sales').textContent = `₱${(kpis.month_sales || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+          
+          // Units sold (from sales API)
+          const unitsSold = await fetchUnitsSold();
+          document.getElementById('kpi-units-sold').textContent = `${unitsSold.toLocaleString()} kg`;
+          
+          // Low stock count
+          document.getElementById('kpi-low-stock').textContent = (kpis.low_stock_count || 0).toString();
+          
+          // Inventory value
+          const invValue = await fetchInventoryValue();
+          document.getElementById('kpi-inventory-value').textContent = `₱${invValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         }
-        const resp = await fetch(`/manager/api/analytics?branch_id=${branchId}`);
-        if (!resp.ok) {
-          console.error(`Failed to fetch analytics: ${resp.status} ${resp.statusText}`);
-          return null;
+      } catch (error) {
+        console.error('Error loading KPIs:', error);
+      }
+    }
+
+    async function fetchWeekSales() {
+      try {
+        const response = await fetch(`/admin/api/sales?branch_id=${MANAGER_BRANCH_ID}&days=7`);
+        const data = await response.json();
+        if (data.ok && data.totals) {
+          return data.totals.amount || 0;
         }
-        const data = await resp.json();
-        if (!data.ok) {
-          console.error('Analytics API returned error:', data.error);
-          return null;
-        }
-        console.log(`Analytics loaded for branch ${branchId}:`, data.analytics);
-        return data;
       } catch (e) {
-        console.error('Failed to fetch manager analytics', e);
-        return null;
+        console.error('Error fetching week sales:', e);
+      }
+      return 0;
+    }
+
+    async function fetchUnitsSold() {
+      try {
+        const response = await fetch(`/admin/api/sales?branch_id=${MANAGER_BRANCH_ID}&days=30`);
+        const data = await response.json();
+        if (data.ok && data.totals) {
+          return data.totals.qty || 0;
+        }
+      } catch (e) {
+        console.error('Error fetching units sold:', e);
+      }
+      return 0;
+    }
+
+    async function fetchInventoryValue() {
+      try {
+        const response = await fetch(`/manager/api/inventory?branch_id=${MANAGER_BRANCH_ID}`);
+        const data = await response.json();
+        if (data.ok && data.items) {
+          return data.items.reduce((sum, item) => {
+            const stock = item.stock_kg || item.quantity_kg || 0;
+            const price = item.price || item.unit_price || 0;
+            return sum + (stock * price);
+          }, 0);
+        }
+      } catch (e) {
+        console.error('Error fetching inventory value:', e);
+      }
+      return 0;
+    }
+
+    async function loadSalesTrend() {
+      try {
+        const response = await fetch(`/manager/api/dashboard/charts?branch_id=${MANAGER_BRANCH_ID}&days=30`);
+        const data = await response.json();
+        
+        if (data.ok && data.sales_trend) {
+          const trend = data.sales_trend;
+          
+          if (chartInstances.salesTrend) {
+            chartInstances.salesTrend.destroy();
+          }
+          
+          const ctx = document.getElementById('salesTrendChart').getContext('2d');
+          chartInstances.salesTrend = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: trend.labels || [],
+              datasets: [{
+                label: 'Sales (₱)',
+                data: trend.sales || [],
+                borderColor: '#1a365d',
+                backgroundColor: 'rgba(26, 54, 93, 0.1)',
+                tension: 0.4,
+                fill: true
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: { display: true, position: 'top' }
+              },
+              scales: {
+                y: { beginAtZero: true }
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading sales trend:', error);
       }
     }
 
-    function getBranchParams() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const branchId = urlParams.get('branch') || urlParams.get('branch_id');
-      const branchName = urlParams.get('branch_name');
-      return { branchId, branchName };
+    async function loadTopProducts() {
+      try {
+        const response = await fetch(`/manager/api/dashboard/charts?branch_id=${MANAGER_BRANCH_ID}`);
+        const data = await response.json();
+        
+        if (data.ok && data.top_products) {
+          const products = data.top_products.slice(0, 5);
+          
+          if (chartInstances.topProducts) {
+            chartInstances.topProducts.destroy();
+          }
+          
+          const ctx = document.getElementById('topProductsChart').getContext('2d');
+          chartInstances.topProducts = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: products.map(p => p.name || 'Unknown'),
+              datasets: [{
+                label: 'Quantity Sold (kg)',
+                data: products.map(p => p.quantity || 0),
+                backgroundColor: ['#1a365d', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: { display: false }
+              },
+              scales: {
+                y: { beginAtZero: true }
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading top products:', error);
+      }
     }
 
-    // Forecast Accuracy
-    function renderForecastAccuracy(analytics) {
-      // Update overall accuracy and period
-      const overallAccuracy = analytics.overall_accuracy || 0;
-      const accuracyPeriod = analytics.accuracy_period || 'Loading...';
-      document.getElementById('overallAccuracyValue').textContent = `${overallAccuracy.toFixed(1)}%`;
-      document.getElementById('accuracyPeriod').textContent = accuracyPeriod;
-
-      const fva = analytics.forecast_vs_actual_7d || [];
-      const labels = fva.map(x => x.date);
-      const forecast = fva.map(x => x.forecast || 0);
-      const actual = fva.map(x => x.actual || 0);
-      
-      // Destroy existing chart if it exists
-      if (chartInstances.forecastAccuracy) {
-        chartInstances.forecastAccuracy.destroy();
+    async function loadCategoryStock() {
+      try {
+        const response = await fetch(`/manager/api/analytics?branch_id=${MANAGER_BRANCH_ID}`);
+        const data = await response.json();
+        
+        if (data.ok && data.analytics && data.analytics.category_levels) {
+          const categories = data.analytics.category_levels;
+          
+          if (chartInstances.categoryStock) {
+            chartInstances.categoryStock.destroy();
+          }
+          
+          const ctx = document.getElementById('categoryStockChart').getContext('2d');
+          chartInstances.categoryStock = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: categories.map(c => c.category || 'Uncategorized'),
+              datasets: [{
+                data: categories.map(c => c.stock_kg || 0),
+                backgroundColor: ['#1a365d', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: { display: true, position: 'right' }
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading category stock:', error);
       }
-      
-      const ctx = document.getElementById('forecastAccuracyChart').getContext('2d');
-      chartInstances.forecastAccuracy = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets: [
-          { label: 'Forecasted', data: forecast, borderColor: 'rgb(75, 192, 192)', tension: 0.1, fill: false },
-          { label: 'Actual',     data: actual,   borderColor: 'rgb(255, 99, 132)', tension: 0.1, fill: false }
-        ]},
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: true,
-          plugins: { 
-            title: { display: true, text: 'Forecast vs Actual Sales (Qty)' },
-            legend: { display: true, position: 'top' }
-          },
-          scales: {
-            y: { beginAtZero: true }
+    }
+
+    async function loadStockMovement() {
+      try {
+        const response = await fetch(`/manager/api/analytics?branch_id=${MANAGER_BRANCH_ID}`);
+        const data = await response.json();
+        
+        if (data.ok && data.analytics && data.analytics.stock_movement_7d) {
+          const movement = data.analytics.stock_movement_7d;
+          
+          if (chartInstances.stockMovement) {
+            chartInstances.stockMovement.destroy();
+          }
+          
+          const ctx = document.getElementById('stockMovementChart').getContext('2d');
+          chartInstances.stockMovement = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: movement.labels || [],
+              datasets: [
+                {
+                  label: 'Stock In (kg)',
+                  data: movement.stock_in || [],
+                  backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                  borderColor: '#10b981',
+                  borderWidth: 1
+                },
+                {
+                  label: 'Stock Out (kg)',
+                  data: movement.stock_out || [],
+                  backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                  borderColor: '#ef4444',
+                  borderWidth: 1
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              plugins: {
+                legend: { display: true, position: 'top' }
+              },
+              scales: {
+                y: { beginAtZero: true }
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Error loading stock movement:', error);
+      }
+    }
+
+    async function loadProductPerformance() {
+      try {
+        const [inventoryRes, salesRes] = await Promise.all([
+          fetch(`/manager/api/inventory?branch_id=${MANAGER_BRANCH_ID}`),
+          fetch(`/admin/api/sales/top_products?branch_id=${MANAGER_BRANCH_ID}&days=30`)
+        ]);
+        
+        const inventoryData = await inventoryRes.json();
+        const salesData = await salesRes.json();
+        
+        const tbody = document.getElementById('productPerformanceBody');
+        tbody.innerHTML = '';
+        
+        if (!inventoryData.ok || !inventoryData.items || inventoryData.items.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">No inventory data available</td></tr>';
+          return;
+        }
+        
+        // Create a map of product sales
+        const salesMap = new Map();
+        if (salesData.ok && salesData.rows) {
+          salesData.rows.forEach(row => {
+            salesMap.set(row.product_id, {
+              quantity: row.quantity || 0,
+              sales: row.sales || 0
+            });
+          });
+        }
+        
+        // Get unique products from inventory
+        const productMap = new Map();
+        inventoryData.items.forEach(item => {
+          const productId = item.product_id || item.id;
+          if (!productMap.has(productId)) {
+            productMap.set(productId, {
+              name: item.product_name || item.name || 'Unknown',
+              stock: 0,
+              sold: 0,
+              revenue: 0
+            });
+          }
+          const product = productMap.get(productId);
+          product.stock += (item.stock_kg || item.quantity_kg || 0);
+          
+          const sales = salesMap.get(productId);
+          if (sales) {
+            product.sold = sales.quantity;
+            product.revenue = sales.sales;
+          }
+        });
+        
+        // Sort by revenue descending
+        const products = Array.from(productMap.values()).sort((a, b) => b.revenue - a.revenue);
+        
+        if (products.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">No product data available</td></tr>';
+          return;
+        }
+        
+        products.forEach(product => {
+          const row = document.createElement('tr');
+          const stockStatus = product.stock < 100 ? 'danger' : product.stock < 500 ? 'warning' : 'success';
+          const statusText = product.stock < 100 ? 'Low Stock' : product.stock < 500 ? 'Moderate' : 'Good';
+          const statusColor = product.stock < 100 ? '#ef4444' : product.stock < 500 ? '#f59e0b' : '#10b981';
+          
+          row.innerHTML = `
+            <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${product.name}</td>
+            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.stock.toLocaleString()} kg</td>
+            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.sold.toLocaleString()} kg</td>
+            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">₱${product.revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+              <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; background: ${statusColor === '#ef4444' ? '#fee2e2' : statusColor === '#f59e0b' ? '#fef3c7' : '#d1fae5'}; color: ${statusColor};">${statusText}</span>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Error loading product performance:', error);
+        const tbody = document.getElementById('productPerformanceBody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #ef4444;">Error loading product data</td></tr>';
+      }
+    }
+
+    async function loadInsights() {
+      try {
+        const [kpisRes, analyticsRes, inventoryRes] = await Promise.all([
+          fetch(`/manager/api/dashboard/kpis?branch_id=${MANAGER_BRANCH_ID}`),
+          fetch(`/manager/api/analytics?branch_id=${MANAGER_BRANCH_ID}`),
+          fetch(`/manager/api/inventory?branch_id=${MANAGER_BRANCH_ID}`)
+        ]);
+        
+        const kpisData = await kpisRes.json();
+        const analyticsData = await analyticsRes.json();
+        const inventoryData = await inventoryRes.json();
+        
+        const insights = [];
+        
+        // Low stock insight
+        if (kpisData.ok && kpisData.kpis && kpisData.kpis.low_stock_count > 0) {
+          insights.push({
+            type: 'danger',
+            title: `⚠️ ${kpisData.kpis.low_stock_count} Product(s) Need Restocking`,
+            message: `You have ${kpisData.kpis.low_stock_count} product(s) with low stock levels. Consider placing restock orders soon to avoid stockouts.`
+          });
+        }
+        
+        // Top selling product insight
+        if (analyticsData.ok && analyticsData.analytics && analyticsData.analytics.top_products_month && analyticsData.analytics.top_products_month.length > 0) {
+          const topProduct = analyticsData.analytics.top_products_month[0];
+          insights.push({
+            type: 'success',
+            title: `⭐ Top Seller: ${topProduct.name}`,
+            message: `${topProduct.name} is your best-selling product with ${topProduct.quantity.toLocaleString()} kg sold this month. Ensure adequate stock levels.`
+          });
+        }
+        
+        // Sales performance insight
+        if (kpisData.ok && kpisData.kpis) {
+          const todaySales = kpisData.kpis.today_sales || 0;
+          const monthSales = kpisData.kpis.month_sales || 0;
+          const avgDaily = monthSales / 30;
+          
+          if (todaySales > avgDaily * 1.2) {
+            insights.push({
+              type: 'success',
+              title: '📈 Strong Sales Today',
+              message: `Today's sales (₱${todaySales.toLocaleString()}) are above average. Great performance!`
+            });
+          } else if (todaySales < avgDaily * 0.5) {
+            insights.push({
+              type: 'warning',
+              title: '📉 Below Average Sales',
+              message: `Today's sales are below average. Consider promotional activities or review inventory levels.`
+            });
           }
         }
-      });
-
-      const products = analytics.product_accuracy || [];
-      const tbody = document.getElementById('productAccuracyBody');
-      tbody.innerHTML = '';
-      if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-info-circle"></i> No product accuracy data available. Generate forecasts and record sales to see accuracy metrics.</td></tr>';
-      } else {
-        products.forEach(item => {
-          const forecasted = item.forecasted || 0;
-          const actual = item.actual || 0;
-          const accuracy = item.accuracy || 0;
+        
+        // Inventory value insight
+        if (inventoryData.ok && inventoryData.items) {
+          const totalValue = inventoryData.items.reduce((sum, item) => {
+            const stock = item.stock_kg || item.quantity_kg || 0;
+            const price = item.price || item.unit_price || 0;
+            return sum + (stock * price);
+          }, 0);
           
-          // Calculate trend: up if actual > forecasted, down if actual < forecasted
-          const trend = actual > forecasted ? 'up' : actual < forecasted ? 'down' : 'minus';
-          const trendClass = trend === 'up' ? 'positive' : trend === 'down' ? 'negative' : '';
-          const trendIcon = trend === 'up' ? 'fa-arrow-up' : trend === 'down' ? 'fa-arrow-down' : 'fa-minus';
-          
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${item.name || ('Product ' + item.product_id)}</td>
-            <td>${forecasted.toLocaleString()}</td>
-            <td>${actual.toLocaleString()}</td>
-            <td>${accuracy.toFixed(1)}%</td>
-            <td><i class="fas ${trendIcon} ${trendClass}"></i></td>
+          if (totalValue > 0) {
+            insights.push({
+              type: 'info',
+              title: '💰 Inventory Value',
+              message: `Your current inventory is valued at ₱${totalValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}. Monitor stock levels to optimize turnover.`
+            });
+          }
+        }
+        
+        // Render insights
+        const container = document.getElementById('insightsContainer');
+        if (insights.length === 0) {
+          container.innerHTML = `
+            <div class="insight-item success">
+              <h4>✅ All Systems Operational</h4>
+              <p>Your branch analytics are looking good. Continue monitoring inventory and sales trends.</p>
+            </div>
           `;
-          tbody.appendChild(row);
-        });
-      }
-    }
-
-    // Inventory Trends
-    function renderInventoryTrends(analytics) {
-      const sm = analytics.stock_movement_7d || { labels: [], stock_in: [], stock_out: [] };
-      
-      // Destroy existing chart if it exists
-      if (chartInstances.stockMovement) {
-        chartInstances.stockMovement.destroy();
-      }
-      
-      const stockMovementCtx = document.getElementById('stockMovementChart').getContext('2d');
-      chartInstances.stockMovement = new Chart(stockMovementCtx, {
-        type: 'bar',
-        data: {
-          labels: sm.labels,
-          datasets: [
-            { label: 'Stock In (kg)',  data: sm.stock_in, backgroundColor: 'rgba(75,192,192,0.2)', borderColor: 'rgb(75,192,192)', borderWidth: 1 },
-            { label: 'Stock Out (kg)', data: sm.stock_out, backgroundColor: 'rgba(255,99,132,0.2)', borderColor: 'rgb(255,99,132)', borderWidth: 1 }
-          ]
-        },
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: true,
-          plugins: { title: { display: true, text: 'Daily Stock Movement (kg)' } },
-          scales: { y: { beginAtZero: true } }
+        } else {
+          container.innerHTML = insights.map(insight => `
+            <div class="insight-item ${insight.type === 'danger' ? 'danger' : insight.type === 'warning' ? 'warning' : insight.type === 'success' ? 'success' : ''}">
+              <h4>${insight.title}</h4>
+              <p>${insight.message}</p>
+            </div>
+          `).join('');
         }
-      });
-
-      const cats = analytics.category_levels || [];
-      
-      // Destroy existing chart if it exists
-      if (chartInstances.categoryStock) {
-        chartInstances.categoryStock.destroy();
-      }
-      
-      const categoryStockCtx = document.getElementById('categoryStockChart').getContext('2d');
-      chartInstances.categoryStock = new Chart(categoryStockCtx, {
-        type: 'doughnut',
-        data: {
-          labels: cats.map(c => c.category || 'Uncategorized'),
-          datasets: [{ 
-            data: cats.map(c => c.stock_kg || 0), 
-            backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)','rgb(255,159,64)','rgb(201,203,207)'] 
-          }]
-        },
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: true,
-          plugins: { title: { display: true, text: 'Stock Distribution by Category (kg)' } }
-        }
-      });
-    }
-
-    // Sales Trends
-    function renderSalesTrends(analytics) {
-      const tops = analytics.top_products_month || [];
-      
-      // Destroy existing chart if it exists
-      if (chartInstances.topProducts) {
-        chartInstances.topProducts.destroy();
-      }
-      
-      const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
-      chartInstances.topProducts = new Chart(topProductsCtx, {
-        type: 'pie',
-        data: {
-          labels: tops.length > 0 ? tops.map(t => t.name || 'Unknown') : ['No Data'],
-          datasets: [{ 
-            data: tops.length > 0 ? tops.map(t => t.quantity || 0) : [1], 
-            backgroundColor: ['rgb(75,192,192)','rgb(255,99,132)','rgb(255,205,86)','rgb(54,162,235)','rgb(153,102,255)','rgb(255,159,64)','rgb(201,203,207)'] 
-          }]
-        },
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: true,
-          plugins: { title: { display: true, text: 'Top 5 Bestselling Items (Qty)' } }
-        }
-      });
-
-      const weekly = analytics.weekly_sales_4w || { labels: [], sales: [] };
-      
-      // Destroy existing chart if it exists
-      if (chartInstances.weeklySales) {
-        chartInstances.weeklySales.destroy();
-      }
-      
-      const weeklySalesCtx = document.getElementById('weeklySalesChart').getContext('2d');
-      chartInstances.weeklySales = new Chart(weeklySalesCtx, {
-        type: 'bar',
-        data: { 
-          labels: weekly.labels.length > 0 ? weekly.labels : ['Week 1', 'Week 2', 'Week 3', 'Week 4'], 
-          datasets: [{ 
-            label: 'Sales (₱)', 
-            data: weekly.sales.length > 0 ? weekly.sales : [0, 0, 0, 0], 
-            backgroundColor: 'rgba(75,192,192,0.2)', 
-            borderColor: 'rgb(75,192,192)', 
-            borderWidth: 1 
-          }] 
-        },
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: true,
-          plugins: { title: { display: true, text: 'Weekly Sales Performance (₱)' } },
-          scales: { y: { beginAtZero: true } }
-        }
-      });
-    }
-
-    // Risk Visualization
-    function renderRiskVisualization(analytics) {
-      const risks = analytics.branch_risks || [];
-      
-      // Destroy existing chart if it exists
-      if (chartInstances.riskHeatmap) {
-        chartInstances.riskHeatmap.destroy();
-      }
-      
-      const riskHeatmapCtx = document.getElementById('riskHeatmap').getContext('2d');
-      chartInstances.riskHeatmap = new Chart(riskHeatmapCtx, {
-        type: 'bar',
-        data: {
-          labels: risks.length > 0 ? risks.map(r => r.product_name || ('Product ' + r.product_id)) : ['No Risks'],
-          datasets: [{ 
-            label: 'Risk Score', 
-            data: risks.length > 0 ? risks.map(r => r.risk_score || 0) : [0], 
-            backgroundColor: risks.map(r => {
-              const score = r.risk_score || 0;
-              if (score >= 70) return 'rgb(255,99,132)'; // High risk - red
-              if (score >= 40) return 'rgb(255,159,64)'; // Medium risk - orange
-              return 'rgb(255,205,86)'; // Low risk - yellow
-            })
-          }]
-        },
-        options: { 
-          responsive: true, 
-          maintainAspectRatio: true,
-          plugins: { title: { display: true, text: 'Product Risk Levels' } },
-          scales: { y: { beginAtZero: true, max: 100 } }
-        }
-      });
-
-      const tbody = document.getElementById('riskTableBody');
-      tbody.innerHTML = '';
-      if (risks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;"><i class="fas fa-check-circle" style="color: #10b981;"></i> No risk items found. Your inventory levels are balanced.</td></tr>';
-      } else {
-        risks.forEach(item => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${item.product_name || ('Product ' + item.product_id)}</td>
-            <td><span class="risk-level ${item.risk_level.toLowerCase()}">${item.risk_level}</span></td>
-            <td>${item.gap_kg > 0 ? 'Shortage: ' : item.gap_kg < 0 ? 'Overstock: ' : 'Balanced: '}${Math.abs(Number(item.gap_kg || 0)).toLocaleString()} kg</td>
-            <td>${item.action || 'Monitor'}</td>
-          `;
-          tbody.appendChild(row);
-        });
+      } catch (error) {
+        console.error('Error loading insights:', error);
+        const container = document.getElementById('insightsContainer');
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Error loading insights</p></div>';
       }
     }
 
@@ -570,43 +866,49 @@
       }
 
       const generatedAt = new Date().toLocaleString();
-      const { branchName } = getBranchParams();
-      const branchDisplayName = branchName ? decodeURIComponent(branchName) : 'Your Branch';
+      const branchDisplayName = MANAGER_BRANCH_NAME ? decodeURIComponent(MANAGER_BRANCH_NAME) : 'Your Branch';
 
       // Get chart images
       let chartsHTML = '';
-      const chartIds = ['forecastAccuracyChart', 'stockMovementChart', 'categoryStockChart', 'topProductsChart', 'weeklySalesChart', 'riskHeatmap'];
-      const chartTitles = ['Forecast vs Actual Sales', 'Stock Movement', 'Category Stock Levels', 'Top 5 Bestselling Items', 'Weekly Sales Performance', 'Product Risk Heatmap'];
+      const charts = [
+        { id: 'salesTrendChart', title: 'Sales Trend (Last 30 Days)', instance: chartInstances.salesTrend },
+        { id: 'topProductsChart', title: 'Top 5 Best Selling Products', instance: chartInstances.topProducts },
+        { id: 'categoryStockChart', title: 'Stock by Category', instance: chartInstances.categoryStock },
+        { id: 'stockMovementChart', title: 'Stock Movement (Last 7 Days)', instance: chartInstances.stockMovement }
+      ];
       
-      chartIds.forEach((chartId, index) => {
-        const chart = chartInstances[chartId.replace('Chart', '')] || 
-                     (chartId === 'forecastAccuracyChart' ? chartInstances.forecastAccuracy :
-                      chartId === 'stockMovementChart' ? chartInstances.stockMovement :
-                      chartId === 'categoryStockChart' ? chartInstances.categoryStock :
-                      chartId === 'topProductsChart' ? chartInstances.topProducts :
-                      chartId === 'weeklySalesChart' ? chartInstances.weeklySales :
-                      chartId === 'riskHeatmap' ? chartInstances.riskHeatmap : null);
-        
-        if (chart) {
-          const chartImg = chart.toBase64Image();
+      charts.forEach(chart => {
+        if (chart.instance) {
+          const chartImg = chart.instance.toBase64Image();
           chartsHTML += `
             <div class="section">
-              <h3>${chartTitles[index]}</h3>
-              <img src="${chartImg}" class="chart-img" alt="${chartTitles[index]}">
+              <h3>${chart.title}</h3>
+              <img src="${chartImg}" class="chart-img" alt="${chart.title}">
             </div>
           `;
         }
       });
 
-      // Get overall accuracy
-      const overallAccuracy = document.getElementById('overallAccuracyValue')?.textContent || '--';
-      const accuracyPeriod = document.getElementById('accuracyPeriod')?.textContent || '--';
+      // Get KPIs
+      const kpisHTML = `
+        <div class="kpi-section">
+          <h3>Key Performance Indicators</h3>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+            <div><strong>Today's Sales:</strong> ${document.getElementById('kpi-today-sales')?.textContent || '--'}</div>
+            <div><strong>Week's Sales:</strong> ${document.getElementById('kpi-week-sales')?.textContent || '--'}</div>
+            <div><strong>Month's Sales:</strong> ${document.getElementById('kpi-month-sales')?.textContent || '--'}</div>
+            <div><strong>Units Sold:</strong> ${document.getElementById('kpi-units-sold')?.textContent || '--'}</div>
+            <div><strong>Low Stock Alerts:</strong> ${document.getElementById('kpi-low-stock')?.textContent || '--'}</div>
+            <div><strong>Inventory Value:</strong> ${document.getElementById('kpi-inventory-value')?.textContent || '--'}</div>
+          </div>
+        </div>
+      `;
 
-      // Get product accuracy table
-      const productAccuracyTable = document.getElementById('productAccuracyBody')?.innerHTML || '<tr><td colspan="5">No data available</td></tr>';
+      // Get product performance table
+      const productTable = document.getElementById('productPerformanceBody')?.innerHTML || '<tr><td colspan="5">No data available</td></tr>';
 
-      // Get risk table
-      const riskTable = document.getElementById('riskTableBody')?.innerHTML || '<tr><td colspan="4">No risk items found</td></tr>';
+      // Get insights
+      const insightsHTML = document.getElementById('insightsContainer')?.innerHTML || '<p>No insights available</p>';
 
       const printHTML = `
 <!DOCTYPE html>
@@ -670,7 +972,7 @@
             background: #f3f4f6;
             font-weight: 600;
         }
-        .kpi-box {
+        .kpi-section {
             background: #f8f9fa;
             padding: 15px;
             border-radius: 8px;
@@ -693,53 +995,35 @@
 </head>
 <body>
     <div class="header">
-        <h1>Analytics Report - ${branchDisplayName}</h1>
+        <h1>Branch Analytics Report - ${branchDisplayName}</h1>
         <p>Generated: ${generatedAt}</p>
     </div>
 
-    <div class="section">
-        <h3>📊 Overall Forecast Accuracy</h3>
-        <div class="kpi-box">
-            <strong>Overall Accuracy:</strong> ${overallAccuracy}<br>
-            <strong>Period:</strong> ${accuracyPeriod}
-        </div>
-    </div>
+    ${kpisHTML}
 
     ${chartsHTML}
 
     <div class="section">
-        <h3>📋 Accuracy by Product</h3>
+        <h3>📋 Product Performance Summary</h3>
         <table>
             <thead>
                 <tr>
                     <th>Product</th>
-                    <th>Forecasted</th>
-                    <th>Actual</th>
-                    <th>Accuracy</th>
-                    <th>Trend</th>
+                    <th>Stock (kg)</th>
+                    <th>Sold (kg)</th>
+                    <th>Revenue (₱)</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody>
-                ${productAccuracyTable}
+                ${productTable}
             </tbody>
         </table>
     </div>
 
     <div class="section">
-        <h3>⚠️ High-Risk Products</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Risk Level</th>
-                    <th>Forecasted Shortage/Overstock</th>
-                    <th>Suggested Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${riskTable}
-            </tbody>
-        </table>
+        <h3>💡 Quick Insights & Recommendations</h3>
+        ${insightsHTML}
     </div>
 
     <div class="actions no-print">
@@ -754,9 +1038,11 @@
       setTimeout(() => { printWindow.print(); }, 500);
     }
 
-    // Update title and header based on branch selection
     function updateBranchTitle() {
-      const { branchName, branchId } = getBranchParams();
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchName = urlParams.get('branch_name') || MANAGER_BRANCH_NAME;
+      const branchId = urlParams.get('branch') || urlParams.get('branch_id') || MANAGER_BRANCH_ID;
+      
       if (branchName) {
         const decodedBranchName = decodeURIComponent(branchName);
         document.getElementById('pageTitle').textContent = `Analytics - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
@@ -765,7 +1051,6 @@
       }
     }
 
-    // Update navigation links to include branch parameters
     function updateNavigationLinks(branchId, branchName) {
       const navLinks = document.querySelectorAll('.nav-main a[href]');
       navLinks.forEach(link => {
@@ -777,8 +1062,16 @@
       });
     }
 
-    // Call the function when page loads
-    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+    function showNotification(message, type='info') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
   </script>
 </body>
 </html>
