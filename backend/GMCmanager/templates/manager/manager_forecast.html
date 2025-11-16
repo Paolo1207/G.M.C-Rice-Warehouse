@@ -1088,8 +1088,11 @@
               details: data.details || []
             });
             
+            // Get batch code if selected
+            const batchCode = document.getElementById('batchFilter')?.value || '';
+            
             // Display detailed forecast information with branch inventory
-            await displayForecastInformation(data, branchId, productId);
+            await displayForecastInformation(data, branchId, productId, batchCode);
             
             // Ensure the description section is visible after a short delay
             setTimeout(() => {
@@ -1678,7 +1681,7 @@
     }
 
     // Display detailed forecast information and stock preparation guide for manager
-    async function displayForecastInformation(forecastData, branchId, productId) {
+    async function displayForecastInformation(forecastData, branchId, productId, batchCode = '') {
       try {
         // Get forecast values from the API response - handle different response formats
         let forecastValues = [];
@@ -1737,7 +1740,7 @@
           return;
         }
         
-        // Fetch current inventory for this branch and product
+        // Fetch current inventory for this branch and product (filtered by batch if provided)
         let currentStock = 0;
         let productName = 'Unknown Product';
         
@@ -1748,14 +1751,43 @@
           const inventoryData = await inventoryResponse.json().catch(() => ({ items: [] }));
           
           if (inventoryData.ok && inventoryData.items) {
-            // Find the specific product if productId is provided
-            const productItem = productId 
-              ? inventoryData.items.find(item => item.product_id == productId || item.id == productId)
-              : inventoryData.items[0];
+            // Filter items by product_id and optionally by batch_code
+            let matchingItems = inventoryData.items;
+            
+            if (productId) {
+              matchingItems = matchingItems.filter(item => 
+                String(item.product_id) === String(productId) || String(item.id) === String(productId)
+              );
+            }
+            
+            // If batch_code is provided, filter by it
+            if (batchCode && batchCode !== '') {
+              matchingItems = matchingItems.filter(item => 
+                (item.batch_code || item.batch || '') === batchCode
+              );
+            }
+            
+            // Find the specific item
+            const productItem = matchingItems.length > 0 ? matchingItems[0] : null;
             
             if (productItem) {
               currentStock = productItem.stock_kg || productItem.stock || 0;
               productName = productItem.product_name || productItem.name || 'Unknown Product';
+              
+              // If batch_code was selected, include it in the product name for clarity
+              if (batchCode && batchCode !== '') {
+                productName = `${productName} (Batch: ${batchCode})`;
+              }
+            } else if (productId) {
+              // Product not found - try to get product name from the filter dropdown
+              const productFilter = document.getElementById('productFilter');
+              if (productFilter) {
+                const selectedOption = productFilter.options[productFilter.selectedIndex];
+                productName = selectedOption ? selectedOption.text : 'Unknown Product';
+                if (batchCode && batchCode !== '') {
+                  productName = `${productName} (Batch: ${batchCode})`;
+                }
+              }
             }
           }
         } catch (error) {
