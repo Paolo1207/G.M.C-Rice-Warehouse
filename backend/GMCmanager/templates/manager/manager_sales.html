@@ -140,10 +140,8 @@
                 <th>Product</th>
                 <th>Quantity Sold</th>
                 <th>Batch</th>
-                <th>Sale Date</th>
+                <th>Sale Date & Time</th>
                 <th>Branch</th>
-                <th>Encoder</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="salesTableBody"><!-- populated by JS --></tbody>
@@ -364,10 +362,10 @@
           id:r.id, 
           product:r.product_name, 
           quantity:r.qty, 
-          batch:r.batch_code || '-',
-          saleDate:r.date, 
+          batch:r.batch_code || r.batch || '-',
+          saleDate:r.date || r.transaction_date || r.datetime,
+          saleDateTime:r.datetime || r.transaction_date || r.date,
           branch:r.branch_name, 
-          encoder:'-',
           amount: r.amount || 0
         }));
         renderSalesTable(salesTableData);
@@ -411,13 +409,8 @@
             <td>${item.product}</td>
             <td>${item.quantity.toLocaleString()}</td>
             <td>${item.batch || '-'}</td>
-            <td>${formatDate(item.saleDate)}</td>
-            <td>${item.branch}</td>
-            <td>${item.encoder}</td>
-            <td>
-              <button class="btn-icon" onclick="viewSaleDetails(${item.id})"><i class="fas fa-eye"></i></button>
-              <button class="btn-icon" onclick="printSaleReceipt(${item.id})"><i class="fas fa-print"></i></button>
-            </td>`;
+            <td>${formatDateTime(item.saleDateTime || item.saleDate)}</td>
+            <td>${item.branch}</td>`;
           tb.appendChild(tr);
         });
       } catch (e) {
@@ -442,9 +435,10 @@
         const filtered = salesTableData.filter(item => {
           return item.product.toLowerCase().includes(searchQuery) ||
                  item.branch.toLowerCase().includes(searchQuery) ||
-                 item.saleDate.toLowerCase().includes(searchQuery) ||
+                 (item.saleDate && item.saleDate.toLowerCase().includes(searchQuery)) ||
+                 (item.saleDateTime && item.saleDateTime.toLowerCase().includes(searchQuery)) ||
                  item.quantity.toString().includes(searchQuery) ||
-                 (item.batch && item.batch.toLowerCase().includes(searchQuery));
+                 (item.batch && item.batch !== '-' && item.batch.toLowerCase().includes(searchQuery));
         });
         
         // Re-render with filtered data
@@ -459,11 +453,30 @@
       window.location.href = `/manager/api/reports/export/sales?format=csv&${queryParams()}`;
     }
     function printSales(){ window.print(); }
-    function viewSaleDetails(id){ showNotification('Viewing sale details...','info'); }
-    function printSaleReceipt(id){ showNotification('Printing sale receipt...','info'); }
 
     // Utils
     function formatDate(s){ return new Date(s).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}); }
+    function formatDateTime(dateTimeStr) {
+      if (!dateTimeStr) return '-';
+      try {
+        const date = new Date(dateTimeStr);
+        if (isNaN(date.getTime())) return formatDate(dateTimeStr);
+        
+        // Format with date and time in Philippines timezone (Asia/Manila, UTC+8)
+        const options = {
+          timeZone: 'Asia/Manila',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        };
+        return date.toLocaleString('en-US', options);
+      } catch (e) {
+        return formatDate(dateTimeStr);
+      }
+    }
     function showNotification(msg, type='info'){
       const el = document.createElement('div');
       el.className = `toast ${type}`;
