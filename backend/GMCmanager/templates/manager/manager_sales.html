@@ -55,11 +55,6 @@
       <div class="sales-container">
         <div class="sales-header">
           <h2>Sales Analysis</h2>
-          <div class="sales-actions">
-            <button class="btn secondary" onclick="exportSalesReport()">
-              <i class="fas fa-download"></i> Export Report
-            </button>
-          </div>
         </div>
 
         <!-- Filters -->
@@ -135,7 +130,6 @@
             </div>
             <div class="export-options">
               <button class="btn secondary" onclick="exportToCSV()"><i class="fas fa-file-csv"></i> CSV</button>
-              <button class="btn secondary" onclick="exportToExcel()"><i class="fas fa-file-excel"></i> Excel</button>
               <button class="btn secondary" onclick="printSales()"><i class="fas fa-print"></i> Print</button>
             </div>
           </div>
@@ -145,6 +139,7 @@
               <tr>
                 <th>Product</th>
                 <th>Quantity Sold</th>
+                <th>Batch</th>
                 <th>Sale Date</th>
                 <th>Branch</th>
                 <th>Encoder</th>
@@ -369,6 +364,7 @@
           id:r.id, 
           product:r.product_name, 
           quantity:r.qty, 
+          batch:r.batch_code || '-',
           saleDate:r.date, 
           branch:r.branch_name, 
           encoder:'-',
@@ -414,6 +410,7 @@
           tr.innerHTML = `
             <td>${item.product}</td>
             <td>${item.quantity.toLocaleString()}</td>
+            <td>${item.batch || '-'}</td>
             <td>${formatDate(item.saleDate)}</td>
             <td>${item.branch}</td>
             <td>${item.encoder}</td>
@@ -446,7 +443,8 @@
           return item.product.toLowerCase().includes(searchQuery) ||
                  item.branch.toLowerCase().includes(searchQuery) ||
                  item.saleDate.toLowerCase().includes(searchQuery) ||
-                 item.quantity.toString().includes(searchQuery);
+                 item.quantity.toString().includes(searchQuery) ||
+                 (item.batch && item.batch.toLowerCase().includes(searchQuery));
         });
         
         // Re-render with filtered data
@@ -457,14 +455,8 @@
     }
 
     // Exports / actions
-    function exportSalesReport(){ 
-      window.location.href = `/manager/api/reports/export/sales?format=csv&${queryParams()}`;
-    }
     function exportToCSV(){ 
       window.location.href = `/manager/api/reports/export/sales?format=csv&${queryParams()}`;
-    }
-    function exportToExcel(){ 
-      window.location.href = `/manager/api/reports/export/sales?format=excel&${queryParams()}`;
     }
     function printSales(){ window.print(); }
     function viewSaleDetails(id){ showNotification('Viewing sale details...','info'); }
