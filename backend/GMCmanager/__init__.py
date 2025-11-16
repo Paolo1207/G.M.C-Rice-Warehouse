@@ -2945,24 +2945,82 @@ def mgr_sales_bulk():
             
             db.session.add(transaction)
             
-            # Update inventory - reduce stock by quantity sold (avoid grn_number column)
+            # Update inventory using FIFO (First In First Out) logic
+            # Deduct from oldest batches first until the sale quantity is fulfilled
             from sqlalchemy.orm import load_only
-            inventory_item = (
+            from sqlalchemy import func
+            
+            # Get all inventory items for this product in this branch
+            all_items = (
                 db.session.query(InventoryItem)
-                .options(load_only(InventoryItem.id, InventoryItem.stock_kg))
+                .options(load_only(InventoryItem.id, InventoryItem.stock_kg, InventoryItem.batch_code))
                 .filter_by(branch_id=branch_id, product_id=product.id)
-                .first()
+                .all()
             )
             
-            if inventory_item:
-                # Reduce inventory stock
-                current_stock = float(inventory_item.stock_kg or 0)
-                new_stock = max(0, current_stock - quantity_sold_kg)  # Don't go below 0
-                inventory_item.stock_kg = new_stock
+            if not all_items:
+                print(f"WARNING: No inventory items found for {product_name} in branch {branch_id}")
+                continue
+            
+            # Get earliest restock date for each inventory item (single query for efficiency)
+            item_ids = [item.id for item in all_items]
+            restock_dates = (
+                db.session.query(
+                    RestockLog.inventory_item_id,
+                    func.min(RestockLog.created_at).label('earliest_restock')
+                )
+                .filter(RestockLog.inventory_item_id.in_(item_ids))
+                .group_by(RestockLog.inventory_item_id)
+                .all()
+            )
+            
+            # Create a map of item_id -> earliest restock date
+            restock_map = {row.inventory_item_id: row.earliest_restock for row in restock_dates}
+            
+            # Sort items: oldest restock date first, then by inventory item ID
+            inventory_items = sorted(
+                all_items,
+                key=lambda item: (
+                    restock_map.get(item.id) or datetime.max,  # Items without restock logs go last
+                    item.id  # Fallback: use inventory item ID
+                )
+            )
+            
+            # FIFO deduction: deduct from batches in order until quantity is fulfilled
+            remaining_to_deduct = quantity_sold_kg
+            batches_used = []
+            
+            for inv_item in inventory_items:
+                if remaining_to_deduct <= 0:
+                    break
                 
-                print(f"DEBUG: Updated inventory for {product_name}: {current_stock}kg -> {new_stock}kg (sold {quantity_sold_kg}kg)")
-            else:
-                print(f"WARNING: No inventory item found for {product_name} in branch {branch_id}")
+                current_stock = float(inv_item.stock_kg or 0)
+                if current_stock <= 0:
+                    continue  # Skip empty batches
+                
+                # Deduct as much as possible from this batch
+                deduction = min(remaining_to_deduct, current_stock)
+                new_stock = current_stock - deduction
+                inv_item.stock_kg = max(0, new_stock)  # Don't go below 0
+                
+                batches_used.append({
+                    'batch_code': inv_item.batch_code or '(no batch)',
+                    'deducted': deduction,
+                    'remaining': new_stock
+                })
+                
+                remaining_to_deduct -= deduction
+                
+                print(f"DEBUG FIFO: Deducted {deduction}kg from batch '{inv_item.batch_code or '(no batch)'}' "
+                      f"({current_stock}kg -> {new_stock}kg)")
+            
+            if remaining_to_deduct > 0:
+                print(f"WARNING: Could not fully fulfill sale of {quantity_sold_kg}kg for {product_name}. "
+                      f"Only {quantity_sold_kg - remaining_to_deduct}kg was available. "
+                      f"Shortage: {remaining_to_deduct}kg")
+            
+            print(f"DEBUG: FIFO deduction complete for {product_name}: "
+                  f"{len(batches_used)} batch(es) used, {quantity_sold_kg - remaining_to_deduct}kg deducted")
             
             created_transactions.append({
                 'product_name': product_name,
