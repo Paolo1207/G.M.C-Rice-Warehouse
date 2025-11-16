@@ -1105,7 +1105,7 @@
           console.error('Failed to load recent purchases:', data.error);
           // Fallback to empty table
           const tbody = document.getElementById('recentPurchasesTable');
-          tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #666;">No recent purchases found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #666;">No recent purchases found</td></tr>';
         }
       } catch (error) {
         console.error('Error loading recent purchases:', error);
