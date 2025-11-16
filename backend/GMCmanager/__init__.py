@@ -3028,9 +3028,6 @@ def mgr_sales_bulk():
             
             db.session.add(transaction)
             
-            # Get batch_code from request if provided
-            requested_batch_code = item.get('batch_code', '').strip() if item.get('batch_code') else None
-            
             # Update inventory: use specific batch if provided, otherwise use FIFO
             from sqlalchemy.orm import load_only
             from sqlalchemy import func, or_
