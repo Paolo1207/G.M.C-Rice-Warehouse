@@ -492,7 +492,7 @@
 
             <div class="form-group">
               <label for="${itemId}_batchCode">Batch Code</label>
-              <select id="${itemId}_batchCode" style="display: none;" onchange="updateItemPrice('${itemId}'); hydrateItemInitialInventory('${itemId}');">
+              <select id="${itemId}_batchCode" style="display: none;" onchange="hydrateItemInitialInventory('${itemId}');">
                 <option value="">Please select batch</option>
                 <!-- Batch codes will be populated when product is selected -->
               </select>
@@ -738,21 +738,76 @@
 
     function hydrateItemInitialInventory(itemId) {
       const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+      const batchEl = document.getElementById(`${itemId}_batchCode`);
       const dateEl = document.getElementById('purchaseDate');
       const initialEl = document.getElementById(`${itemId}_initialInventory`);
       
       if (!varietyEl || !dateEl || !initialEl) return;
       
       const variety = varietyEl.value;
+      const batchCode = batchEl && batchEl.style.display !== 'none' ? (batchEl.value || '') : '';
       const dateStr = dateEl.value;
       
       if (!variety || !dateStr) return;
+      
+      // If batch is selected, fetch stock for that specific batch
+      if (batchCode && batchCode !== '') {
+        fetchBatchStock(itemId, variety, batchCode, dateStr);
+        return;
+      }
       
       // Prefer live API stock for the branch; fallback to previous entries
       const apiStock = currentStockByKey[variety];
       const initial = (apiStock != null ? apiStock : getInitialInventoryFor(variety, dateStr));
       initialEl.value = toFixedOrEmpty(initial);
       computeItemTotals(itemId);
+    }
+
+    // Fetch stock for a specific batch
+    async function fetchBatchStock(itemId, varietyKey, batchCode, dateStr) {
+      try {
+        const variety = availableRiceVarieties.find(v => v.key === varietyKey);
+        if (!variety) return;
+        
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.ok && data.items) {
+          // Find the product by name and batch code
+          const productItem = data.items.find(item => 
+            item.product_name && 
+                 item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim() &&
+                 (item.batch_code || item.batch || '') === batchCode
+          );
+          
+          const initialEl = document.getElementById(`${itemId}_initialInventory`);
+          if (productItem) {
+            const stockKg = (productItem.quantity_kg ?? productItem.stock_kg ?? productItem.stock ?? productItem.quantity ?? 0);
+            initialEl.value = toFixedOrEmpty(parseFloat(stockKg) || 0);
+          } else {
+            // Fallback to previous entries
+            const initial = getInitialInventoryFor(varietyKey, dateStr);
+            initialEl.value = toFixedOrEmpty(initial);
+          }
+          computeItemTotals(itemId);
+        }
+      } catch (error) {
+        console.error('Error fetching batch stock:', error);
+        const initialEl = document.getElementById(`${itemId}_initialInventory`);
+        const initial = getInitialInventoryFor(varietyKey, dateStr);
+        initialEl.value = toFixedOrEmpty(initial);
+        computeItemTotals(itemId);
+      }
     }
 
     function computeItemTotals(itemId) {
