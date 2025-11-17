@@ -169,12 +169,12 @@
                 </label>
                 <div id="customDateRange" style="display: none; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px;">
                     <label style="display: flex; align-items: center; gap: 5px; font-size: 14px;">
-                        From:
-                        <input type="date" id="startDate" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-width: 150px;">
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 5px; font-size: 14px;">
                         To:
                         <input type="date" id="endDate" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-width: 150px;">
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 14px;">
+                        From:
+                        <input type="date" id="startDate" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-width: 150px;">
                     </label>
                 </div>
                 <label>Rice Variant:
@@ -228,7 +228,6 @@
                 <h3>📝 Sales Log</h3>
                 <div class="export-buttons">
                     <button id="expCsv">Export CSV</button>
-                    <button id="expXlsx">Export Excel</button>
                     <button id="expPdf">Export PDF</button>
                 </div>
             </div>
@@ -279,6 +278,7 @@
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setDate(startDate.getDate() - 30);
+                // Set To first (endDate), then From (startDate)
                 endDateInput.value = endDate.toISOString().split('T')[0];
                 startDateInput.value = startDate.toISOString().split('T')[0];
               }
@@ -410,10 +410,20 @@
 
       async function loadKPIs(){
         const j = await fetch('/admin/api/sales/kpis?'+params()).then(r=>r.json());
-        if (!j.ok) return;
-        document.getElementById('kpiSales').textContent = '₱'+Number(j.kpis.month_sales||0).toLocaleString();
-        document.getElementById('kpiUnits').textContent = Number(j.kpis.units_sold||0).toLocaleString() + ' kg';
-        document.getElementById('kpiAov').textContent   = '₱'+Number(j.kpis.avg_order_value||0).toLocaleString();
+        if (!j.ok) {
+          // Show 0 if API fails or returns no data
+          document.getElementById('kpiSales').textContent = '₱0';
+          document.getElementById('kpiUnits').textContent = '0 kg';
+          document.getElementById('kpiAov').textContent = '₱0';
+          return;
+        }
+        // Ensure we show 0 if values are null/undefined
+        const sales = Number(j.kpis?.month_sales || 0);
+        const units = Number(j.kpis?.units_sold || 0);
+        const aov = Number(j.kpis?.avg_order_value || 0);
+        document.getElementById('kpiSales').textContent = '₱'+sales.toLocaleString();
+        document.getElementById('kpiUnits').textContent = units.toLocaleString() + ' kg';
+        document.getElementById('kpiAov').textContent = '₱'+aov.toLocaleString();
       }
 
       // Format date labels to remove GMT time component
@@ -454,7 +464,24 @@
       async function loadTrend(){
         const j = await fetch('/admin/api/sales/trend?granularity=daily&'+params()).then(r=>r.json());
         const el = document.getElementById('dailySalesChart');
-        if (!el || !j.ok) return;
+        if (!el || !j.ok) {
+          // Show empty chart if no data
+          if (dailyChart) dailyChart.destroy();
+          const ctx = el.getContext('2d');
+          dailyChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'No sales data for selected period' }
+              }
+            }
+          });
+          return;
+        }
         
         // Debug logging
         console.log('Sales Trend API Response:', j);
@@ -479,6 +506,25 @@
         
         // Format date labels to remove GMT time component
         const formattedLabels = (j.labels || []).map(label => formatDateLabel(label));
+        
+        // If no data, show empty chart
+        if (!j.series || j.series.length === 0 || (j.series.length === 1 && (!j.series[0].data || j.series[0].data.length === 0))) {
+          if (dailyChart) dailyChart.destroy();
+          const ctx = el.getContext('2d');
+          dailyChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'No sales data for selected period' }
+              }
+            }
+          });
+          return;
+        }
         
         dailyChart = new Chart(el.getContext('2d'), {
           type:'line',
@@ -583,10 +629,30 @@
       }
 
       function wireExports(){
-        const go = async (fmt)=>{ window.location.href = '/admin/api/sales/export?'+params()+`&format=${fmt}`; };
+        const go = async (fmt)=>{ 
+          const exportParams = params();
+          const dateRange = getDateRangeForExport();
+          const fullParams = exportParams ? `${exportParams}&format=${fmt}${dateRange}` : `format=${fmt}${dateRange}`;
+          window.location.href = `/admin/api/sales/export?${fullParams}`;
+        };
         document.getElementById('expCsv')?.addEventListener('click', ()=>go('csv'));
-        document.getElementById('expXlsx')?.addEventListener('click', ()=>go('xlsx'));
         document.getElementById('expPdf')?.addEventListener('click', ()=>go('pdf'));
+      }
+
+      function getDateRangeForExport() {
+        let dateRange = '';
+        if (daysSel && daysSel.value) {
+          if (daysSel.value === 'custom') {
+            const startDate = document.getElementById('startDate')?.value;
+            const endDate = document.getElementById('endDate')?.value;
+            if (startDate && endDate) {
+              dateRange = `&from=${startDate}&to=${endDate}`;
+            }
+          } else {
+            dateRange = `&days=${daysSel.value}`;
+          }
+        }
+        return dateRange;
       }
     </script>
 </body>

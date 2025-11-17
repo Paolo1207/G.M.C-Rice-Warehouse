@@ -1450,21 +1450,118 @@ def api_sales_top_products():
 
 @admin_bp.get("/api/sales/export")
 def api_sales_export():
-    """Stream CSV (xlsx/pdf stub) and log to export_logs."""
+    """Stream CSV or PDF and log to export_logs."""
     import csv, io
+    from datetime import datetime
+    
     fmt = request.args.get('format', 'csv').lower()
+    
+    # Get date range for filename
+    days = request.args.get('days')
+    from_date = request.args.get('from')
+    to_date = request.args.get('to')
+    
+    # Generate filename with date
+    date_str = ''
+    if from_date and to_date:
+        try:
+            from_dt = datetime.strptime(from_date, '%Y-%m-%d')
+            to_dt = datetime.strptime(to_date, '%Y-%m-%d')
+            date_str = f"_{from_dt.strftime('%Y%m%d')}_{to_dt.strftime('%Y%m%d')}"
+        except:
+            date_str = f"_{datetime.now().strftime('%Y%m%d')}"
+    elif days:
+        date_str = f"_{datetime.now().strftime('%Y%m%d')}"
+    else:
+        date_str = f"_{datetime.now().strftime('%Y%m%d')}"
+    
     try:
         resp_json = api_sales_list().json
     except Exception:
         # fallback build via direct query
         resp_json = jsonify({"ok": False}).json
     rows = resp_json.get('rows', [])
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Date','Branch','Product','Qty','Amount'])
-    for r in rows:
-        writer.writerow([r['date'], r['branch_name'], r['product_name'], r['qty'], r['amount']])
-    data = output.getvalue()
+    
+    if fmt == 'pdf':
+        # Generate PDF using HTML
+        from flask import render_template_string
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Sales Report</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; }}
+                h1 {{ color: #2e7d32; }}
+                table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+                th {{ background-color: #2e7d32; color: white; padding: 10px; text-align: left; }}
+                td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
+                tr:nth-child(even) {{ background-color: #f2f2f2; }}
+            </style>
+        </head>
+        <body>
+            <h1>Sales Report</h1>
+            <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Branch</th>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        for r in rows:
+            html_content += f"""
+                    <tr>
+                        <td>{r.get('date', '')}</td>
+                        <td>{r.get('branch_name', '')}</td>
+                        <td>{r.get('product_name', '')}</td>
+                        <td>{r.get('qty', 0)}</td>
+                        <td>₱{r.get('amount', 0):,.2f}</td>
+                    </tr>
+            """
+        html_content += """
+                </tbody>
+            </table>
+        </body>
+        </html>
+        """
+        
+        # Try to use weasyprint or pdfkit if available, otherwise return HTML
+        try:
+            import weasyprint
+            pdf_data = weasyprint.HTML(string=html_content).write_pdf()
+            resp = make_response(pdf_data)
+            resp.headers['Content-Type'] = 'application/pdf'
+            resp.headers['Content-Disposition'] = f'attachment; filename=sales_export{date_str}.pdf'
+        except ImportError:
+            try:
+                import pdfkit
+                pdf_data = pdfkit.from_string(html_content, False)
+                resp = make_response(pdf_data)
+                resp.headers['Content-Type'] = 'application/pdf'
+                resp.headers['Content-Disposition'] = f'attachment; filename=sales_export{date_str}.pdf'
+            except ImportError:
+                # Fallback to HTML if no PDF library available
+                resp = make_response(html_content)
+                resp.headers['Content-Type'] = 'text/html'
+                resp.headers['Content-Disposition'] = f'attachment; filename=sales_export{date_str}.html'
+    else:
+        # CSV export
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Date','Branch','Product','Qty','Amount'])
+        for r in rows:
+            writer.writerow([r.get('date', ''), r.get('branch_name', ''), r.get('product_name', ''), r.get('qty', 0), r.get('amount', 0)])
+        data = output.getvalue()
+        resp = make_response(data)
+        resp.headers['Content-Type'] = 'text/csv'
+        resp.headers['Content-Disposition'] = f'attachment; filename=sales_export{date_str}.csv'
 
     # log export
     try:
@@ -1480,9 +1577,6 @@ def api_sales_export():
     except Exception:
         db.session.rollback()
 
-    resp = make_response(data)
-    resp.headers['Content-Type'] = 'text/csv'
-    resp.headers['Content-Disposition'] = 'attachment; filename=sales_export.csv'
     return resp
 
 @admin_bp.get("/api/sales/transactions")
