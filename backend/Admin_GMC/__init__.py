@@ -4053,25 +4053,6 @@ def api_dashboard_alerts():
                 "count": len(inactive_branches)
             })
         
-        # 8. MISSING THRESHOLDS (Info) - Items without warn_level or auto_level set
-        missing_thresholds = db.session.query(InventoryItem).filter(
-            or_(
-                InventoryItem.warn_level.is_(None),
-                InventoryItem.auto_level.is_(None)
-            ),
-            InventoryItem.stock_kg > 0
-        ).limit(10).all()
-        
-        if missing_thresholds:
-            alerts.append({
-                "type": "info",
-                "icon": "⚙️",
-                "title": "Missing Thresholds",
-                "description": f"{len(missing_thresholds)} item(s) need warn_level or auto_level configured",
-                "time_ago": "Just now",
-                "count": len(missing_thresholds)
-            })
-        
         # Sort alerts by priority: critical > warning > info
         priority_order = {"critical": 0, "warning": 1, "info": 2}
         alerts.sort(key=lambda x: priority_order.get(x["type"], 3))
