@@ -542,7 +542,13 @@
                     <div class="password-wrapper">
                         <input type="password" id="password" name="password" required>
                         <button type="button" class="password-toggle" id="togglePassword" aria-label="Toggle password visibility">
-                            <span id="eyeIcon">👁️</span>
+                            <span id="eyeIcon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                                    <circle cx="12" cy="12" r="1" fill="white"></circle>
+                                </svg>
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -592,11 +598,24 @@
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                eyeIcon.textContent = '🙈';
+                eyeIcon.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                        <circle cx="12" cy="12" r="1" fill="white"></circle>
+                        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2.5"></line>
+                    </svg>
+                `;
                 eyeIcon.setAttribute('aria-label', 'Hide password');
             } else {
                 passwordInput.type = 'password';
-                eyeIcon.textContent = '👁️';
+                eyeIcon.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                        <circle cx="12" cy="12" r="1" fill="white"></circle>
+                    </svg>
+                `;
                 eyeIcon.setAttribute('aria-label', 'Show password');
             }
         });
