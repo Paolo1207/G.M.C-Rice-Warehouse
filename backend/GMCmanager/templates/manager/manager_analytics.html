@@ -318,30 +318,6 @@
           </div>
         </div>
 
-        <!-- Top Products Table -->
-        <div class="insights-section">
-          <h3><i class="fas fa-list"></i> Product Performance Summary</h3>
-          <div class="table-container">
-            <table class="analytics-table" style="width: 100%; border-collapse: collapse;">
-              <thead>
-                <tr style="background: #f3f4f6;">
-                  <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Product</th>
-                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Stock (kg)</th>
-                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Sold (kg)</th>
-                  <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Revenue (₱)</th>
-                  <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Status</th>
-                </tr>
-              </thead>
-              <tbody id="productPerformanceBody">
-                <tr>
-                  <td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">
-                    <i class="fas fa-spinner fa-spin"></i> Loading product data...
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
     </main>
   </div>
@@ -410,7 +386,6 @@
         await Promise.all([
           loadCategoryStock(),
           loadStockMovement(),
-          loadProductPerformance(),
           loadInsights()
         ]);
       } catch (error) {
@@ -584,94 +559,6 @@
       }
     }
 
-    async function loadProductPerformance() {
-      try {
-        const [inventoryRes, salesRes] = await Promise.all([
-          fetch(`/manager/api/inventory?branch_id=${MANAGER_BRANCH_ID}`),
-          fetch(`/admin/api/sales/top_products?branch_id=${MANAGER_BRANCH_ID}&days=30`)
-        ]);
-        
-        const inventoryData = await inventoryRes.json();
-        const salesData = await salesRes.json();
-        
-        const tbody = document.getElementById('productPerformanceBody');
-        tbody.innerHTML = '';
-        
-        if (!inventoryData.ok || !inventoryData.items || inventoryData.items.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">No inventory data available</td></tr>';
-          return;
-        }
-        
-        // Create a map of product sales by product name (case-insensitive)
-        const salesMap = new Map();
-        if (salesData.ok && salesData.rows) {
-          salesData.rows.forEach(row => {
-            const productName = (row.name || '').toLowerCase().trim();
-            if (productName) {
-              salesMap.set(productName, {
-                quantity: parseFloat(row.quantity || 0),
-                sales: parseFloat(row.sales || 0)
-              });
-            }
-          });
-        }
-        
-        // Get unique products from inventory and aggregate by product name
-        const productMap = new Map();
-        inventoryData.items.forEach(item => {
-          const productName = (item.product_name || item.name || 'Unknown').toLowerCase().trim();
-          if (!productMap.has(productName)) {
-            productMap.set(productName, {
-              name: item.product_name || item.name || 'Unknown',
-              stock: 0,
-              sold: 0,
-              revenue: 0
-            });
-          }
-          const product = productMap.get(productName);
-          // Try multiple field names for stock (API returns "stock" from stock_kg)
-          const stock = parseFloat(item.stock || item.stock_kg || item.quantity_kg || item.quantity || 0);
-          product.stock += stock;
-          
-          // Match sales data by product name
-          const sales = salesMap.get(productName);
-          if (sales) {
-            product.sold = sales.quantity;
-            product.revenue = sales.sales;
-          }
-        });
-        
-        // Sort by revenue descending
-        const products = Array.from(productMap.values()).sort((a, b) => b.revenue - a.revenue);
-        
-        if (products.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #64748b;">No product data available</td></tr>';
-          return;
-        }
-        
-        products.forEach(product => {
-          const row = document.createElement('tr');
-          const stockStatus = product.stock < 100 ? 'danger' : product.stock < 500 ? 'warning' : 'success';
-          const statusText = product.stock < 100 ? 'Low Stock' : product.stock < 500 ? 'Moderate' : 'Good';
-          const statusColor = product.stock < 100 ? '#ef4444' : product.stock < 500 ? '#f59e0b' : '#10b981';
-          
-          row.innerHTML = `
-            <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${product.name}</td>
-            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.stock.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg</td>
-            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">${product.sold.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg</td>
-            <td style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb;">₱${product.revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-            <td style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">
-              <span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 500; background: ${statusColor === '#ef4444' ? '#fee2e2' : statusColor === '#f59e0b' ? '#fef3c7' : '#d1fae5'}; color: ${statusColor};">${statusText}</span>
-            </td>
-          `;
-          tbody.appendChild(row);
-        });
-      } catch (error) {
-        console.error('Error loading product performance:', error);
-        const tbody = document.getElementById('productPerformanceBody');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #ef4444;">Error loading product data</td></tr>';
-      }
-    }
 
     async function loadInsights() {
       try {
@@ -813,9 +700,6 @@
         </div>
       `;
 
-      // Get product performance table
-      const productTable = document.getElementById('productPerformanceBody')?.innerHTML || '<tr><td colspan="5">No data available</td></tr>';
-
       // Get insights
       const insightsHTML = document.getElementById('insightsContainer')?.innerHTML || '<p>No insights available</p>';
 
@@ -916,24 +800,6 @@
     ${kpisHTML}
 
     ${chartsHTML}
-
-    <div class="section">
-        <h3>📋 Product Performance Summary</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Stock (kg)</th>
-                    <th>Sold (kg)</th>
-                    <th>Revenue (₱)</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${productTable}
-            </tbody>
-        </table>
-    </div>
 
     <div class="section">
         <h3>💡 Quick Insights & Recommendations</h3>
