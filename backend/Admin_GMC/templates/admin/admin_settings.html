@@ -187,14 +187,20 @@
             <h3>Change Password</h3>
             <form class="password-form">
                 <label>Current Password:
-                    <input type="password" name="current_password" required>
+                    <div class="password-wrapper" style="position: relative;">
+                        <input type="password" name="current_password" required>
+                    </div>
                 </label>
                 <label>New Password:
-                    <input type="password" name="new_password" required>
+                    <div class="password-wrapper" style="position: relative;">
+                        <input type="password" name="new_password" required>
+                    </div>
                     <div class="password-strength"><span class="strength-bar"></span> <span class="strength-label">Weak</span></div>
                 </label>
                 <label>Confirm New Password:
-                    <input type="password" name="confirm_password" required>
+                    <div class="password-wrapper" style="position: relative;">
+                        <input type="password" name="confirm_password" required>
+                    </div>
                 </label>
                 <button type="submit" class="update-password-btn">Update Password</button>
             </form>

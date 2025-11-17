@@ -153,10 +153,14 @@
 }
 
 /* Password Toggle Button Styles */
+.password-wrapper {
+  position: relative;
+}
+
 .password-toggle {
   position: absolute;
   right: 12px;
-  top: calc(50% + 14px); /* Position relative to input field */
+  top: 50%;
   transform: translateY(-50%);
   background: transparent;
   border: none;
