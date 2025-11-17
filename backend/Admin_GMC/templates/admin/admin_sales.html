@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sales.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="../js/sales.js"></script>
 </head>
 <body>
   <!-- Sidebar directly embedded -->
@@ -463,26 +462,43 @@
       }
 
       async function loadTrend(){
-        const j = await fetch('/admin/api/sales/trend?granularity=daily&'+params()).then(r=>r.json());
         const el = document.getElementById('dailySalesChart');
-        if (!el || !j.ok) {
-          // Show empty chart if no data
-          if (dailyChart) dailyChart.destroy();
-          const ctx = el.getContext('2d');
-          dailyChart = new Chart(ctx, {
-            type: 'line',
-            data: { labels: [], datasets: [] },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'No sales data for selected period' }
+        if (!el) return;
+        
+        try {
+          const response = await fetch('/admin/api/sales/trend?granularity=daily&'+params());
+          
+          // Check if response is OK
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status} ${response.statusText}`);
+          }
+          
+          // Check if response is JSON
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            throw new Error('API returned non-JSON response');
+          }
+          
+          const j = await response.json();
+          
+          if (!j.ok) {
+            // Show empty chart if API returns ok: false
+            if (dailyChart) dailyChart.destroy();
+            const ctx = el.getContext('2d');
+            dailyChart = new Chart(ctx, {
+              type: 'line',
+              data: { labels: [], datasets: [] },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  title: { display: true, text: 'No sales data for selected period' }
+                }
               }
-            }
-          });
-          return;
-        }
+            });
+            return;
+          }
         
         // Debug logging
         console.log('Sales Trend API Response:', j);
@@ -639,6 +655,24 @@
             }
           }
         });
+        } catch (error) {
+          console.error('Error loading sales trend:', error);
+          // Show error chart
+          if (dailyChart) dailyChart.destroy();
+          const ctx = el.getContext('2d');
+          dailyChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [] },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Error loading sales data. Please try again.' }
+              }
+            }
+          });
+        }
       }
 
       async function loadTopProducts(){

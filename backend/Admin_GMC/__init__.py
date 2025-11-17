@@ -1354,111 +1354,117 @@ def api_sales_kpis():
 
 @admin_bp.get("/api/sales/trend")
 def api_sales_trend():
-    from sqlalchemy import func, and_
-    from datetime import timezone, timedelta as td
-    granularity = request.args.get('granularity', 'daily')
-    days = request.args.get('days', type=int)
-    branch_id = request.args.get('branch_id', type=int)
-    product_id = request.args.get('product_id', type=int)
-    to = request.args.get('to')
-    frm = request.args.get('from')
-    
-    # Use Philippines timezone (UTC+8) for date calculations to include today's sales
-    ph_tz = timezone(td(hours=8))
-    now_ph = datetime.now(ph_tz)
-    end = now_ph.date()  # Today in Philippines time
-    
-    if to:
-        try: end = datetime.strptime(to, '%Y-%m-%d').date()
-        except: pass
-    start = end - timedelta(days=days or 90)
-    if frm:
-        try: start = datetime.strptime(frm, '%Y-%m-%d').date()
-        except: pass
-    if granularity == 'daily':
-        date_expr = func.date(SalesTransaction.transaction_date)
-    elif granularity == 'week':
-        date_expr = func.to_char(SalesTransaction.transaction_date, 'IYYY-IW')
-    else:
-        date_expr = func.to_char(SalesTransaction.transaction_date, 'YYYY-MM')
-    q = db.session.query(date_expr.label('period'), SalesTransaction.branch_id, func.sum(SalesTransaction.total_amount).label('amt'))
-    q = q.filter(and_(func.date(SalesTransaction.transaction_date) >= start, func.date(SalesTransaction.transaction_date) <= end))
-    if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
-    if product_id: q = q.filter(SalesTransaction.product_id == product_id)
-    q = q.group_by('period', SalesTransaction.branch_id).order_by('period')
-    rows = q.all()
-    
-    # Normalize periods to strings for consistent matching
-    out = {}
-    for period, bid, amt in rows:
-        # Convert period to string format (YYYY-MM-DD for daily)
+    try:
+        from sqlalchemy import func, and_
+        from datetime import timezone, timedelta as td
+        granularity = request.args.get('granularity', 'daily')
+        days = request.args.get('days', type=int)
+        branch_id = request.args.get('branch_id', type=int)
+        product_id = request.args.get('product_id', type=int)
+        to = request.args.get('to')
+        frm = request.args.get('from')
+        
+        # Use Philippines timezone (UTC+8) for date calculations to include today's sales
+        ph_tz = timezone(td(hours=8))
+        now_ph = datetime.now(ph_tz)
+        end = now_ph.date()  # Today in Philippines time
+        
+        if to:
+            try: end = datetime.strptime(to, '%Y-%m-%d').date()
+            except: pass
+        start = end - timedelta(days=days or 90)
+        if frm:
+            try: start = datetime.strptime(frm, '%Y-%m-%d').date()
+            except: pass
         if granularity == 'daily':
-            if isinstance(period, date):
-                period_key = period.strftime('%Y-%m-%d')
+            date_expr = func.date(SalesTransaction.transaction_date)
+        elif granularity == 'week':
+            date_expr = func.to_char(SalesTransaction.transaction_date, 'IYYY-IW')
+        else:
+            date_expr = func.to_char(SalesTransaction.transaction_date, 'YYYY-MM')
+        q = db.session.query(date_expr.label('period'), SalesTransaction.branch_id, func.sum(SalesTransaction.total_amount).label('amt'))
+        q = q.filter(and_(func.date(SalesTransaction.transaction_date) >= start, func.date(SalesTransaction.transaction_date) <= end))
+        if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
+        if product_id: q = q.filter(SalesTransaction.product_id == product_id)
+        q = q.group_by('period', SalesTransaction.branch_id).order_by('period')
+        rows = q.all()
+        
+        # Normalize periods to strings for consistent matching
+        out = {}
+        for period, bid, amt in rows:
+            # Convert period to string format (YYYY-MM-DD for daily)
+            if granularity == 'daily':
+                if isinstance(period, date):
+                    period_key = period.strftime('%Y-%m-%d')
+                else:
+                    period_key = str(period)
             else:
                 period_key = str(period)
-        else:
-            period_key = str(period)
-        out.setdefault(period_key, {})[int(bid)] = float(amt or 0)
-    
-    # Generate all dates in range (including today) to ensure complete date range
-    all_dates = []
-    current_date = start
-    while current_date <= end:
-        if granularity == 'daily':
-            all_dates.append(current_date)
-            current_date += timedelta(days=1)
-        elif granularity == 'week':
-            # For weekly, add week start dates
-            week_start = current_date - timedelta(days=current_date.weekday())
-            if week_start not in all_dates:
-                all_dates.append(week_start)
-            current_date += timedelta(days=7)
-        else:
-            # Monthly
-            month_start = current_date.replace(day=1)
-            if month_start not in all_dates:
-                all_dates.append(month_start)
-            # Move to next month
-            if current_date.month == 12:
-                current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
+            out.setdefault(period_key, {})[int(bid)] = float(amt or 0)
+        
+        # Generate all dates in range (including today) to ensure complete date range
+        all_dates = []
+        current_date = start
+        while current_date <= end:
+            if granularity == 'daily':
+                all_dates.append(current_date)
+                current_date += timedelta(days=1)
+            elif granularity == 'week':
+                # For weekly, add week start dates
+                week_start = current_date - timedelta(days=current_date.weekday())
+                if week_start not in all_dates:
+                    all_dates.append(week_start)
+                current_date += timedelta(days=7)
             else:
-                current_date = current_date.replace(month=current_date.month + 1, day=1)
-    
-    # Convert all dates to string labels for JSON serialization
-    if granularity == 'daily':
-        labels = [d.strftime('%Y-%m-%d') if isinstance(d, date) else str(d) for d in sorted(set(all_dates))]
-    else:
-        labels = [str(d) for d in sorted(set(all_dates))]
-    
-    # Build series with data for all dates (fill missing dates with 0)
-    branches = {b.id: b.name for b in Branch.query.all()}
-    all_branch_ids = set()
-    for period, bid, amt in rows:
-        all_branch_ids.add(int(bid))
-    
-    # If branch_id filter is set, only include that branch
-    if branch_id:
-        all_branch_ids = {branch_id}
-    
-    series = {}
-    for bid in all_branch_ids:
-        series[bid] = []
-        for label in labels:
-            # Get value for this branch and period, default to 0
-            branch_data = out.get(label, {})
-            series[bid].append(branch_data.get(bid, 0.0))
-    
-    # Debug logging
-    print(f"DEBUG: Sales trend query for days={days}, branch_id={branch_id}, product_id={product_id}")
-    print(f"DEBUG: Date range: {start} to {end} (today in PH time)")
-    print(f"DEBUG: Found {len(rows)} total rows")
-    print(f"DEBUG: Labels count: {len(labels)} (includes all dates from {start} to {end})")
-    print(f"DEBUG: Series keys: {list(series.keys())}")
-    for bid in series.keys():
-        print(f"DEBUG: Branch {bid} ({branches.get(bid)}): {len(series.get(bid, []))} data points")
-    
-    return jsonify({"ok": True, "labels": labels, "series": [{"branch_id": bid, "branch_name": branches.get(bid), "data": series.get(bid, [])} for bid in series.keys()]})
+                # Monthly
+                month_start = current_date.replace(day=1)
+                if month_start not in all_dates:
+                    all_dates.append(month_start)
+                # Move to next month
+                if current_date.month == 12:
+                    current_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
+                else:
+                    current_date = current_date.replace(month=current_date.month + 1, day=1)
+        
+        # Convert all dates to string labels for JSON serialization
+        if granularity == 'daily':
+            labels = [d.strftime('%Y-%m-%d') if isinstance(d, date) else str(d) for d in sorted(set(all_dates))]
+        else:
+            labels = [str(d) for d in sorted(set(all_dates))]
+        
+        # Build series with data for all dates (fill missing dates with 0)
+        branches = {b.id: b.name for b in Branch.query.all()}
+        all_branch_ids = set()
+        for period, bid, amt in rows:
+            all_branch_ids.add(int(bid))
+        
+        # If branch_id filter is set, only include that branch
+        if branch_id:
+            all_branch_ids = {branch_id}
+        
+        series = {}
+        for bid in all_branch_ids:
+            series[bid] = []
+            for label in labels:
+                # Get value for this branch and period, default to 0
+                branch_data = out.get(label, {})
+                series[bid].append(branch_data.get(bid, 0.0))
+        
+        # Debug logging
+        print(f"DEBUG: Sales trend query for days={days}, branch_id={branch_id}, product_id={product_id}")
+        print(f"DEBUG: Date range: {start} to {end} (today in PH time)")
+        print(f"DEBUG: Found {len(rows)} total rows")
+        print(f"DEBUG: Labels count: {len(labels)} (includes all dates from {start} to {end})")
+        print(f"DEBUG: Series keys: {list(series.keys())}")
+        for bid in series.keys():
+            print(f"DEBUG: Branch {bid} ({branches.get(bid)}): {len(series.get(bid, []))} data points")
+        
+        return jsonify({"ok": True, "labels": labels, "series": [{"branch_id": bid, "branch_name": branches.get(bid), "data": series.get(bid, [])} for bid in series.keys()]})
+    except Exception as e:
+        import traceback
+        print(f"ERROR in api_sales_trend: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @admin_bp.get("/api/sales/top_products")
 def api_sales_top_products():
