@@ -1202,11 +1202,17 @@ def api_sales_list():
 
     end = datetime.utcnow()
     if to:
-        try: end = datetime.strptime(to, '%Y-%m-%d')
+        try: 
+            # Parse the date and set to end of day (23:59:59.999999) to include the full day
+            end_date = datetime.strptime(to, '%Y-%m-%d')
+            end = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
         except: pass
     start = end - timedelta(days=days or 30)
     if frm:
-        try: start = datetime.strptime(frm, '%Y-%m-%d')
+        try: 
+            # Parse the date and set to start of day (00:00:00) to include the full day
+            start_date = datetime.strptime(frm, '%Y-%m-%d')
+            start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         except: pass
 
     # Get batch code from inventory items (simplified: get first batch for each product/branch)
@@ -1310,11 +1316,17 @@ def api_sales_kpis():
     
     end = datetime.utcnow()
     if to:
-        try: end = datetime.strptime(to, '%Y-%m-%d')
+        try: 
+            # Parse the date and set to end of day (23:59:59.999999) to include the full day
+            end_date = datetime.strptime(to, '%Y-%m-%d')
+            end = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
         except: pass
     start = end - timedelta(days=days or 30)
     if frm:
-        try: start = datetime.strptime(frm, '%Y-%m-%d')
+        try: 
+            # Parse the date and set to start of day (00:00:00) to include the full day
+            start_date = datetime.strptime(frm, '%Y-%m-%d')
+            start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         except: pass
     
     q = db.session.query(func.sum(SalesTransaction.total_amount), func.sum(SalesTransaction.quantity_sold), func.count(SalesTransaction.id))
@@ -1350,7 +1362,7 @@ def api_sales_trend():
     else:
         date_expr = func.to_char(SalesTransaction.transaction_date, 'YYYY-MM')
     q = db.session.query(date_expr.label('period'), SalesTransaction.branch_id, func.sum(SalesTransaction.total_amount).label('amt'))
-    q = q.filter(func.date(SalesTransaction.transaction_date) >= start)
+    q = q.filter(and_(func.date(SalesTransaction.transaction_date) >= start, func.date(SalesTransaction.transaction_date) <= end))
     if branch_id: q = q.filter(SalesTransaction.branch_id == branch_id)
     if product_id: q = q.filter(SalesTransaction.product_id == product_id)
     q = q.group_by('period', SalesTransaction.branch_id).order_by('period')
@@ -1387,11 +1399,17 @@ def api_sales_top_products():
     
     end = datetime.utcnow()
     if to:
-        try: end = datetime.strptime(to, '%Y-%m-%d')
+        try: 
+            # Parse the date and set to end of day (23:59:59.999999) to include the full day
+            end_date = datetime.strptime(to, '%Y-%m-%d')
+            end = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
         except: pass
     start = end - timedelta(days=days or 30)
     if frm:
-        try: start = datetime.strptime(frm, '%Y-%m-%d')
+        try: 
+            # Parse the date and set to start of day (00:00:00) to include the full day
+            start_date = datetime.strptime(frm, '%Y-%m-%d')
+            start = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         except: pass
     # Total sold and sales revenue - start from SalesTransaction and join Product
     q = db.session.query(
