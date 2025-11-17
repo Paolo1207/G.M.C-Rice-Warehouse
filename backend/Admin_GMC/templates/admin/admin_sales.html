@@ -493,17 +493,42 @@
           });
         }
         if (dailyChart) dailyChart.destroy();
-        // Define distinct colors for all branches
-        const branchColors = [
-          '#2e7d32', // Green - Marawoy
-          '#3b82f6', // Blue - Lipa  
-          '#f59e0b', // Orange - Malvar
-          '#dc2626', // Red - Bulacnin
-          '#8b5cf6', // Purple - Boac
-          '#059669', // Teal - Sta. Cruz
-          '#ec4899', // Pink - Additional
-          '#ef4444'  // Light Red - Additional
-        ];
+        
+        // Define distinct colors mapped to specific branch names for consistency
+        const branchColorMap = {
+          'Marawoy': '#2e7d32',      // Green
+          'Lipa': '#3b82f6',         // Blue
+          'Malvar': '#f59e0b',       // Orange
+          'Bulacnin': '#dc2626',     // Red
+          'Boac': '#8b5cf6',         // Purple
+          'Sta. Cruz': '#06b6d4',    // Cyan - unique distinct color
+          'Sta Cruz': '#06b6d4',     // Alternative spelling
+          'default': '#6b7280'       // Gray for unknown branches
+        };
+        
+        // Fallback colors array for branches not in the map
+        const fallbackColors = ['#ec4899', '#ef4444', '#10b981', '#f97316', '#6366f1'];
+        let fallbackIndex = 0;
+        
+        // Function to get color for a branch
+        function getBranchColor(branchName, branchId) {
+          if (!branchName) branchName = 'Branch ' + branchId;
+          const normalizedName = branchName.trim();
+          if (branchColorMap[normalizedName]) {
+            return branchColorMap[normalizedName];
+          }
+          // Try case-insensitive match
+          const lowerName = normalizedName.toLowerCase();
+          for (const [key, color] of Object.entries(branchColorMap)) {
+            if (key.toLowerCase() === lowerName) {
+              return color;
+            }
+          }
+          // Use fallback color
+          const color = fallbackColors[fallbackIndex % fallbackColors.length];
+          fallbackIndex++;
+          return color;
+        }
         
         // Format date labels to remove GMT time component
         const formattedLabels = (j.labels || []).map(label => formatDateLabel(label));
@@ -527,24 +552,35 @@
           return;
         }
         
+        // Sort series by branch name for consistent display order
+        const sortedSeries = [...(j.series || [])].sort((a, b) => {
+          const nameA = (a.branch_name || 'Branch ' + a.branch_id).toLowerCase();
+          const nameB = (b.branch_name || 'Branch ' + b.branch_id).toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+        
         dailyChart = new Chart(el.getContext('2d'), {
           type:'line',
           data:{ 
             labels: formattedLabels, 
-            datasets: (j.series || []).map((s, i) => ({
-              label: s.branch_name || ('Branch ' + s.branch_id), 
-              data: s.data || [], 
-              borderColor: branchColors[i % branchColors.length],
-              backgroundColor: branchColors[i % branchColors.length] + '20', // 20% opacity
-              borderWidth: 3,
-              fill: false, 
-              tension: 0.3,
-              pointBackgroundColor: branchColors[i % branchColors.length],
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }))
+            datasets: sortedSeries.map((s) => {
+              const branchName = s.branch_name || ('Branch ' + s.branch_id);
+              const color = getBranchColor(branchName, s.branch_id);
+              return {
+                label: branchName, 
+                data: s.data || [], 
+                borderColor: color,
+                backgroundColor: color + '20', // 20% opacity
+                borderWidth: 3,
+                fill: false, 
+                tension: 0.3,
+                pointBackgroundColor: color,
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+              };
+            })
           },
           options: {
             responsive: true, 
