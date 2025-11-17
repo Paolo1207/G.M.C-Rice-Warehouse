@@ -258,10 +258,22 @@
 
       document.addEventListener('DOMContentLoaded', init);
       async function init(){
-        await hydrateFilters();
-        bindFilters();
-        await refreshAll();
-        wireExports();
+        try {
+          console.log('Initializing sales module...');
+          await hydrateFilters();
+          bindFilters();
+          await refreshAll();
+          wireExports();
+          console.log('Sales module initialized successfully');
+        } catch (error) {
+          console.error('Error initializing sales module:', error);
+          // Show error message to user
+          const kpiSales = document.getElementById('kpiSales');
+          if (kpiSales) {
+            kpiSales.textContent = 'Error';
+            kpiSales.title = 'Failed to load sales data. Please refresh the page.';
+          }
+        }
       }
 
       function bindFilters(){
@@ -365,7 +377,13 @@
 
       async function refreshAll(){
         updateTrendTitle();
-        await Promise.all([loadKPIs(), loadTrend(), loadTopProducts(), loadTable()]);
+        const paramsStr = params();
+        console.log('Refreshing sales data with params:', paramsStr);
+        try {
+          await Promise.all([loadKPIs(), loadTrend(), loadTopProducts(), loadTable()]);
+        } catch (error) {
+          console.error('Error refreshing sales data:', error);
+        }
       }
 
       function updateTrendTitle(){
@@ -410,21 +428,36 @@
       }
 
       async function loadKPIs(){
-        const j = await fetch('/admin/api/sales/kpis?'+params()).then(r=>r.json());
-        if (!j.ok) {
-          // Show 0 if API fails or returns no data
+        try {
+          const response = await fetch('/admin/api/sales/kpis?'+params());
+          if (!response.ok) {
+            console.error('KPIs API error:', response.status, response.statusText);
+            document.getElementById('kpiSales').textContent = '₱0';
+            document.getElementById('kpiUnits').textContent = '0 kg';
+            document.getElementById('kpiAov').textContent = '₱0';
+            return;
+          }
+          const j = await response.json();
+          if (!j.ok) {
+            console.error('KPIs API returned error:', j.error || 'Unknown error');
+            document.getElementById('kpiSales').textContent = '₱0';
+            document.getElementById('kpiUnits').textContent = '0 kg';
+            document.getElementById('kpiAov').textContent = '₱0';
+            return;
+          }
+          // Ensure we show 0 if values are null/undefined
+          const sales = Number(j.kpis?.month_sales || 0);
+          const units = Number(j.kpis?.units_sold || 0);
+          const aov = Number(j.kpis?.avg_order_value || 0);
+          document.getElementById('kpiSales').textContent = '₱'+sales.toLocaleString();
+          document.getElementById('kpiUnits').textContent = units.toLocaleString() + ' kg';
+          document.getElementById('kpiAov').textContent = '₱'+aov.toLocaleString();
+        } catch (error) {
+          console.error('Error loading KPIs:', error);
           document.getElementById('kpiSales').textContent = '₱0';
           document.getElementById('kpiUnits').textContent = '0 kg';
           document.getElementById('kpiAov').textContent = '₱0';
-          return;
         }
-        // Ensure we show 0 if values are null/undefined
-        const sales = Number(j.kpis?.month_sales || 0);
-        const units = Number(j.kpis?.units_sold || 0);
-        const aov = Number(j.kpis?.avg_order_value || 0);
-        document.getElementById('kpiSales').textContent = '₱'+sales.toLocaleString();
-        document.getElementById('kpiUnits').textContent = units.toLocaleString() + ' kg';
-        document.getElementById('kpiAov').textContent = '₱'+aov.toLocaleString();
       }
 
       // Format date labels to remove GMT time component
@@ -677,27 +710,56 @@
       }
 
       async function loadTopProducts(){
-        const j = await fetch('/admin/api/sales/top_products?'+params()).then(r=>r.json());
-        const tb = document.getElementById('topProductsBody');
-        if (!tb || !j.ok) return;
-        tb.innerHTML = '';
-        (j.rows||[]).forEach((r,idx)=>{
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${idx+1}</td><td>${r.name}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>${Number(r.before||0).toLocaleString()}</td><td>${Number(r.after||0).toLocaleString()}</td><td>₱${Number(r.sales||0).toLocaleString()}</td>`;
-          tb.appendChild(tr);
-        });
+        try {
+          const response = await fetch('/admin/api/sales/top_products?'+params());
+          const j = await response.json();
+          const tb = document.getElementById('topProductsBody');
+          if (!tb || !j.ok) {
+            if (tb) tb.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No data available</td></tr>';
+            return;
+          }
+          tb.innerHTML = '';
+          if (!j.rows || j.rows.length === 0) {
+            tb.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No products found for selected period</td></tr>';
+            return;
+          }
+          (j.rows||[]).forEach((r,idx)=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${idx+1}</td><td>${r.name}</td><td>${Number(r.quantity||0).toLocaleString()}</td><td>${Number(r.before||0).toLocaleString()}</td><td>${Number(r.after||0).toLocaleString()}</td><td>₱${Number(r.sales||0).toLocaleString()}</td>`;
+            tb.appendChild(tr);
+          });
+        } catch (error) {
+          console.error('Error loading top products:', error);
+          const tb = document.getElementById('topProductsBody');
+          if (tb) tb.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">Error loading data</td></tr>';
+        }
       }
 
       async function loadTable(){
-        const j = await fetch('/admin/api/sales?'+params()).then(r=>r.json());
-        const tb = document.querySelector('.sales-log-table tbody');
-        if (!tb || !j.ok) return;
-        tb.innerHTML = '';
-        (j.rows||[]).forEach(r=>{
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${r.date}</td><td>${r.product_name}</td><td>${Number(r.qty).toLocaleString()}</td><td>${r.branch_name}</td><td>₱${Number(r.amount).toLocaleString()}</td>`;
-          tb.appendChild(tr);
-        });
+        try {
+          const response = await fetch('/admin/api/sales?'+params());
+          const j = await response.json();
+          const tb = document.querySelector('.sales-log-table tbody');
+          if (!tb) return;
+          if (!j.ok) {
+            tb.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">No data available</td></tr>';
+            return;
+          }
+          tb.innerHTML = '';
+          if (!j.rows || j.rows.length === 0) {
+            tb.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">No sales found for selected period</td></tr>';
+            return;
+          }
+          (j.rows||[]).forEach(r=>{
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${r.date}</td><td>${r.product_name}</td><td>${Number(r.qty).toLocaleString()}</td><td>${r.branch_name}</td><td>₱${Number(r.amount).toLocaleString()}</td>`;
+            tb.appendChild(tr);
+          });
+        } catch (error) {
+          console.error('Error loading sales table:', error);
+          const tb = document.querySelector('.sales-log-table tbody');
+          if (tb) tb.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">Error loading data</td></tr>';
+        }
       }
 
       function wireExports(){
@@ -770,7 +832,6 @@
                   </tr>
                 </tfoot>
               </table>
-              <script>window.onload = () => window.print();</script>
             </body>
             </html>
           `;
@@ -779,6 +840,8 @@
           w.document.open();
           w.document.write(html);
           w.document.close();
+          // Trigger print after document is loaded
+          w.onload = () => w.print();
         } catch (e) {
           console.error('Print error:', e);
           alert('Failed to print sales log.');
