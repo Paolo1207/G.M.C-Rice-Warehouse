@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - GMC Admin</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/User.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Sidebar directly embedded -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-brand">
+  <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <nav class="sidebar-menu" id="sidebarMenu">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Main</div>
+        <ul>
+          <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li  title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+
+          <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+        </ul>
+      </div>
+      <div class="sidebar-section-divider"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Operations</div>
+        <ul>
+          <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+          <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+
+         
+        </ul>
+      </div>
+      <div class="sidebar-section-divider"></div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Management</div>
+        <ul>
+          <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+
+           <li class="active" title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+           <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+
+        </ul>
+      </div>
+    </nav>
+    <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+      <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+        <div class="sidebar-profile-name sidebar-label" style="margin: 0 auto;">Admin</div>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <ul>
+        <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+      </ul>
+    </div>
+  </aside>
+      </div>
+    </aside>
+    <!-- End Sidebar -->
+    <div class="main-content user-module">
+        <div class="user-header">
+            <h2>👤 User Management</h2>
+            <div class="user-filter-bar">
+                <input type="text" id="searchInput" placeholder="Search by Name, Warehouse ID, or Location...">
+                <button class="add-user-btn" onclick="showAddUserModal()">+ Add New User</button>
+            </div>
+        </div>
+        <div class="user-directory-section">
+            <table class="user-directory-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Warehouse ID</th>
+                        <th>Location</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <!-- Users will be loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Add/Edit User Modal -->
+        <div id="userModal" class="user-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000;">
+            <div class="user-modal-content">
+                <h3 id="modalTitle">Add New User</h3>
+                <form id="userForm" class="user-form">
+                    <input type="hidden" id="userId" value="">
+                    <label>Name:<input type="text" id="userName" required></label>
+                    <label>Email:<input type="email" id="userEmail" required pattern="[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}" title="Please enter a valid email address"></label>
+                    <label>Role:
+                        <select id="userRole" required onchange="toggleBranchField()">
+                            <option value="">Select Role</option>
+                            <option value="admin">Admin</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </label>
+                    <label id="branchLabel" style="display: none;">Assigned Branch:
+                        <select id="userBranch">
+                            <option value="">Select Branch</option>
+                            <option value="Marawoy">Marawoy</option>
+                            <option value="Lipa">Lipa</option>
+                            <option value="Malvar">Malvar</option>
+                            <option value="Bulacnin">Bulacnin</option>
+                            <option value="Bulacnin Main">Bulacnin Main</option>
+                            <option value="Boac">Boac</option>
+                            <option value="Sta. Cruz">Sta. Cruz</option>
+                        </select>
+                    </label>
+                    <div class="user-form-actions">
+                        <button type="submit" id="saveBtn">Save</button>
+                        <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- View User Modal -->
+        <div id="viewModal" class="user-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:1000;">
+            <div class="user-modal-content">
+                <h3>User Details</h3>
+                <div id="userDetails">
+                    <!-- User details will be populated here -->
+                </div>
+                <div class="user-form-actions">
+                    <button type="button" class="cancel-btn" onclick="closeViewModal()">Close</button>
+                </div>
+            </div>
+        </div>
+        <!-- Delete Confirmation Dialog (UI only, hidden by default) -->
+        <div class="delete-confirm-dialog" style="display:none;">
+            <div class="delete-confirm-content">
+                <p>Are you sure you want to delete this user? This action cannot be undone.</p>
+                <button class="confirm-delete-btn">Delete</button>
+                <button class="cancel-delete-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      if (toggleBtn) {
+        toggleBtn.onclick = () => {
+          sidebar.classList.toggle('collapsed');
+          document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+        };
+      }
+
+      // User Management JavaScript
+      let currentUsers = [];
+      let isEditMode = false;
+
+      // Load users on page load
+      document.addEventListener('DOMContentLoaded', function() {
+        loadUsers();
+        setupEventListeners();
+      });
+
+      async function loadUsers() {
+        try {
+          const response = await fetch('/admin/api/users');
+          const data = await response.json();
+          
+          if (data.ok) {
+            currentUsers = data.data;
+            updateUserTable(data.data);
+          } else {
+            console.error('Failed to load users:', data.error);
+            alert('Failed to load users: ' + data.error);
+          }
+        } catch (error) {
+          console.error('Error loading users:', error);
+          alert('Error loading users. Please try again.');
+        }
+      }
+
+      function updateUserTable(users) {
+        const tableBody = document.getElementById('usersTableBody');
+        if (!tableBody) return;
+        
+        tableBody.innerHTML = '';
+        
+        users.forEach(user => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${user.name}</td>
+            <td>${user.warehouse_id}</td>
+            <td>${user.location}</td>
+            <td><span class="role-badge ${user.role.toLowerCase()}">${user.role}</span></td>
+            <td>
+              <button class="view-btn" onclick="viewUser(${user.id})">View</button>
+              <button class="edit-btn" onclick="editUser(${user.id})">Edit</button>
+              <button class="delete-btn" onclick="deleteUser(${user.id})">Delete</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      function setupEventListeners() {
+        // Search input event listener
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+          searchInput.addEventListener('input', handleSearch);
+        }
+
+        // User form submission
+        const userForm = document.getElementById('userForm');
+        if (userForm) {
+          userForm.addEventListener('submit', handleUserSubmit);
+        }
+
+        // Real-time email validation
+        const emailInput = document.getElementById('userEmail');
+        if (emailInput) {
+          emailInput.addEventListener('blur', function() {
+            const email = this.value;
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            
+            if (email && !emailPattern.test(email)) {
+              this.style.borderColor = '#e57373';
+              this.style.backgroundColor = '#ffebee';
+            } else {
+              this.style.borderColor = '#ddd';
+              this.style.backgroundColor = '#fff';
+            }
+          });
+        }
+      }
+
+      // Search function
+      function handleSearch() {
+        const searchInput = document.getElementById('searchInput');
+        const query = searchInput.value.toLowerCase().trim();
+        
+        if (!query) {
+          updateUserTable(currentUsers);
+          return;
+        }
+        
+        const filteredUsers = currentUsers.filter(user => 
+          user.name.toLowerCase().includes(query) ||
+          user.warehouse_id.toLowerCase().includes(query) ||
+          user.location.toLowerCase().includes(query) ||
+          user.role.toLowerCase().includes(query) ||
+          (user.email && user.email.toLowerCase().includes(query))
+        );
+        
+        updateUserTable(filteredUsers);
+      }
+
+      // Toggle branch field based on role
+      function toggleBranchField() {
+        const roleSelect = document.getElementById('userRole');
+        const branchLabel = document.getElementById('branchLabel');
+        const branchSelect = document.getElementById('userBranch');
+        
+        if (roleSelect.value === 'manager') {
+          branchLabel.style.display = 'block';
+          branchSelect.required = true;
+        } else {
+          branchLabel.style.display = 'none';
+          branchSelect.required = false;
+          branchSelect.value = ''; // Clear branch selection when not manager
+        }
+      }
+
+      function showAddUserModal() {
+        isEditMode = false;
+        document.getElementById('modalTitle').textContent = 'Add New User';
+        document.getElementById('saveBtn').textContent = 'Save';
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = '';
+        // Reset branch field visibility
+        toggleBranchField();
+        const modal = document.getElementById('userModal');
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+      }
+
+      function viewUser(userId) {
+        const user = currentUsers.find(u => u.id === userId);
+        if (!user) return;
+
+        const userDetails = document.getElementById('userDetails');
+        userDetails.innerHTML = `
+          <div class="user-detail-item">
+            <strong>Name:</strong> ${user.name}
+          </div>
+          <div class="user-detail-item">
+            <strong>Email:</strong> ${user.email}
+          </div>
+          <div class="user-detail-item">
+            <strong>Warehouse ID:</strong> ${user.warehouse_id}
+          </div>
+          <div class="user-detail-item">
+            <strong>Branch:</strong> ${user.branch_name}
+          </div>
+          <div class="user-detail-item">
+            <strong>Location:</strong> ${user.location}
+          </div>
+          <div class="user-detail-item">
+            <strong>Role:</strong> <span class="role-badge ${user.role.toLowerCase()}">${user.role}</span>
+          </div>
+        `;
+        
+        const modal = document.getElementById('viewModal');
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+      }
+
+      function editUser(userId) {
+        const user = currentUsers.find(u => u.id === userId);
+        if (!user) return;
+
+        isEditMode = true;
+        document.getElementById('modalTitle').textContent = 'Edit User';
+        document.getElementById('saveBtn').textContent = 'Update';
+        document.getElementById('userId').value = user.id;
+        document.getElementById('userName').value = user.name;
+        document.getElementById('userEmail').value = user.email;
+        document.getElementById('userRole').value = user.role;
+        // Set branch value and toggle visibility based on role
+        toggleBranchField();
+        if (user.role === 'manager') {
+          document.getElementById('userBranch').value = user.branch_name || '';
+        }
+        const modal = document.getElementById('userModal');
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100vw';
+        modal.style.height = '100vh';
+      }
+
+      async function handleUserSubmit(event) {
+        event.preventDefault();
+        
+        // Email validation
+        const email = document.getElementById('userEmail').value;
+        const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        
+        if (!emailPattern.test(email)) {
+          alert('Please enter a valid email address (e.g., user@example.com)');
+          return;
+        }
+        
+        const formData = {
+          email: email,
+          role: document.getElementById('userRole').value,
+        };
+        
+        // Only include branch_name if role is manager
+        const role = document.getElementById('userRole').value;
+        if (role === 'manager') {
+          const branchName = document.getElementById('userBranch').value;
+          if (!branchName) {
+            alert('Please select a branch for manager role.');
+            return;
+          }
+          formData.branch_name = branchName;
+        } else {
+          formData.branch_name = null; // Clear branch for admin
+        }
+
+        try {
+          let response;
+          if (isEditMode) {
+            const userId = document.getElementById('userId').value;
+            response = await fetch(`/admin/api/users/${userId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(formData)
+            });
+          } else {
+            response = await fetch('/admin/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(formData)
+            });
+          }
+          
+          const result = await response.json();
+          
+          if (result.ok) {
+            alert(isEditMode ? 'User updated successfully!' : 'User created successfully!');
+            closeModal();
+            loadUsers();
+          } else {
+            alert('Error: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error saving user. Please try again.');
+        }
+      }
+
+      async function deleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/admin/api/users/${userId}`, {
+            method: 'DELETE'
+          });
+          
+          const result = await response.json();
+          
+          if (result.ok) {
+            alert('User deleted successfully!');
+            loadUsers();
+          } else {
+            alert('Error: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Error deleting user. Please try again.');
+        }
+      }
+
+      function closeModal() {
+        document.getElementById('userModal').style.display = 'none';
+      }
+
+      function closeViewModal() {
+        document.getElementById('viewModal').style.display = 'none';
+      }
+
+      // Close modals when clicking outside
+      window.onclick = function(event) {
+        const userModal = document.getElementById('userModal');
+        const viewModal = document.getElementById('viewModal');
+        
+        if (event.target === userModal) {
+          closeModal();
+        }
+        if (event.target === viewModal) {
+          closeViewModal();
+        }
+      }
+    </script>
+</body>
+</html>

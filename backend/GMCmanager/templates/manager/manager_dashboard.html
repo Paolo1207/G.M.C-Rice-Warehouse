@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Dashboard - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager static assets -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/dashboard.css') }}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Notification Popup System -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/notification-popup.css') }}">
+  <script src="{{ url_for('manager.static', filename='js/notification-popup.js') }}" defer></script>
+  
+  <style>
+    .chart-controls {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 15px;
+      gap: 10px;
+    }
+    
+    .chart-period {
+      padding: 8px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      background: white;
+      font-size: 14px;
+      color: #4a5568;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .chart-period:hover {
+      border-color: #1a365d;
+      box-shadow: 0 2px 4px rgba(26, 54, 93, 0.1);
+    }
+    
+    .chart-period:focus {
+      outline: none;
+      border-color: #1a365d;
+      box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+    }
+    
+    /* Fix chart container styling */
+    .chart-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      min-height: 400px;
+    }
+    
+    .chart-container canvas {
+      max-height: 400px !important;
+      min-height: 300px !important;
+    }
+    
+    /* Ensure chart containers have proper dimensions */
+    #salesTrendChart,
+    #forecastVsActualChart,
+    #topProductsChart {
+      display: block !important;
+      width: 100% !important;
+      height: 400px !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+         <ul>
+            <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <!-- FIXED: qualify endpoints to manager.* -->
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="dashboard-container">
+
+        <!-- Overview Cards -->
+        <div class="overview-cards">
+          <div class="card">
+            <div class="card-icon">
+              <i class="fas fa-dollar-sign"></i>
+            </div>
+            <div class="card-content">
+              <h3>Today's Sales</h3>
+              <p class="number" id="today-sales">₱0</p>
+              <p class="trend positive">
+                <i class="fas fa-arrow-up"></i>
+                Real-time data
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="card-content">
+              <h3>This Month Sales</h3>
+              <p class="number" id="month-sales">₱0</p>
+              <p class="trend positive">
+                <i class="fas fa-arrow-up"></i>
+                Current month total
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon warning">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="card-content">
+              <h3>Low Stock Items</h3>
+              <p class="number" id="low-stock-count">0</p>
+              <p class="trend negative">
+                <i class="fas fa-arrow-up"></i>
+                Items below warning level
+              </p>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon success">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="card-content">
+              <h3>Total Orders</h3>
+              <p class="number" id="total-orders">0</p>
+              <p class="trend positive">
+                <i class="fas fa-arrow-up"></i>
+                This branch only
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alerts and Announcements -->
+        <div class="dashboard-grid">
+          <div class="grid-item">
+            <h3><i class="fas fa-bell"></i> Real-time Alerts</h3>
+            <div class="alert-list" id="realTimeAlerts">
+              <div class="alert-item info" style="text-align: center; padding: 20px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading alerts...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-item">
+            <h3><i class="fas fa-bullhorn"></i> Announcements</h3>
+            <div class="announcement-list" id="branchAnnouncements">
+              <div class="announcement-item" style="text-align: center; padding: 20px;">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading announcements...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales Trend Chart -->
+        <div class="chart-container">
+          <h3><i class="fas fa-chart-line"></i> Sales Trend</h3>
+          <div class="chart-controls">
+            <select class="chart-period" id="salesTrendPeriod">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+          <canvas id="salesTrendChart" style="height: 400px; width: 100%;"></canvas>
+        </div>
+
+        <!-- Forecast vs Actual Chart -->
+        <div class="chart-container">
+          <h3><i class="fas fa-chart-line"></i> Forecast vs Actual</h3>
+          <div class="chart-controls">
+            <select class="chart-period" id="forecastPeriod">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+          </div>
+          <canvas id="forecastVsActualChart" style="height: 400px; width: 100%;"></canvas>
+        </div>
+
+        <!-- Top Products Chart -->
+        <div class="chart-container">
+          <h3><i class="fas fa-chart-bar"></i> Top Products This Month</h3>
+          <canvas id="topProductsChart" style="height: 400px; width: 100%;"></canvas>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- FIXED: manager static JS -->
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+
+  <script>
+    // Prevent multiple initializations
+    let dashboardInitialized = false;
+    let chartsInitialized = false;
+    
+    document.addEventListener('DOMContentLoaded', function () { 
+      updateBranchTitle();
+      if (!dashboardInitialized) {
+        // Add delay to ensure DOM is fully ready
+        setTimeout(() => {
+          initDashboard();
+        }, 500);
+        dashboardInitialized = true;
+      }
+      
+      // Listen for purchase/sales updates and refresh dashboard
+      window.addEventListener('purchaseDataUpdated', () => {
+        console.log('Purchase data updated, refreshing dashboard KPIs...');
+        loadKPIData();
+        loadSalesTrendData();
+      });
+      window.addEventListener('salesDataUpdated', () => {
+        console.log('Sales data updated, refreshing dashboard...');
+        loadKPIData();
+        loadSalesTrendData();
+      });
+      
+      // Auto-refresh KPIs every 30 seconds
+      setInterval(() => {
+        loadKPIData();
+      }, 30000);
+    });
+
+    // Load KPI data from API
+    async function loadKPIData() {
+      try {
+        // Get branch_id from template variables or URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        parseInt(urlParams.get('branch_id')) || 
+                        parseInt(urlParams.get('branch')) ||
+                        null;
+        
+        // Use manager-specific API endpoint with branch_id
+        let apiUrl = '/manager/api/dashboard/kpis';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        console.log('Loading KPIs for branch:', branchId, 'URL:', apiUrl);
+        console.log('  - Template branch_id:', {{ branch_id if branch_id else 'null' }});
+        console.log('  - URL branch_id:', urlParams.get('branch_id'));
+        console.log('  - URL branch:', urlParams.get('branch'));
+        console.log('  - Final branchId used:', branchId);
+        
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+          const kpis = data.kpis;
+          
+          // Update KPI cards with real data
+          document.getElementById('today-sales').textContent = '₱' + kpis.today_sales.toLocaleString();
+          document.getElementById('month-sales').textContent = '₱' + kpis.month_sales.toLocaleString();
+          document.getElementById('low-stock-count').textContent = kpis.low_stock_count;
+          document.getElementById('total-orders').textContent = kpis.total_orders.toLocaleString();
+        }
+      } catch (error) {
+        console.error('Error loading KPI data:', error);
+      }
+    }
+
+    // Load Real-time Alerts
+    async function loadAlerts() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        parseInt(urlParams.get('branch_id')) || 
+                        parseInt(urlParams.get('branch')) ||
+                        null;
+        
+        let apiUrl = '/manager/api/dashboard/alerts';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const alertsContainer = document.getElementById('realTimeAlerts');
+        if (!alertsContainer) return;
+        
+        if (data.ok && data.alerts && data.alerts.length > 0) {
+          alertsContainer.innerHTML = data.alerts.map(alert => {
+            const severityClass = alert.severity === 'warning' ? 'warning' : 
+                                  alert.severity === 'caution' ? 'caution' : 'info';
+            return `
+              <div class="alert-item ${severityClass}">
+                <i class="fas fa-${alert.icon}"></i>
+                <span>${alert.message}</span>
+              </div>
+            `;
+          }).join('');
+        } else {
+          alertsContainer.innerHTML = `
+            <div class="alert-item info" style="text-align: center; padding: 20px;">
+              <i class="fas fa-check-circle"></i>
+              <span>All systems operational. No alerts at this time.</span>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading alerts:', error);
+        const alertsContainer = document.getElementById('realTimeAlerts');
+        if (alertsContainer) {
+          alertsContainer.innerHTML = `
+            <div class="alert-item info" style="text-align: center; padding: 20px;">
+              <i class="fas fa-info-circle"></i>
+              <span>Unable to load alerts. Please refresh the page.</span>
+            </div>
+          `;
+        }
+      }
+    }
+
+    // Load Branch Announcements
+    async function loadAnnouncements() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        parseInt(urlParams.get('branch_id')) || 
+                        parseInt(urlParams.get('branch')) ||
+                        null;
+        
+        let apiUrl = '/manager/api/dashboard/announcements';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        const announcementsContainer = document.getElementById('branchAnnouncements');
+        if (!announcementsContainer) return;
+        
+        if (data.ok && data.announcements && data.announcements.length > 0) {
+          announcementsContainer.innerHTML = data.announcements.map(ann => {
+            // Extract title from message (first line or first 50 chars)
+            const title = ann.title || ann.message.split('\n')[0].substring(0, 50);
+            const description = ann.message.length > 100 ? ann.message.substring(0, 100) + '...' : ann.message;
+            
+            return `
+              <div class="announcement-item">
+                <div class="announcement-header">
+                  <span class="title">${title}</span>
+                  <span class="date">${ann.date}</span>
+                </div>
+                <p>${description}</p>
+              </div>
+            `;
+          }).join('');
+        } else {
+          announcementsContainer.innerHTML = `
+            <div class="announcement-item" style="text-align: center; padding: 20px;">
+              <i class="fas fa-info-circle"></i>
+              <p>No announcements at this time.</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        console.error('Error loading announcements:', error);
+        const announcementsContainer = document.getElementById('branchAnnouncements');
+        if (announcementsContainer) {
+          announcementsContainer.innerHTML = `
+            <div class="announcement-item" style="text-align: center; padding: 20px;">
+              <i class="fas fa-info-circle"></i>
+              <p>Unable to load announcements. Please refresh the page.</p>
+            </div>
+          `;
+        }
+      }
+    }
+
+    // Load all chart data (initial load)
+    async function loadChartData() {
+      if (chartsInitialized) {
+        console.log('Charts already initialized, skipping...');
+        return;
+      }
+      
+      console.log('Loading all chart data...');
+      chartsInitialized = true;
+      
+      // Reset charts initialized flag when period changes so charts can reload
+      chartsInitialized = false;
+      
+      // Load charts sequentially to prevent conflicts
+      await loadSalesTrendData();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await loadForecastData();
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await loadTopProductsData();
+    }
+
+    // Load Sales Trend data with its own filters
+    async function loadSalesTrendData() {
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+
+        const params = new URLSearchParams();
+        if (branchId) params.append('branch_id', branchId);
+        if (salesTrendPeriod) params.append('days', salesTrendPeriod);
+
+        console.log('Loading Sales Trend with filters:', { salesTrendPeriod, branchId });
+
+        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        console.log('Sales Trend API response:', data);
+        
+        if (data.ok && data.charts && data.charts.sales_trend) {
+          console.log('Sales trend data:', data.charts.sales_trend);
+          updateSalesTrendChart(data.charts.sales_trend, salesTrendPeriod);
+        } else {
+          console.error('Sales trend API returned error:', data.error || 'Unknown error');
+        }
+      } catch (error) {
+        console.error('Error loading sales trend data:', error);
+      }
+    }
+
+    // Load Forecast data with its own filters
+    async function loadForecastData() {
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
+
+        const params = new URLSearchParams();
+        if (branchId) params.append('branch_id', branchId);
+        if (forecastPeriod) params.append('days', forecastPeriod);
+
+        console.log('Loading Forecast with filters:', { forecastPeriod, branchId });
+
+        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+          updateForecastVsActualChart(data.charts.forecast_vs_actual);
+        }
+      } catch (error) {
+        console.error('Error loading forecast data:', error);
+      }
+    }
+
+    // Load Top Products data with its own filters
+    async function loadTopProductsData() {
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+
+        const params = new URLSearchParams();
+        if (branchId) params.append('branch_id', branchId);
+
+        console.log('Loading Top Products with filters:', { branchId });
+
+        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`, {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+          updateTopProductsChart(data.charts.top_products);
+        }
+      } catch (error) {
+        console.error('Error loading top products data:', error);
+      }
+    }
+
+    function initDashboard() {
+      // Check if chart canvases exist
+      const salesCanvas = document.getElementById('salesTrendChart');
+      const forecastCanvas = document.getElementById('forecastVsActualChart');
+      const topProductsCanvas = document.getElementById('topProductsChart');
+      
+      if (!salesCanvas || !forecastCanvas || !topProductsCanvas) {
+        console.error('Chart canvases not found, retrying in 1 second...');
+        setTimeout(initDashboard, 1000);
+        return;
+      }
+      
+      console.log('All chart canvases found, initializing dashboard...');
+      
+      // Load real data
+      loadKPIData();
+      loadChartData();
+      loadAlerts();
+      loadAnnouncements();
+      
+      // Setup filter event listeners
+      setupFilterListeners();
+      
+      // Auto-refresh alerts and announcements every 60 seconds
+      setInterval(() => {
+        loadAlerts();
+        loadAnnouncements();
+      }, 60000);
+    }
+
+    // Update Sales Trend Chart
+    function updateSalesTrendChart(data, periodDays = 30) {
+      const ctx = document.getElementById('salesTrendChart');
+      if (!ctx) {
+        console.error('Sales trend chart canvas not found');
+        return;
+      }
+
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Sales Trend Chart with data:', data);
+
+      // Only destroy if chart exists and is not already being updated
+      if (window.salesTrendChart && typeof window.salesTrendChart.destroy === 'function' && !window.salesTrendChart._updating) {
+        console.log('Destroying existing sales trend chart');
+        window.salesTrendChart.destroy();
+        window.salesTrendChart = null;
+      }
+
+      // Handle empty data - ensure we have valid structure
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        console.log('No sales trend data, using fallback');
+        data = [{ date: 'No Data', sales: 0 }];
+      }
+
+      // Map data correctly - backend returns { date, sales, quantity }
+      const labels = data.map(item => {
+        // Format date for display (YYYY-MM-DD -> MM/DD)
+        if (item.date) {
+          const dateParts = item.date.split('-');
+          if (dateParts.length === 3) {
+            return `${dateParts[1]}/${dateParts[2]}`;
+          }
+          return item.date;
+        }
+        return 'No Data';
+      });
+      const salesData = data.map(item => parseFloat(item.sales || item.total_sales || 0));
+
+      console.log('Sales trend labels:', labels);
+      console.log('Sales trend data:', salesData);
+
+      // Set updating flag to prevent multiple updates
+      if (window.salesTrendChart) {
+        window.salesTrendChart._updating = true;
+      }
+      
+      try {
+        window.salesTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Daily Sales (₱)',
+            data: salesData,
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#1a365d',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            title: { 
+              display: true, 
+              text: `Sales Trend (Last ${periodDays} Days)`,
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#1a365d',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return '₱' + context.parsed.y.toLocaleString();
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                callback: function(value) {
+                  return '₱' + value.toLocaleString();
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 }
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
+      
+      // Mark chart as successfully created
+      if (window.salesTrendChart) {
+        window.salesTrendChart._updating = false;
+        console.log('Sales trend chart created successfully');
+      }
+      
+      } catch (error) {
+        console.error('Error creating sales trend chart:', error);
+        if (window.salesTrendChart) {
+          window.salesTrendChart._updating = false;
+        }
+      }
+    }
+
+    // Update Forecast vs Actual Chart
+    function updateForecastVsActualChart(data) {
+      const ctx = document.getElementById('forecastVsActualChart');
+      if (!ctx) {
+        console.error('Forecast vs Actual chart canvas not found');
+        return;
+      }
+
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Forecast vs Actual Chart with data:', data);
+
+      if (window.forecastVsActualChart && typeof window.forecastVsActualChart.destroy === 'function') {
+        console.log('Destroying existing forecast vs actual chart');
+        window.forecastVsActualChart.destroy();
+        window.forecastVsActualChart = null;
+      }
+
+      // Handle empty data
+      if (!data || data.length === 0) {
+        console.log('No forecast vs actual data, using fallback');
+        data = [{ date: 'No Data', actual: 0, forecast: 0 }];
+      }
+
+      const labels = data.map(item => item.date);
+      const actualData = data.map(item => item.actual);
+      const forecastData = data.map(item => item.forecast);
+
+      window.forecastVsActualChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Actual Sales (kg)',
+            data: actualData,
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            borderWidth: 3,
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: '#1a365d',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }, {
+            label: 'Forecast (kg)',
+            data: forecastData,
+            borderColor: '#ecc94b',
+            backgroundColor: 'rgba(236, 201, 75, 0.1)',
+            borderWidth: 3,
+            borderDash: [5, 5],
+            fill: false,
+            tension: 0.4,
+            pointBackgroundColor: '#ecc94b',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
+          plugins: {
+            legend: { 
+              display: true,
+              position: 'top'
+            },
+            title: { 
+              display: true, 
+              text: 'Forecast vs Actual Sales',
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#1a365d',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              title: { 
+                display: true, 
+                text: 'Quantity (kg)',
+                font: { size: 12, weight: 'bold' }
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString() + ' kg';
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 }
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          }
+        }
+      });
+    }
+
+    // Update Top Products Chart
+    function updateTopProductsChart(data) {
+      const ctx = document.getElementById('topProductsChart');
+      if (!ctx) {
+        console.error('Top products chart canvas not found');
+        return;
+      }
+
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Top Products Chart with data:', data);
+
+      if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
+        console.log('Destroying existing top products chart');
+        window.topProductsChart.destroy();
+        window.topProductsChart = null;
+      }
+
+      // Handle empty data
+      if (!data || data.length === 0) {
+        console.log('No top products data, using fallback');
+        data = [{ name: 'No Data', quantity: 0 }];
+      }
+
+      const labels = data.map(item => item.name);
+      const quantities = data.map(item => item.quantity);
+
+      window.topProductsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Quantity Sold (kg)',
+            data: quantities,
+            backgroundColor: [
+              'rgba(26, 54, 93, 0.8)',
+              'rgba(59, 130, 246, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(139, 92, 246, 0.8)',
+              'rgba(236, 72, 153, 0.8)'
+            ],
+            borderColor: [
+              '#1a365d',
+              '#3b82f6',
+              '#f59e0b',
+              '#8b5cf6',
+              '#ec4899'
+            ],
+            borderWidth: 2,
+            borderRadius: 8,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
+          plugins: {
+            legend: { 
+              display: false 
+            },
+            title: {
+              display: true,
+              text: 'Top 5 Products This Month',
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#1a365d',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return context.parsed.y.toLocaleString() + ' kg';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              title: { 
+                display: true, 
+                text: 'Quantity (kg)',
+                font: { size: 12, weight: 'bold' }
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString() + ' kg';
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Setup filter event listeners
+    function setupFilterListeners() {
+      // Sales trend filter
+      const salesTrendPeriod = document.getElementById('salesTrendPeriod');
+      if (salesTrendPeriod) {
+        salesTrendPeriod.addEventListener('change', () => {
+          console.log('Sales Trend Period changed to:', salesTrendPeriod.value);
+          loadSalesTrendData();
+        });
+      }
+
+      // Forecast filter
+      const forecastPeriod = document.getElementById('forecastPeriod');
+      if (forecastPeriod) {
+        forecastPeriod.addEventListener('change', () => {
+          console.log('Forecast Period changed to:', forecastPeriod.value);
+          loadForecastData();
+        });
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                        type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Dashboard - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+</body>
+</html>

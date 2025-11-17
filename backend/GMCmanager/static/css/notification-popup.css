@@ -1,0 +1,198 @@
+/**
+ * Manager Notification Popup Styles
+ */
+
+.manager-notification-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    min-width: 320px;
+    max-width: 400px;
+    animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.manager-notification-popup .popup-content {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    gap: 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.manager-notification-popup .popup-icon {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.manager-notification-popup .popup-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.manager-notification-popup .popup-text h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.25;
+}
+
+.manager-notification-popup .popup-text p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.manager-notification-popup .popup-close {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.manager-notification-popup .popup-close:hover {
+    color: #6b7280;
+    background: #f3f4f6;
+}
+
+.manager-notification-popup .popup-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem;
+}
+
+.manager-notification-popup .btn {
+    flex: 1;
+    padding: 0.625rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    text-align: center;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.manager-notification-popup .btn.primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+.manager-notification-popup .btn.primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.manager-notification-popup .btn.secondary {
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.manager-notification-popup .btn.secondary:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+    .manager-notification-popup {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+        max-width: none;
+    }
+    
+    .manager-notification-popup .popup-actions {
+        flex-direction: column;
+    }
+    
+    .manager-notification-popup .btn {
+        width: 100%;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .manager-notification-popup {
+        background: #1f2937;
+        border-color: #374151;
+    }
+    
+    .manager-notification-popup .popup-content {
+        border-bottom-color: #374151;
+    }
+    
+    .manager-notification-popup .popup-text h4 {
+        color: #f9fafb;
+    }
+    
+    .manager-notification-popup .popup-text p {
+        color: #d1d5db;
+    }
+    
+    .manager-notification-popup .popup-close {
+        color: #9ca3af;
+    }
+    
+    .manager-notification-popup .popup-close:hover {
+        color: #d1d5db;
+        background: #374151;
+    }
+    
+    .manager-notification-popup .btn.secondary {
+        background: #374151;
+        color: #d1d5db;
+        border-color: #4b5563;
+    }
+    
+    .manager-notification-popup .btn.secondary:hover {
+        background: #4b5563;
+        border-color: #6b7280;
+    }
+}

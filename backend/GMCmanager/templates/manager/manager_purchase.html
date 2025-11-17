@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Purchase - G.M.C. Rice Warehouse</title>
+
+  <!-- Styles -->
+<link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('manager.static', filename='css/purchase.css') }}">
+
+
+  <!-- Icons & Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Notification Popup System -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/notification-popup.css') }}">
+  <script src="{{ url_for('manager.static', filename='js/notification-popup.js') }}" defer></script>
+  
+  <!-- XLSX Library for Excel Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <style>
+    /* Purchases header styles */
+    .purchases-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .purchases-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    /* Multi-item purchase styles */
+    .purchase-item {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      background: #f9fafb;
+      position: relative;
+    }
+    
+    .purchase-item-header {
+      display: flex;
+      justify-content: between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    
+    .purchase-item-title {
+      font-weight: 600;
+      color: #374151;
+      margin: 0;
+    }
+    
+    .purchase-item-remove {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .purchase-item-remove:hover {
+      background: #dc2626;
+      transform: scale(1.05);
+    }
+    
+    .totals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      background: #f3f4f6;
+      border-radius: 8px;
+    }
+    
+    .total-item {
+      text-align: center;
+      padding: 1rem;
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .total-item label {
+      display: block;
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .total-item span {
+      display: block;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1f2937;
+    }
+    
+    .btn.small {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .item-totals {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f8fafc;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .item-total {
+      text-align: center;
+    }
+    
+    .item-total label {
+      display: block;
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-bottom: 0.25rem;
+    }
+    
+    .item-total span {
+      display: block;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6b7280;
+    }
+    
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      color: #d1d5db;
+    }
+    
+    .empty-state h4 {
+      margin: 0 0 0.5rem 0;
+      color: #374151;
+    }
+    
+    .empty-state p {
+      margin: 0;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a class="active" href="{{ url_for('manager.purchase') }}" class="active"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.reports') }}"><i class="fas fa-file-alt"></i> All Reports</a></li>
+            <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="purchase-container">
+        <div class="purchase-header">
+          <h2><i class="fas fa-clipboard-list"></i> Rice Sales Logbook</h2>
+          <div class="purchase-actions">
+            <button class="btn primary" onclick="showPurchaseHistory()">
+              <i class="fas fa-history"></i> Purchase History
+            </button>
+          </div>
+        </div>
+
+        <!-- Purchase Form -->
+        <div class="purchase-form-container">
+          <div class="form-card">
+            <div class="form-header">
+              <h3><i class="fas fa-plus-circle"></i> Record Transaction</h3>
+              <p>Track sales, inventory, and discrepancies for multiple rice varieties</p>
+            </div>
+
+            <form id="purchaseForm" onsubmit="handleBulkPurchaseSubmit(event)">
+              <!-- Transaction Date -->
+              <div class="form-section">
+                <div class="section-title"><i class="fas fa-calendar"></i> Transaction Date</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="purchaseDate">Date *</label>
+                    <input type="date" id="purchaseDate" required>
+                  </div>
+                  </div>
+                </div>
+
+              <!-- Purchase Items -->
+              <div class="form-section">
+                <div class="section-title">
+                  <i class="fas fa-list"></i> Purchase Items
+                  <button type="button" class="btn secondary small" onclick="addPurchaseItem()">
+                    <i class="fas fa-plus"></i> Add Item
+                  </button>
+                  </div>
+
+                <div id="purchaseItems">
+                  <!-- Items will be dynamically added here -->
+                  </div>
+                </div>
+
+              <!-- Grand Totals -->
+              <div class="form-section">
+                <div class="section-title"><i class="fas fa-calculator"></i> Grand Totals</div>
+                <div class="totals-grid">
+                  <div class="total-item">
+                    <label>Total Items</label>
+                    <span id="grandTotalItems">0</span>
+                  </div>
+                  <div class="total-item">
+                    <label>Total Sold (kg)</label>
+                    <span id="grandTotalSold">0.00</span>
+                  </div>
+                  <div class="total-item">
+                    <label>Total Amount (₱)</label>
+                    <span id="grandTotalAmount">₱0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions sticky">
+                <button type="submit" class="btn primary">
+                  <i class="fas fa-save"></i> Record All Items
+                </button>
+                <button type="button" class="btn secondary" onclick="resetForm()">
+                  <i class="fas fa-undo"></i> Reset Form
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Recent Purchases -->
+        <div class="recent-purchases">
+          <div class="purchases-header">
+          <h3><i class="fas fa-clock"></i> Recent Logbook Entries</h3>
+            <div class="purchases-actions">
+              <button type="button" class="btn secondary" onclick="exportLogbookToExcel()">
+                <i class="fas fa-file-excel"></i> Export to Excel
+              </button>
+            </div>
+          </div>
+          <div class="purchases-table-container">
+            <table class="purchases-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Variety</th>
+                  <th>Batch</th>
+                  <th>Price/kg</th>
+                  <th>Initial</th>
+                  <th>Sold (kg)</th>
+                  <th>Total (₱)</th>
+                  <th>Est Rem</th>
+                </tr>
+              </thead>
+              <tbody id="recentPurchasesTable">
+                <!-- Rows populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+  <script>
+    const STORAGE_KEY = 'gmc_logbook_entries';
+    const PRICE_MAP = {
+      'dog-rice': 40,
+      'happy-fiesta': 41,
+      'magnolia': 42,
+      'dinorado': 45.5,
+      'sinandomeng': 38.75,
+      'jasmine': 52,
+      'basmati': 60,
+      'brown-rice': 55,
+      'sticky-rice': 50
+    };
+
+    let itemCounter = 0;
+    let managerBranchId = null;
+    let availableRiceVarieties = [];
+    let currentStockByKey = {}; // current inventory in kg per variety key for the branch
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', initPurchase);
+
+    async function initPurchase() {
+      const today = new Date().toISOString().split('T')[0];
+      const dateEl = document.getElementById('purchaseDate');
+      if (dateEl) dateEl.value = today;
+
+      // Get manager branch from URL
+      const urlParams = new URLSearchParams(window.location.search);
+      managerBranchId = urlParams.get('branch') || '1';
+
+      // Load available rice varieties from manager's inventory
+      await loadAvailableRiceVarieties();
+      
+      // Add first item by default
+      addPurchaseItem();
+      
+      loadRecentPurchases();
+      updateBranchTitle();
+    }
+
+    async function loadAvailableRiceVarieties() {
+      try {
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        console.log('Loading rice varieties for branch:', branchId, 'URL:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        console.log('Inventory API response:', data);
+        
+        if (data.ok && data.items && data.items.length > 0) {
+          // Extract unique rice varieties from inventory with their prices
+          const varietyMap = new Map();
+          
+          data.items.forEach(item => {
+            if (item.product_name) {
+              const key = item.product_name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+              if (!varietyMap.has(key)) {
+                varietyMap.set(key, {
+                  name: item.product_name,
+                  key: key,
+                  price: item.price || getDefaultPriceForVariety(item.product_name)
+                });
+              }
+              // Capture current stock in kg from possible fields
+              const stockKg = (item.quantity_kg ?? item.stock_kg ?? item.stock ?? item.quantity ?? 0);
+              currentStockByKey[key] = parseFloat(stockKg) || 0;
+            }
+          });
+          
+          availableRiceVarieties = Array.from(varietyMap.values());
+          
+          // Update PRICE_MAP with actual inventory prices
+          availableRiceVarieties.forEach(variety => {
+            PRICE_MAP[variety.key] = variety.price;
+          });
+          
+          console.log('Loaded rice varieties from inventory:', availableRiceVarieties);
+          console.log('Updated PRICE_MAP:', PRICE_MAP);
+        } else {
+          console.warn('Failed to load inventory, using fallback varieties. API response:', data);
+          // Fallback to hardcoded varieties if API fails
+          availableRiceVarieties = [
+            { name: 'Dog Rice', key: 'dog-rice', price: 40 },
+            { name: 'Happy Fiesta', key: 'happy-fiesta', price: 41 },
+            { name: 'Magnolia', key: 'magnolia', price: 42 },
+            { name: 'Dinorado', key: 'dinorado', price: 45.5 },
+            { name: 'Sinandomeng', key: 'sinandomeng', price: 38.75 },
+            { name: 'Jasmine Rice', key: 'jasmine', price: 52 },
+            { name: 'Basmati Rice', key: 'basmati', price: 60 },
+            { name: 'Brown Rice', key: 'brown-rice', price: 55 },
+            { name: 'Sticky Rice', key: 'sticky-rice', price: 50 }
+          ];
+          currentStockByKey = {};
+        }
+      } catch (error) {
+        console.error('Error loading rice varieties:', error);
+        // Fallback to hardcoded varieties
+        availableRiceVarieties = [
+          { name: 'Dog Rice', key: 'dog-rice', price: 40 },
+          { name: 'Happy Fiesta', key: 'happy-fiesta', price: 41 },
+          { name: 'Magnolia', key: 'magnolia', price: 42 },
+          { name: 'Dinorado', key: 'dinorado', price: 45.5 },
+          { name: 'Sinandomeng', key: 'sinandomeng', price: 38.75 },
+          { name: 'Jasmine Rice', key: 'jasmine', price: 52 },
+          { name: 'Basmati Rice', key: 'basmati', price: 60 },
+          { name: 'Brown Rice', key: 'brown-rice', price: 55 },
+          { name: 'Sticky Rice', key: 'sticky-rice', price: 50 }
+        ];
+        currentStockByKey = {};
+      }
+    }
+
+    // Function to refresh rice varieties (can be called manually if needed)
+    async function refreshRiceVarieties() {
+      await loadAvailableRiceVarieties();
+      console.log('Rice varieties refreshed');
+    }
+
+    function addPurchaseItem() {
+      const itemId = `item_${++itemCounter}`;
+      const itemsContainer = document.getElementById('purchaseItems');
+      
+      // If this is the first item and we don't have varieties loaded yet, wait for them
+      if (availableRiceVarieties.length === 0) {
+        console.log('Waiting for rice varieties to load...');
+        setTimeout(() => addPurchaseItem(), 100);
+        return;
+      }
+      
+      const itemHtml = `
+        <div class="purchase-item" id="${itemId}">
+          <button type="button" class="purchase-item-remove" onclick="removePurchaseItem('${itemId}')" title="Remove item">
+            <i class="fas fa-times"></i>
+          </button>
+          
+          <div class="purchase-item-header">
+            <h4 class="purchase-item-title">Rice Item #${itemCounter}</h4>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="${itemId}_riceVariant">Rice Variety *</label>
+              <select id="${itemId}_riceVariant" required onchange="updateItemPrice('${itemId}'); loadItemBatchCodes('${itemId}'); hydrateItemInitialInventory('${itemId}');">
+                <option value="">${availableRiceVarieties.length > 0 ? 'Select Rice Type' : 'Loading rice types...'}</option>
+                ${availableRiceVarieties.map(variety => 
+                  `<option value="${variety.key}">${variety.name}</option>`
+                ).join('')}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="${itemId}_batchCode">Batch Code</label>
+              <select id="${itemId}_batchCode" style="display: none;" onchange="hydrateItemInitialInventory('${itemId}');">
+                <option value="">Please select batch</option>
+                <!-- Batch codes will be populated when product is selected -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="${itemId}_price">Price per kg *</label>
+              <input type="number" id="${itemId}_price" class="highlight-value computed" required min="0" step="0.01" placeholder="Auto-filled by variety" readonly>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="${itemId}_initialInventory">Initial Inventory (kg)</label>
+              <input type="number" id="${itemId}_initialInventory" readonly class="computed" placeholder="Auto from previous day">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="${itemId}_sackWeightKg">Sacks weight (kg per sako)
+                <i class="fas fa-circle-info help-icon" title="Used when selling by sacks. Default 50 kg per sako."></i>
+              </label>
+              <input type="number" id="${itemId}_sackWeightKg" min="1" step="1" value="50" onchange="computeItemTotals('${itemId}')">
+            </div>
+          </div>
+
+          <div class="form-row three-cols">
+            <div class="form-group">
+              <label for="${itemId}_kilosSold">Sold: Kilos</label>
+              <input type="number" id="${itemId}_kilosSold" min="0" step="0.01" placeholder="e.g. 12.5" onchange="computeItemTotals('${itemId}')">
+            </div>
+
+            <div class="form-group">
+              <label for="${itemId}_sacksSold">Sold: Sacks
+                <i class="fas fa-circle-info help-icon" title="Sold sacks are converted to kg using the sack weight above."></i>
+              </label>
+              <input type="number" id="${itemId}_sacksSold" min="0" step="1" placeholder="e.g. 3" onchange="computeItemTotals('${itemId}')">
+            </div>
+
+            <div class="form-group">
+              <label for="${itemId}_halfKiloSold">Sold: ½ Kilo (kg)</label>
+              <input type="number" id="${itemId}_halfKiloSold" min="0" step="0.01" placeholder="e.g. 0.5" onchange="computeItemTotals('${itemId}')">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="${itemId}_remarks">Remarks</label>
+              <input type="text" id="${itemId}_remarks" placeholder="Optional notes">
+            </div>
+          </div>
+
+          <div class="item-totals">
+            <div class="item-total">
+              <label>Total Sold (kg)</label>
+              <span id="${itemId}_totalSoldKg">0.00</span>
+            </div>
+            <div class="item-total">
+              <label>Total Amount (₱)</label>
+              <span id="${itemId}_totalAmount">₱0.00</span>
+            </div>
+            <div class="item-total">
+              <label>Est. Remaining (kg)</label>
+              <span id="${itemId}_estimatedRemaining">0.00</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      itemsContainer.insertAdjacentHTML('beforeend', itemHtml);
+      
+      // Set up event listeners for the new item
+      setupItemEventListeners(itemId);
+      
+      // Update grand totals
+      updateGrandTotals();
+      
+      // Show empty state if this is the first item
+      updateEmptyState();
+    }
+
+    function removePurchaseItem(itemId) {
+      const item = document.getElementById(itemId);
+      if (item) {
+        item.remove();
+        updateGrandTotals();
+        updateEmptyState();
+      }
+    }
+
+    function setupItemEventListeners(itemId) {
+      const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+      const dateEl = document.getElementById('purchaseDate');
+
+      if (varietyEl) {
+        varietyEl.addEventListener('change', () => {
+          updateItemPrice(itemId);
+          loadItemBatchCodes(itemId);
+          hydrateItemInitialInventory(itemId);
+          computeItemTotals(itemId);
+        });
+      }
+
+      if (dateEl) {
+        dateEl.addEventListener('change', () => {
+          hydrateItemInitialInventory(itemId);
+          computeItemTotals(itemId);
+        });
+      }
+    }
+
+    // Load batch codes for a specific item's product
+    async function loadItemBatchCodes(itemId) {
+      const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+      const batchEl = document.getElementById(`${itemId}_batchCode`);
+      
+      if (!varietyEl || !batchEl) return;
+      
+      const varietyKey = varietyEl.value;
+      if (!varietyKey) {
+        batchEl.style.display = 'none';
+        batchEl.innerHTML = '<option value="">Please select batch</option>';
+        return;
+      }
+      
+      // Find the product name from the variety
+      const variety = availableRiceVarieties.find(v => v.key === varietyKey);
+      if (!variety) {
+        batchEl.style.display = 'none';
+        batchEl.innerHTML = '<option value="">Please select batch</option>';
+        return;
+      }
+      
+      // Find product_id from inventory data
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (data.ok && data.items) {
+          // Find the product by name
+          const productItem = data.items.find(item => 
+            item.product_name && item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim()
+          );
+          
+          if (productItem && productItem.product_id) {
+            // Fetch batch codes for this product
+            const batchResponse = await fetch(`/manager/api/products/${productItem.product_id}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+            const batchData = await batchResponse.json();
+            
+            if (batchData.ok && Array.isArray(batchData.batch_codes) && batchData.batch_codes.length > 0) {
+              // Show batch filter and populate options
+              batchEl.style.display = 'block';
+              batchEl.innerHTML = '<option value="">Please select batch</option>';
+              batchData.batch_codes.forEach(batchCode => {
+                const option = document.createElement('option');
+                option.value = batchCode;
+                option.textContent = batchCode;
+                batchEl.appendChild(option);
+              });
+            } else {
+              // Hide batch filter if no batches exist
+              batchEl.style.display = 'none';
+              batchEl.innerHTML = '<option value="">Please select batch</option>';
+            }
+          } else {
+            batchEl.style.display = 'none';
+            batchEl.innerHTML = '<option value="">Please select batch</option>';
+          }
+        } else {
+          batchEl.style.display = 'none';
+          batchEl.innerHTML = '<option value="">Please select batch</option>';
+        }
+      } catch (error) {
+        console.error('Error loading batch codes for item:', error);
+        batchEl.style.display = 'none';
+        batchEl.innerHTML = '<option value="">Please select batch</option>';
+      }
+    }
+
+    function updateItemPrice(itemId) {
+      const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+      const priceEl = document.getElementById(`${itemId}_price`);
+      
+      if (varietyEl && priceEl && varietyEl.value) {
+        // Try to get price from PRICE_MAP first
+        let price = PRICE_MAP[varietyEl.value];
+        
+        // If not found in PRICE_MAP, try to get from inventory data
+        if (price == null) {
+          const variety = availableRiceVarieties.find(v => v.key === varietyEl.value);
+          if (variety) {
+            // Try to find the price from inventory data
+            // This would require another API call or storing price data
+            // For now, use a default price based on variety name
+            price = getDefaultPriceForVariety(variety.name);
+          }
+        }
+        
+        if (price != null) {
+          priceEl.value = price;
+          computeItemTotals(itemId);
+        }
+      }
+    }
+
+    function getDefaultPriceForVariety(varietyName) {
+      // Default prices for common rice varieties
+      const defaultPrices = {
+        'Dog Rice': 40,
+        'Happy Fiesta': 41,
+        'Magnolia': 42,
+        'Dinorado': 45.5,
+        'Sinandomeng': 38.75,
+        'Jasmine Rice': 52,
+        'Basmati Rice': 60,
+        'Brown Rice': 55,
+        'Sticky Rice': 50
+      };
+      
+      return defaultPrices[varietyName] || 45; // Default to 45 if not found
+    }
+
+    async function hydrateItemInitialInventory(itemId) {
+      const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+      const batchEl = document.getElementById(`${itemId}_batchCode`);
+      const dateEl = document.getElementById('purchaseDate');
+      const initialEl = document.getElementById(`${itemId}_initialInventory`);
+      
+      if (!varietyEl || !dateEl || !initialEl) return;
+      
+      const variety = varietyEl.value;
+      const batchCode = batchEl && batchEl.style.display !== 'none' ? (batchEl.value || '') : '';
+      const dateStr = dateEl.value;
+      
+      if (!variety || !dateStr) return;
+      
+      // Always fetch current stock from API for accuracy
+      await fetchCurrentStock(itemId, variety, batchCode, dateStr);
+    }
+
+    // Fetch current stock from API (for both batch-specific and non-batch cases)
+    async function fetchCurrentStock(itemId, varietyKey, batchCode, dateStr) {
+      try {
+        const variety = availableRiceVarieties.find(v => v.key === varietyKey);
+        if (!variety) {
+          // Fallback to previous entries if variety not found
+          const initial = getInitialInventoryFor(varietyKey, dateStr);
+          const initialEl = document.getElementById(`${itemId}_initialInventory`);
+          if (initialEl) {
+            initialEl.value = toFixedOrEmpty(initial);
+            computeItemTotals(itemId);
+          }
+          return;
+        }
+        
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        const initialEl = document.getElementById(`${itemId}_initialInventory`);
+        if (!initialEl) return;
+        
+        if (data.ok && data.items) {
+          let stockKg = 0;
+          
+          if (batchCode && batchCode !== '') {
+            // Find the product by name and batch code (specific batch)
+            const productItem = data.items.find(item => 
+              item.product_name && 
+              item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim() &&
+              (item.batch_code || item.batch || '') === batchCode
+            );
+            
+            if (productItem) {
+              stockKg = parseFloat(productItem.quantity_kg ?? productItem.stock_kg ?? productItem.stock ?? productItem.quantity ?? 0) || 0;
+            }
+          } else {
+            // No batch selected - sum all batches of this product
+            const matchingItems = data.items.filter(item => 
+              item.product_name && 
+              item.product_name.toLowerCase().trim() === variety.name.toLowerCase().trim()
+            );
+            
+            if (matchingItems.length > 0) {
+              stockKg = matchingItems.reduce((sum, item) => {
+                const itemStock = parseFloat(item.quantity_kg ?? item.stock_kg ?? item.stock ?? item.quantity ?? 0) || 0;
+                return sum + itemStock;
+              }, 0);
+            }
+          }
+          
+          if (stockKg > 0) {
+            initialEl.value = toFixedOrEmpty(stockKg);
+          } else {
+            // Fallback to previous entries if no stock found
+            const initial = getInitialInventoryFor(varietyKey, dateStr);
+            initialEl.value = toFixedOrEmpty(initial);
+          }
+        } else {
+          // API error - fallback to previous entries
+          const initial = getInitialInventoryFor(varietyKey, dateStr);
+          initialEl.value = toFixedOrEmpty(initial);
+        }
+        
+        computeItemTotals(itemId);
+      } catch (error) {
+        console.error('Error fetching current stock:', error);
+        const initialEl = document.getElementById(`${itemId}_initialInventory`);
+        if (initialEl) {
+          const initial = getInitialInventoryFor(varietyKey, dateStr);
+          initialEl.value = toFixedOrEmpty(initial);
+          computeItemTotals(itemId);
+        }
+      }
+    }
+
+    function computeItemTotals(itemId) {
+      const price = parseFloatOrZero(document.getElementById(`${itemId}_price`).value);
+      const initial = parseFloatOrZero(document.getElementById(`${itemId}_initialInventory`).value);
+      const kilosSold = parseFloatOrZero(document.getElementById(`${itemId}_kilosSold`).value);
+      const sacksSold = parseFloatOrZero(document.getElementById(`${itemId}_sacksSold`).value);
+      // Treat the half-kilo field as kilograms directly so decimals like 0.6 are valid
+      const halfKiloKg = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
+      const sackWeight = parseFloatOrZero(document.getElementById(`${itemId}_sackWeightKg`).value) || 50;
+
+      const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + halfKiloKg);
+      const totalAmount = totalSoldKg * Math.max(0, price);
+      const estimatedRemaining = initial - totalSoldKg; // No added stocks
+
+      // Update item totals display
+      document.getElementById(`${itemId}_totalSoldKg`).textContent = totalSoldKg.toFixed(2);
+      document.getElementById(`${itemId}_totalAmount`).textContent = `₱${totalAmount.toFixed(2)}`;
+      document.getElementById(`${itemId}_estimatedRemaining`).textContent = estimatedRemaining.toFixed(2);
+
+      // Update grand totals
+      updateGrandTotals();
+    }
+
+    function updateGrandTotals() {
+      const items = document.querySelectorAll('.purchase-item');
+      let totalItems = 0;
+      let totalSold = 0;
+      let totalAmount = 0;
+
+      items.forEach(item => {
+        const itemId = item.id;
+        const soldKg = parseFloatOrZero(document.getElementById(`${itemId}_totalSoldKg`).textContent);
+        const amount = parseFloatOrZero(document.getElementById(`${itemId}_totalAmount`).textContent.replace('₱', ''));
+        
+        if (soldKg > 0 || amount > 0) {
+          totalItems++;
+          totalSold += soldKg;
+          totalAmount += amount;
+        }
+      });
+
+      document.getElementById('grandTotalItems').textContent = totalItems;
+      document.getElementById('grandTotalSold').textContent = totalSold.toFixed(2);
+      document.getElementById('grandTotalAmount').textContent = `₱${totalAmount.toFixed(2)}`;
+    }
+
+    function updateEmptyState() {
+      const itemsContainer = document.getElementById('purchaseItems');
+      const items = itemsContainer.querySelectorAll('.purchase-item');
+      
+      if (items.length === 0) {
+        itemsContainer.innerHTML = `
+          <div class="empty-state">
+            <i class="fas fa-shopping-cart"></i>
+            <h4>No items added</h4>
+            <p>Click "Add Item" to start recording your rice purchases</p>
+          </div>
+        `;
+      }
+    }
+
+    // Bulk submit handler
+    async function handleBulkPurchaseSubmit(event) {
+      event.preventDefault();
+
+      const date = document.getElementById('purchaseDate').value;
+      if (!date) {
+        return showNotification('Please select a date', 'error');
+      }
+
+      const items = collectAllItems();
+      if (items.length === 0) {
+        return showNotification('Please add at least one item', 'error');
+      }
+
+      // Validate all items
+      for (let i = 0; i < items.length; i++) {
+        const error = validateItem(items[i], i + 1);
+        if (error) {
+          return showNotification(error, 'error');
+        }
+      }
+
+      try {
+        // Try to submit to API first
+        const success = await submitToAPI(date, items);
+        
+        if (success) {
+          // API success - also save to localStorage as backup
+          saveToLocalStorage(items);
+          showNotification(`Successfully recorded ${items.length} item(s) to server`, 'success');
+        } else {
+          // API failed - fallback to localStorage only
+          saveToLocalStorage(items);
+          showNotification(`Recorded ${items.length} item(s) locally (server unavailable)`, 'warning');
+        }
+        
+        // Update UI
+        items.forEach(item => addToRecentPurchases(item));
+      resetForm();
+        
+        // Trigger sales page refresh (if on same domain)
+        triggerSalesRefresh();
+        
+      } catch (error) {
+        console.error('Error submitting purchase:', error);
+        showNotification('Error recording purchase. Please try again.', 'error');
+      }
+    }
+
+    function collectAllItems() {
+      const items = [];
+      const itemsContainer = document.querySelectorAll('.purchase-item');
+      
+      itemsContainer.forEach(item => {
+        const itemId = item.id;
+        const varietyEl = document.getElementById(`${itemId}_riceVariant`);
+        const batchEl = document.getElementById(`${itemId}_batchCode`);
+        
+        if (!varietyEl || !varietyEl.value) return; // Skip empty items
+        
+        const price = parseFloatOrZero(document.getElementById(`${itemId}_price`).value);
+        const initial = parseFloatOrZero(document.getElementById(`${itemId}_initialInventory`).value);
+        const added = 0; // Added stocks removed - always 0
+        const kilosSold = parseFloatOrZero(document.getElementById(`${itemId}_kilosSold`).value);
+        const sacksSold = parseFloatOrZero(document.getElementById(`${itemId}_sacksSold`).value);
+        const halfKiloKg = parseFloatOrZero(document.getElementById(`${itemId}_halfKiloSold`).value);
+        const sackWeight = parseFloatOrZero(document.getElementById(`${itemId}_sackWeightKg`).value) || 50;
+        const remarks = document.getElementById(`${itemId}_remarks`).value || '';
+        const batchCode = batchEl && batchEl.style.display !== 'none' ? (batchEl.value || '') : '';
+
+        const totalSoldKg = Math.max(0, kilosSold + (sacksSold * sackWeight) + halfKiloKg);
+        const totalAmount = totalSoldKg * Math.max(0, price);
+        const estimatedRemaining = initial + added - totalSoldKg;
+
+        items.push({
+        id: cryptoRandomId(),
+        date: document.getElementById('purchaseDate').value,
+          riceVariant: varietyEl.value,
+        batchCode: batchCode,
+        price: round2(price),
+        initialInventory: round2(initial),
+        addedStocks: round2(added),
+        kilosSold: round2(kilosSold),
+        sacksSold: round2(sacksSold),
+        halfKiloSold: round2(halfKiloKg),
+        sackWeightKg: round2(sackWeight),
+        totalSoldKg: round2(totalSoldKg),
+        totalAmount: round2(totalAmount),
+        estimatedRemaining: round2(estimatedRemaining),
+          remarks: remarks
+        });
+      });
+      
+      return items;
+    }
+
+    function validateItem(item, itemNumber) {
+      if (!item.riceVariant) return `Item ${itemNumber}: Please select a rice variety`;
+      if (item.price <= 0) return `Item ${itemNumber}: Price must be greater than 0`;
+      if (item.totalSoldKg < 0) return `Item ${itemNumber}: Sold quantity cannot be negative`;
+      return '';
+    }
+
+    async function submitToAPI(date, items) {
+      try {
+        const payload = {
+          branch_id: parseInt(managerBranchId),
+          date: date,
+          items: items.map(item => {
+            const itemPayload = {
+              product_name: formatVariant(item.riceVariant),
+              price_per_kg: item.price,
+              quantity_sold_kg: item.totalSoldKg,
+              total_amount: item.totalAmount,
+              remarks: item.remarks
+            };
+            // Include batch_code if provided
+            if (item.batchCode && item.batchCode !== '') {
+              itemPayload.batch_code = item.batchCode;
+            }
+            return itemPayload;
+          })
+        };
+
+        const response = await fetch('/manager/api/sales/bulk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
+
+        return response.ok;
+      } catch (error) {
+        console.error('API submission error:', error);
+        return false;
+      }
+    }
+
+    function saveToLocalStorage(items) {
+      const entries = readEntries();
+      entries.push(...items);
+      writeEntries(entries);
+    }
+
+    function triggerSalesRefresh() {
+      // Dispatch custom event that sales page can listen to
+      window.dispatchEvent(new CustomEvent('purchaseDataUpdated', {
+        detail: { timestamp: Date.now() }
+      }));
+      
+      // Also trigger inventory refresh
+      window.dispatchEvent(new CustomEvent('inventoryDataUpdated', {
+        detail: { timestamp: Date.now() }
+      }));
+      
+      // Refresh recent purchases table
+      loadRecentPurchases();
+    }
+
+    // Storage functions
+    function readEntries() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function writeEntries(entries) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function getInitialInventoryFor(variety, dateStr) {
+      const entries = readEntries();
+      const targetDate = new Date(dateStr);
+      let latest = null;
+      for (const e of entries) {
+        if (e.riceVariant !== variety) continue;
+        const d = new Date(e.date);
+        if (d < targetDate) {
+          if (!latest || d > new Date(latest.date)) latest = e;
+        }
+      }
+      if (!latest) return 0;
+      if (isFinite(latest.estimatedRemaining)) return latest.estimatedRemaining;
+      return 0;
+    }
+
+    // Table rendering
+    function addToRecentPurchases(entry) {
+      const tbody = document.getElementById('recentPurchasesTable');
+      const row = document.createElement('tr');
+      const batchCode = entry.batchCode || entry.batch_code || entry.batch || '';
+      row.innerHTML = `
+        <td>${formatDateTime(entry)}</td>
+        <td>${entry.product_name || formatVariant(entry.riceVariant)}</td>
+        <td>${batchCode ? batchCode : '-'}</td>
+        <td>₱${entry.price.toFixed(2)}</td>
+        <td>${entry.initialInventory.toFixed(2)}</td>
+        <td>${entry.totalSoldKg.toFixed(2)}</td>
+        <td>₱${entry.totalAmount.toFixed(2)}</td>
+        <td>${entry.estimatedRemaining.toFixed(2)}</td>
+      `;
+      tbody.insertBefore(row, tbody.firstChild);
+      if (tbody.children.length > 50) tbody.removeChild(tbody.lastChild);
+    }
+
+    async function loadRecentPurchases() {
+      try {
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id') ||
+                        managerBranchId;
+        
+        console.log('Loading recent purchases for branch:', branchId);
+        
+        // Fetch recent purchases from API (branch-scoped)
+        const response = await fetch(`/manager/api/purchases/recent?branch=${branchId}`);
+        const data = await response.json();
+        
+        if (data.ok && data.entries) {
+      const tbody = document.getElementById('recentPurchasesTable');
+      tbody.innerHTML = '';
+          
+          // Sort by datetime (newest first) and display
+          const sortedEntries = data.entries.sort((a,b) => {
+            const dateA = new Date(a.datetime || a.created_at || a.timestamp || a.date);
+            const dateB = new Date(b.datetime || b.created_at || b.timestamp || b.date);
+            return dateB - dateA;
+          });
+          sortedEntries.forEach(addToRecentPurchases);
+          
+          console.log(`Loaded ${sortedEntries.length} recent purchases for branch ${data.branch_id}`);
+        } else {
+          console.error('Failed to load recent purchases:', data.error);
+          // Fallback to empty table
+          const tbody = document.getElementById('recentPurchasesTable');
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No recent purchases found</td></tr>';
+        }
+      } catch (error) {
+        console.error('Error loading recent purchases:', error);
+        // Fallback to empty table
+        const tbody = document.getElementById('recentPurchasesTable');
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">Error loading recent purchases</td></tr>';
+      }
+    }
+
+    // Helper functions
+    function resetForm() {
+      document.getElementById('purchaseItems').innerHTML = '';
+      itemCounter = 0;
+      addPurchaseItem();
+      updateGrandTotals();
+    }
+
+    function showPurchaseHistory() {
+      document.querySelector('.recent-purchases').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Simple toast notification function
+    function toast(message, type = 'info') {
+      // Create toast element
+      const toast = document.createElement('div');
+      toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s ease;
+      `;
+      
+      // Set background color based on type
+      const colors = {
+        'success': '#10b981',
+        'error': '#ef4444',
+        'warning': '#f59e0b',
+        'info': '#3b82f6'
+      };
+      toast.style.backgroundColor = colors[type] || colors.info;
+      
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      // Auto remove after 3 seconds
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+    }
+
+    function exportLogbookToExcel() {
+      try {
+        // Get current logbook data from the table
+        const table = document.getElementById('recentPurchasesTable');
+        const rows = Array.from(table.querySelectorAll('tr'));
+        
+        if (rows.length === 0) {
+          toast('No data to export', 'warning');
+          return;
+        }
+        
+        // Check if we can create a proper Excel file
+        if (typeof XLSX !== 'undefined') {
+          exportToXLSX(rows);
+          return;
+        }
+        
+        // Create CSV content with proper formatting
+        const headers = ['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Sold (kg)', 'Total (₱)', 'Est Rem'];
+        
+        // Process each row to format data properly
+        const csvRows = rows.map(row => {
+          const cells = Array.from(row.querySelectorAll('td'));
+          return cells.map((cell, index) => {
+            let cellText = cell.textContent.trim();
+            
+            // Format specific columns
+            if (index === 0) { // Date & Time column
+              // Try to parse date and time, keep both if available
+              if (cellText.includes(',')) {
+                const date = new Date(cellText);
+                if (!isNaN(date.getTime())) {
+                  // Format as YYYY-MM-DD HH:MM:SS for Excel
+                  const datePart = date.toISOString().split('T')[0];
+                  const timePart = date.toTimeString().split(' ')[0];
+                  cellText = `${datePart} ${timePart}`;
+                }
+              }
+            } else if (index === 2) { // Batch column
+              // Keep batch code as is, or empty if "-"
+              if (cellText === '-') {
+                cellText = '';
+              }
+            } else if (index === 3 || index === 6) { // Price/kg and Total columns (adjusted for removed Added column)
+              // Remove currency symbol and ensure proper number format
+              cellText = cellText.replace(/[₱â,±]/g, '').trim();
+              // Ensure it's a valid number
+              if (cellText && !isNaN(parseFloat(cellText))) {
+                cellText = parseFloat(cellText).toFixed(2);
+              }
+            } else if (index === 4 || index === 5 || index === 7) { // Numeric columns (adjusted for removed Added column)
+              // Ensure proper number formatting
+              if (cellText && !isNaN(parseFloat(cellText))) {
+                cellText = parseFloat(cellText).toFixed(2);
+              }
+            }
+            
+            return `"${cellText}"`;
+          }).join(',');
+        });
+        
+        const csvContent = [
+          headers.join(','),
+          ...csvRows
+        ].join('\n');
+        
+        // Create and download file with proper encoding
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        
+        // Get branch name for filename
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchName = urlParams.get('branch_name') || 'Branch';
+        const today = new Date().toISOString().split('T')[0];
+        
+        link.setAttribute('download', `Sales Logbook Entries - ${branchName} - ${today}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast('Sales Logbook exported successfully', 'success');
+      } catch (error) {
+        console.error('Export error:', error);
+        toast('Error exporting sales logbook', 'error');
+      }
+    }
+
+    function exportToXLSX(rows) {
+      try {
+        // Create workbook and worksheet
+        const wb = XLSX.utils.book_new();
+        const ws_data = [];
+        
+        // Add headers
+        ws_data.push(['Date & Time', 'Variety', 'Batch', 'Price/kg', 'Initial', 'Sold (kg)', 'Total (₱)', 'Est Rem']);
+        
+        // Process each row
+        rows.forEach(row => {
+          const cells = Array.from(row.querySelectorAll('td'));
+          const rowData = cells.map((cell, index) => {
+            let cellText = cell.textContent.trim();
+            
+            // Format specific columns
+            if (index === 0) { // Date & Time column
+              if (cellText.includes(',')) {
+                const date = new Date(cellText);
+                if (!isNaN(date.getTime())) {
+                  return date; // Return Date object for proper Excel date/time formatting
+                }
+              }
+              return cellText;
+            } else if (index === 2) { // Batch column
+              // Return batch code or empty string
+              return cellText === '-' ? '' : cellText;
+            } else if (index === 3 || index === 6) { // Price/kg and Total columns (adjusted for removed Added column)
+              cellText = cellText.replace(/[₱â,±]/g, '').trim();
+              return cellText && !isNaN(parseFloat(cellText)) ? parseFloat(cellText) : cellText;
+            } else if (index === 4 || index === 5 || index === 7) { // Numeric columns (adjusted for removed Added column)
+              return cellText && !isNaN(parseFloat(cellText)) ? parseFloat(cellText) : cellText;
+            }
+            
+            return cellText;
+          });
+          ws_data.push(rowData);
+        });
+        
+        // Create worksheet
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        
+        // Set column widths
+        ws['!cols'] = [
+          { wch: 12 }, // Date
+          { wch: 15 }, // Variety
+          { wch: 10 }, // Batch
+          { wch: 10 }, // Price/kg
+          { wch: 8 },  // Initial
+          { wch: 10 }, // Sold (kg)
+          { wch: 12 }, // Total (₱)
+          { wch: 10 }  // Est Rem
+        ];
+        
+        // Add worksheet to workbook
+        XLSX.utils.book_append_sheet(wb, ws, 'Sales Logbook');
+        
+        // Generate and download file
+        const urlParams = new URLSearchParams(window.location.search);
+        const branchName = urlParams.get('branch_name') || 'Branch';
+        const today = new Date().toISOString().split('T')[0];
+        
+        XLSX.writeFile(wb, `Sales Logbook Entries - ${branchName} - ${today}.xlsx`);
+        
+        toast('Sales Logbook exported successfully', 'success');
+      } catch (error) {
+        console.error('XLSX Export error:', error);
+        toast('Error exporting sales logbook', 'error');
+      }
+    }
+
+    function exportPurchaseData() {
+      const entries = readEntries();
+      if (!entries.length) return showNotification('No data to export.', 'warning');
+
+      const header = [
+        'Date','Variety','PricePerKg','InitialInventory','AddedStocks','KilosSold',
+        'SacksSold','HalfKiloSold','SackWeightKg','TotalSoldKg','TotalAmount',
+        'EstimatedRemaining','Remarks'
+      ];
+      const rows = entries.map(e => [
+        e.date,
+        formatVariant(e.riceVariant),
+        e.price,
+        e.initialInventory,
+        e.addedStocks,
+        e.kilosSold,
+        e.sacksSold,
+        e.halfKiloSold,
+        e.sackWeightKg,
+        e.totalSoldKg,
+        e.totalAmount,
+        e.estimatedRemaining,
+        (e.remarks || '').replace(/\n/g,' ')
+      ]);
+
+      const csv = [header, ...rows].map(r => r.map(safeCsv).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `gmc_logbook_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // Utility functions
+    function safeCsv(val) {
+      if (val == null) return '';
+      const s = String(val);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+    }
+
+    function parseFloatOrZero(v) {
+      const n = parseFloat(v);
+      return isNaN(n) ? 0 : n;
+    }
+
+    function toFixedOrEmpty(n) {
+      if (n == null || isNaN(n)) return '';
+      return round2(n).toFixed(2);
+    }
+
+    function round2(n) {
+      return Math.round((n + Number.EPSILON) * 100) / 100;
+    }
+
+    function cryptoRandomId() {
+      return Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function formatDateTime(entry) {
+      // Try to get datetime from various possible fields (prioritize datetime fields)
+      const dateTimeStr = entry.datetime || entry.created_at || entry.timestamp || entry.date;
+      
+      if (!dateTimeStr) {
+        // If no date/time found, return placeholder
+        return '-';
+      }
+      
+      const date = new Date(dateTimeStr);
+      
+      if (isNaN(date.getTime())) {
+        // Fallback to just date if datetime parsing fails
+        return formatDate(entry.date || dateTimeStr);
+      }
+      
+      // Format with date and time in Philippines timezone (Asia/Manila, UTC+8)
+      const options = {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      };
+      
+      return date.toLocaleString('en-US', options);
+    }
+
+    function formatVariant(key) {
+      // First try to find in available varieties
+      const variety = availableRiceVarieties.find(v => v.key === key);
+      if (variety) {
+        return variety.name;
+      }
+      
+      // Fallback to hardcoded map
+      const map = {
+        'dog-rice': 'Dog Rice',
+        'happy-fiesta': 'Happy Fiesta',
+        'magnolia': 'Magnolia',
+        'dinorado': 'Dinorado',
+        'sinandomeng': 'Sinandomeng',
+        'jasmine': 'Jasmine Rice',
+        'basmati': 'Basmati Rice',
+        'brown-rice': 'Brown Rice',
+        'sticky-rice': 'Sticky Rice'
+      };
+      return map[key] || key;
+    }
+
+    function formatDiscrepancy(val) {
+      if (val == null) return '-';
+      const cls = val > 0 ? 'completed' : (val < 0 ? 'cancelled' : 'pending');
+      const sign = val > 0 ? '+' : '';
+      return `<span class="status-badge ${cls}">${sign}${val.toFixed(2)} kg</span>`;
+    }
+
+    function showNotification(message, type='info') {
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 3000);
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Purchase - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+  </script>
+</body>
+</html>

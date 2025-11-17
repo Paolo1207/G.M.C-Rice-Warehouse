@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch Manager Dashboard</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>Branch Manager</h1>
+            </div>
+            <div class="nav-main">
+                <div class="nav-section">
+                    <h2>Main Menu</h2>
+                    <ul>
+                        <li><a href="pages/dashboard.html" class="active"><i class="fas fa-home"></i> Dashboard</a></li>
+                        <li><a href="pages/inventory.html"><i class="fas fa-box"></i> Inventory</a></li>
+                        <li><a href="pages/forecast.html"><i class="fas fa-chart-line"></i> Forecast</a></li>
+                        <li><a href="pages/sales.html"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                        <li><a href="pages/purchase.html"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Reports</h2>
+                    <ul>
+                        <li><a href="pages/reports.html"><i class="fas fa-file-alt"></i> All Reports</a></li>
+                        <li><a href="pages/analytics.html"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Settings</h2>
+                    <ul>
+                        <li><a href="pages/notifications.html"><i class="fas fa-bell"></i> Notifications</a></li>
+                        <li><a href="pages/settings.html"><i class="fas fa-cog"></i> Account Settings</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="dashboard-container">
+                <!-- Overview Cards -->
+                <div class="overview-cards">
+                    <div class="card">
+                        <div class="card-icon">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Stock</h3>
+                            <p class="number">1,234</p>
+                            <p class="trend positive">+5.2% from last month</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Low Stock Items</h3>
+                            <p class="number">12</p>
+                            <p class="trend negative">+3 items from yesterday</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon success">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Forecast Today</h3>
+                            <p class="number">89%</p>
+                            <p class="trend positive">+2.5% accuracy</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts and Announcements -->
+                <div class="dashboard-grid">
+                    <div class="grid-item">
+                        <h3>Real-time Alerts</h3>
+                        <div class="alert-list">
+                            <div class="alert-item warning">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span>2 items near expiry date</span>
+                            </div>
+                            <div class="alert-item caution">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>Stock below reorder level for 5 items</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid-item">
+                        <h3>Announcements</h3>
+                        <div class="announcement-list">
+                            <div class="announcement-item">
+                                <div class="announcement-header">
+                                    <span class="title">System Maintenance</span>
+                                    <span class="date">Mar 15, 2024</span>
+                                </div>
+                                <p>Scheduled maintenance on March 20, 2024, from 2 AM to 4 AM.</p>
+                            </div>
+                            <div class="announcement-item">
+                                <div class="announcement-header">
+                                    <span class="title">Delivery Delay Notice</span>
+                                    <span class="date">Mar 14, 2024</span>
+                                </div>
+                                <p>Expected delivery delay for incoming stock due to weather conditions.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales vs Forecast Chart -->
+                <div class="grid-item">
+                    <h3>Branch Sales vs Forecast</h3>
+                    <div class="chart-placeholder">
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initDashboard();
+        });
+
+        function initDashboard() {
+            // Initialize sales chart
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Actual Sales',
+                        data: [65, 59, 80, 81, 56, 55],
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: 'Forecast',
+                        data: [60, 55, 75, 80, 60, 50],
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderDash: [5, 5],
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Sales vs Forecast (Last 30 Days)'
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html> 

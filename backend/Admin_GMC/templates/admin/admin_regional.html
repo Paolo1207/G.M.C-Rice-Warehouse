@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regional Insights - GMC Admin</title>
+ <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Regional.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+     <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+            <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li  title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+
+          <li class="active" title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+            <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+          <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+         
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+            <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+             <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+            <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+          <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="regional-header glass-card">
+            <div class="regional-title-section" style="display: flex; align-items: center; gap: 16px;">
+                <span style="display: flex; align-items: center;">
+                  <span style="display: inline-block; width: 32px; height: 32px; background: #2e7d32; border-radius: 6px; margin-right: 8px;"></span>
+                </span>
+                <div>
+                  <h2 style="font-size:2.3rem; font-weight:800; color:#2e7d32; margin:0; letter-spacing:-1px;">Regional Insights</h2>
+                  <div style="font-size:1.08rem; color:#64748b; font-weight:500; margin-top:2px;">
+                    Centralized view of inventory, sales, and demand-supply conditions across all branches
+                  </div>
+                </div>
+            </div>
+        </div>
+        <div class="regional-controls glass-card">
+            <div class="regional-filter-group">
+                <label for="product-select">Product:</label>
+                <select id="product-select">
+                    <option value="all">All Products</option>
+                    <!-- Options populated by JavaScript -->
+                </select>
+            </div>
+            <div class="regional-filter-group">
+                <label for="region-select">Region/Branch:</label>
+                <select id="region-select">
+                    <option value="all">All Branches</option>
+                    <!-- Options populated by JavaScript -->
+                </select>
+            </div>
+            <div class="regional-filter-group" style="display: flex; gap: 10px;">
+                <button id="export-btn" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Export CSV
+                </button>
+                <button id="print-btn" class="btn btn-primary">
+                    <i class="fas fa-print"></i> Print
+                </button>
+            </div>
+        </div>
+        <div class="regional-widgets-row">
+            <div class="glass-card regional-widget">
+                <h3>🏢 Branch Stock Levels Overview</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Current inventory stock from <code>InventoryItem</code> table (summed by branch).<br>
+                    <strong>Shows:</strong> Total stock in kilograms (kg) per branch. Hover over bars to see product count.
+                </p>
+                <div class="chart-container">
+                    <canvas id="branchStockChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-card regional-widget">
+                <h3>📈 Sales Performance by Region</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Real sales transactions from <code>SalesTransaction</code> table (last 6 months by default).<br>
+                    <strong>Shows:</strong> Monthly sales amount in Philippine Pesos (₱) per branch. Each line represents a branch's sales trend over time.
+                </p>
+                <div class="chart-container">
+                    <canvas id="salesPerformanceChart"></canvas>
+                </div>
+            </div>
+            <div class="glass-card regional-widget">
+                <h3>⚖️ Demand & Supply Gaps</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Current stock from <code>InventoryItem</code> vs. forecasted demand from <code>ForecastData</code> (next 30 days).<br>
+                    <strong>Shows:</strong> Gap between current stock and predicted demand. <span style="color: #dc2626;">Red</span> = Critical shortage, <span style="color: #f59e0b;">Orange</span> = Warning (shortage/surplus), <span style="color: #3b82f6;">Blue</span> = Balanced.
+                </p>
+                <div class="regional-gap-list">
+                    <!-- Gaps populated by JavaScript -->
+                </div>
+            </div>
+            <div class="glass-card regional-widget">
+                <h3>🔮 Regional Forecasting Data</h3>
+                <p style="font-size: 0.9rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
+                    <strong>Data Source:</strong> Average predicted demand from <code>ForecastData</code> table (grouped by month and branch).<br>
+                    <strong>Shows:</strong> Average predicted daily demand (kg) per month per branch. Based on ARIMA/ML forecast models.
+                </p>
+                <div class="chart-container">
+                    <canvas id="regionalForecastChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Regional Insights JavaScript -->
+    <script src="{{ url_for('admin.static', filename='js/regional.js') }}"></script>
+    
+    <!-- Toast Notifications CSS -->
+    <style>
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2e7d32;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast-error {
+            background: #dc2626;
+        }
+        
+        .toast-warning {
+            background: #f59e0b;
+        }
+        
+        .toast-success {
+            background: #059669;
+        }
+        
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #2e7d32;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary {
+            background: #2e7d32;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1b5e20;
+        }
+        
+        .regional-gap-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .regional-gap-item.critical {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+        }
+        
+        .regional-gap-item.warning {
+            background: #fffbeb;
+            border-left-color: #f59e0b;
+        }
+        
+        .regional-gap-item.info {
+            background: #f0f9ff;
+            border-left-color: #3b82f6;
+        }
+        
+        .gap-branch {
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .gap-product {
+            color: #6b7280;
+        }
+        
+        .gap-status {
+            font-weight: 500;
+        }
+        
+        /* Chart Container Styles */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            margin: 16px 0;
+        }
+        
+        .chart-container canvas {
+            max-height: 300px !important;
+            width: 100% !important;
+        }
+        
+        /* Regional Widget Layout */
+        .regional-widgets-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .regional-widget {
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .regional-widget h3 {
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .regional-widgets-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+        
+        /* Loading State */
+        .chart-container.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+    </style>
+</body>
+</html>

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - GMC Admin</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Dashboard.css') }}">
+   <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Notifications.css') }}">
+   <style>
+     /* Toast notifications */
+     .toast {
+       position: fixed;
+       top: 20px;
+       right: 20px;
+       background: white;
+       border: 1px solid #ddd;
+       border-radius: 8px;
+       padding: 1rem 1.5rem;
+       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+       z-index: 1000;
+       display: flex;
+       align-items: center;
+       gap: 0.5rem;
+       min-width: 300px;
+       animation: slideIn 0.3s ease-out;
+     }
+     
+     .toast.success {
+       border-left: 4px solid #10b981;
+       color: #065f46;
+     }
+     
+     .toast.error {
+       border-left: 4px solid #ef4444;
+       color: #991b1b;
+     }
+     
+     .toast.info {
+       border-left: 4px solid #3b82f6;
+       color: #1e40af;
+     }
+     
+     @keyframes slideIn {
+       from {
+         transform: translateX(100%);
+         opacity: 0;
+       }
+       to {
+         transform: translateX(0);
+         opacity: 1;
+       }
+     }
+   </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+         <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+          <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li  title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+
+          <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+          <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+          <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+
+          
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+             <li title="Reports">
+  <a href="{{ url_for('admin.reports') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Reports</span>
+  </a>
+</li>
+
+           <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+           <li class="active" title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+          </ul>
+        </div>
+      </nav>
+       <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+          <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content notifications-module">
+        <div class="notifications-header">
+            <h2>🔔 Notification Center</h2>
+            <button class="send-notification-btn" onclick="openComposer()">+ Send Notification</button>
+        </div>
+        <!-- Notification Composer Modal (hidden by default) -->
+        <div class="notification-modal-overlay" id="notificationModal" style="display:none;">
+            <div class="notification-modal">
+                <div class="modal-header">
+                    <h3>Send Notification</h3>
+                    <button class="close-modal-btn" onclick="closeComposer()">&times;</button>
+                </div>
+                <form id="notificationForm">
+                    <label>Notification Type:
+                        <select id="notificationType" required>
+                            <option value="">Select</option>
+                            <option value="low_stock_alert">Low Stock Alert</option>
+                            <option value="manual_message">Manual Message / Other</option>
+                        </select>
+                    </label>
+                    <label>Recipient Branch:
+                        <select id="recipientBranch" required>
+                            <option value="">Select Branch</option>
+                            <!-- Branches will be populated from database -->
+                        </select>
+                    </label>
+                    <label>Date:
+                        <input type="date" id="notificationDate" required>
+                    </label>
+                    <label>Message Content:
+                        <textarea id="notificationMessage" rows="3" required placeholder="Enter notification message..."></textarea>
+                    </label>
+                    <div class="form-actions">
+                        <button type="submit">Send Notification</button>
+                        <button type="reset" class="reset-btn">Reset/Clear Form</button>
+                        <button type="button" class="cancel-btn" onclick="closeComposer()">Cancel/Close</button>
+                    </div>
+                </form>
+                <div class="success-message" id="successMessage" style="display:none;">Notification sent to Bulacnin branch successfully.</div>
+            </div>
+        </div>
+        <div class="notifications-log-section">
+            <table class="notifications-log-table">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Recipient</th>
+                        <th>Message</th>
+                        <th>Sender</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="notificationsTableBody">
+                    <!-- Notifications will be loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+      // Sidebar collapse/expand logic (already present)
+      
+      // Initialize page on DOM load
+      document.addEventListener('DOMContentLoaded', function() {
+        // Set today's date in the form
+        const dateInput = document.getElementById('notificationDate');
+        if (dateInput) {
+          dateInput.value = new Date().toISOString().slice(0, 10);
+        }
+        
+        // Load branches and notifications
+        loadBranches();
+        loadNotifications();
+      });
+      
+      function openComposer() {
+        document.getElementById('notificationModal').style.display = 'flex';
+        // Reset form and set today's date
+        document.getElementById('notificationForm').reset();
+        document.getElementById('notificationDate').value = new Date().toISOString().slice(0, 10);
+      }
+      
+      function closeComposer() {
+        document.getElementById('notificationModal').style.display = 'none';
+        document.getElementById('successMessage').style.display = 'none';
+      }
+      
+      // Load branches from API
+      async function loadBranches() {
+        try {
+          const response = await fetch('/admin/api/branches');
+          const data = await response.json();
+          
+          if (data.ok && data.branches) {
+            populateBranchDropdown(data.branches);
+          }
+        } catch (error) {
+          console.error('Error loading branches:', error);
+          showToast('Error loading branches', 'error');
+        }
+      }
+      
+      
+      // Load notifications from API
+      async function loadNotifications() {
+        try {
+          const response = await fetch('/admin/api/notifications');
+          const data = await response.json();
+          
+          if (data.ok && data.notifications) {
+            renderNotifications(data.notifications);
+          }
+        } catch (error) {
+          console.error('Error loading notifications:', error);
+          showToast('Error loading notifications', 'error');
+        }
+      }
+      
+      // Render notifications in the table
+      function renderNotifications(notifications) {
+        const tbody = document.getElementById('notificationsTableBody');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        notifications.forEach(notification => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="status-badge ${notification.status === 'read' ? 'read' : 'unread'}">${notification.status === 'read' ? 'Read' : 'Unread'}</span></td>
+            <td>${formatDate(notification.date)}</td>
+            <td>${formatNotificationType(notification.type)}</td>
+            <td>${notification.branch_name || 'Unknown Branch'}</td>
+            <td>${notification.message}</td>
+            <td>${notification.sender || 'Admin'}</td>
+            <td>
+              <button class="mark-read-btn" ${notification.status === 'read' ? 'disabled' : ''} onclick="markAsRead(${notification.id})">
+                Mark as Read
+              </button>
+              <button class="delete-btn" onclick="deleteNotification(${notification.id})">
+                Delete
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+      
+      // Format notification type for display
+      function formatNotificationType(type) {
+        const typeMap = {
+          'low_stock_alert': 'Low Stock Alert',
+          'manual_message': 'Manual Message',
+          'expiry_notice': 'Expiry Notice',
+          'delivery_delay': 'Delivery Delay',
+          'forecast_spike': 'Forecast Spike'
+        };
+        return typeMap[type] || type;
+      }
+      
+      // Format date for display
+      function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+      }
+      
+      // Mark notification as read
+      async function markAsRead(notificationId) {
+        try {
+          const response = await fetch(`/admin/api/notifications/${notificationId}/read`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const data = await response.json();
+          if (data.ok) {
+            showToast('Notification marked as read', 'success');
+            loadNotifications(); // Reload to update the UI
+          } else {
+            showToast('Error marking notification as read', 'error');
+          }
+        } catch (error) {
+          console.error('Error marking notification as read:', error);
+          showToast('Error marking notification as read', 'error');
+        }
+      }
+      
+      // Delete notification
+      async function deleteNotification(notificationId) {
+        if (!confirm('Are you sure you want to delete this notification?')) {
+          return;
+        }
+        
+        try {
+          const response = await fetch(`/admin/api/notifications/${notificationId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const data = await response.json();
+          if (data.ok) {
+            showToast('Notification deleted', 'success');
+            loadNotifications(); // Reload to update the UI
+          } else {
+            showToast('Error deleting notification', 'error');
+          }
+        } catch (error) {
+          console.error('Error deleting notification:', error);
+          showToast('Error deleting notification', 'error');
+        }
+      }
+      
+      // Handle form submission
+      document.getElementById('notificationForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const type = document.getElementById('notificationType').value;
+        const branchId = document.getElementById('recipientBranch').value;
+        const date = document.getElementById('notificationDate').value;
+        const message = document.getElementById('notificationMessage').value;
+        
+        if (!type || !branchId || !date || !message) {
+          showToast('Please fill in all required fields', 'error');
+          return;
+        }
+        
+        try {
+          // Send notification to admin API
+          const response = await fetch('/admin/api/notifications', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              type: type,
+              branch_id: parseInt(branchId),
+              date: date,
+              message: message
+            })
+          });
+          
+          const data = await response.json();
+          if (data.ok) {
+            // Add new row to the top of the admin log table
+            addNotificationToTable(data.notification);
+            
+            // Dispatch notification to manager
+            await dispatchToManager(branchId, type, date, message);
+            
+            showToast(`Notification sent to ${getBranchName(branchId)} branch successfully`, 'success');
+          closeComposer();
+          } else {
+            showToast('Error sending notification: ' + (data.error || 'Unknown error'), 'error');
+          }
+        } catch (error) {
+          console.error('Error sending notification:', error);
+          showToast('Error sending notification', 'error');
+        }
+      });
+      
+      // Add new notification to the table
+      function addNotificationToTable(notification) {
+        const tbody = document.getElementById('notificationsTableBody');
+        if (!tbody) return;
+        
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><span class="status-badge unread">Unread</span></td>
+          <td>${formatDate(notification.date)}</td>
+          <td>${formatNotificationType(notification.type)}</td>
+          <td>${getBranchName(notification.branch_id)}</td>
+          <td>${notification.message}</td>
+          <td>Admin</td>
+          <td>
+            <button class="mark-read-btn" onclick="markAsRead(${notification.id})">
+              Mark as Read
+            </button>
+            <button class="delete-btn" onclick="deleteNotification(${notification.id})">
+              Delete
+            </button>
+          </td>
+        `;
+        
+        // Insert at the top of the table
+        tbody.insertBefore(tr, tbody.firstChild);
+      }
+      
+      // Dispatch notification to manager
+      async function dispatchToManager(branchId, type, date, message) {
+        try {
+          await fetch('/manager/api/notifications/dispatch', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              branch_id: parseInt(branchId),
+              type: type,
+              date: date,
+              message: message
+            })
+          });
+        } catch (error) {
+          console.error('Error dispatching to manager:', error);
+          // Don't show error to user as the admin notification was already sent
+        }
+      }
+      
+      // Store branches for lookup
+      let branchesData = [];
+      
+      // Update branches data when loaded
+      function populateBranchDropdown(branches) {
+        const select = document.getElementById('recipientBranch');
+        if (!select) return;
+        
+        // Store branches data for lookup
+        branchesData = branches;
+        
+        // Clear existing options except the first one
+        select.innerHTML = '<option value="">Select Branch</option>';
+        
+        branches.forEach(branch => {
+          const option = document.createElement('option');
+          option.value = branch.id;
+          option.textContent = branch.name;
+          select.appendChild(option);
+        });
+      }
+      
+      // Get branch name by ID
+      function getBranchName(branchId) {
+        const branch = branchesData.find(b => b.id == branchId);
+        return branch ? branch.name : 'Unknown Branch';
+      }
+      
+      // Show toast notification
+      function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+          <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+          <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+      }
+    </script>
+</body>
+</html>
