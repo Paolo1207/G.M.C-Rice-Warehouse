@@ -397,13 +397,13 @@
         const q = new URLSearchParams();
         if (daysSel && daysSel.value) {
           if (daysSel.value === 'custom') {
-            // Use custom date range
+            // Use custom date range - API expects 'from' and 'to' parameters
             const startDate = document.getElementById('startDate')?.value;
             const endDate = document.getElementById('endDate')?.value;
             // Only include dates if both are set
             if (startDate && endDate) {
-              q.set('start_date', startDate);
-              q.set('end_date', endDate);
+              q.set('from', startDate);
+              q.set('to', endDate);
             } else if (startDate || endDate) {
               // If only one date is set, show a warning and use default range
               console.warn('Both start and end dates are required for custom range');
@@ -422,7 +422,7 @@
         const j = await fetch('/admin/api/sales/kpis?'+params()).then(r=>r.json());
         if (!j.ok) return;
         document.getElementById('kpiSales').textContent = '₱'+Number(j.kpis.month_sales||0).toLocaleString();
-        document.getElementById('kpiUnits').textContent = Number(j.kpis.units_sold||0).toLocaleString();
+        document.getElementById('kpiUnits').textContent = Number(j.kpis.units_sold||0).toLocaleString() + ' kg';
         document.getElementById('kpiAov').textContent   = '₱'+Number(j.kpis.avg_order_value||0).toLocaleString();
       }
 
