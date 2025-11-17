@@ -488,7 +488,7 @@
 
             <div class="form-group">
               <label for="${itemId}_batchCode">Batch Code</label>
-              <select id="${itemId}_batchCode" style="display: none;" onchange="hydrateItemInitialInventory('${itemId}');">
+              <select id="${itemId}_batchCode" style="display: none;" onchange="hydrateItemInitialInventory('${itemId}'); updateBatchCodeLabel('${itemId}');">
                 <option value="">Please select batch</option>
                 <!-- Batch codes will be populated when product is selected -->
               </select>
@@ -611,7 +611,9 @@
       const varietyKey = varietyEl.value;
       if (!varietyKey) {
         batchEl.style.display = 'none';
+        batchEl.removeAttribute('required');
         batchEl.innerHTML = '<option value="">Please select batch</option>';
+        updateBatchCodeLabel(itemId);
         return;
       }
       
@@ -619,7 +621,9 @@
       const variety = availableRiceVarieties.find(v => v.key === varietyKey);
       if (!variety) {
         batchEl.style.display = 'none';
+        batchEl.removeAttribute('required');
         batchEl.innerHTML = '<option value="">Please select batch</option>';
+        updateBatchCodeLabel(itemId);
         return;
       }
       
@@ -652,6 +656,7 @@
             if (batchData.ok && Array.isArray(batchData.batch_codes) && batchData.batch_codes.length > 0) {
               // Show batch filter and populate options
               batchEl.style.display = 'block';
+              batchEl.setAttribute('required', 'required');
               batchEl.innerHTML = '<option value="">Please select batch</option>';
               batchData.batch_codes.forEach(batchCode => {
                 const option = document.createElement('option');
@@ -659,23 +664,34 @@
                 option.textContent = batchCode;
                 batchEl.appendChild(option);
               });
+              // Update label to show it's required
+              updateBatchCodeLabel(itemId);
             } else {
               // Hide batch filter if no batches exist
               batchEl.style.display = 'none';
+              batchEl.removeAttribute('required');
               batchEl.innerHTML = '<option value="">Please select batch</option>';
+              // Update label to remove required indicator
+              updateBatchCodeLabel(itemId);
             }
           } else {
             batchEl.style.display = 'none';
+            batchEl.removeAttribute('required');
             batchEl.innerHTML = '<option value="">Please select batch</option>';
+            updateBatchCodeLabel(itemId);
           }
         } else {
           batchEl.style.display = 'none';
+          batchEl.removeAttribute('required');
           batchEl.innerHTML = '<option value="">Please select batch</option>';
+          updateBatchCodeLabel(itemId);
         }
       } catch (error) {
         console.error('Error loading batch codes for item:', error);
         batchEl.style.display = 'none';
+        batchEl.removeAttribute('required');
         batchEl.innerHTML = '<option value="">Please select batch</option>';
+        updateBatchCodeLabel(itemId);
       }
     }
 
@@ -900,8 +916,15 @@
       }
 
       // Validate all items
+      const itemsContainer = document.querySelectorAll('.purchase-item');
       for (let i = 0; i < items.length; i++) {
-        const error = validateItem(items[i], i + 1);
+        // Find the corresponding DOM element
+        const itemElement = Array.from(itemsContainer).find(el => {
+          const varietyEl = el.querySelector('[id$="_riceVariant"]');
+          return varietyEl && varietyEl.value === items[i].riceVariant;
+        });
+        
+        const error = validateItem(items[i], i + 1, itemElement);
         if (error) {
           return showNotification(error, 'error');
         }
@@ -981,10 +1004,22 @@
       return items;
     }
 
-    function validateItem(item, itemNumber) {
+    function validateItem(item, itemNumber, itemElement) {
       if (!item.riceVariant) return `Item ${itemNumber}: Please select a rice variety`;
       if (item.price <= 0) return `Item ${itemNumber}: Price must be greater than 0`;
       if (item.totalSoldKg < 0) return `Item ${itemNumber}: Sold quantity cannot be negative`;
+      
+      // Check if batch code is required (when visible) but not selected
+      if (itemElement) {
+        const batchEl = itemElement.querySelector('[id$="_batchCode"]');
+        if (batchEl && batchEl.style.display !== 'none' && batchEl.style.display !== '') {
+          const batchValue = batchEl.value || '';
+          if (!batchValue || batchValue === '') {
+            return `Item ${itemNumber}: Please select a batch code`;
+          }
+        }
+      }
+      
       return '';
     }
 
@@ -1482,6 +1517,24 @@
       notification.textContent = message;
       document.body.appendChild(notification);
       setTimeout(() => notification.remove(), 3000);
+    }
+
+    // Update batch code label to show required indicator
+    function updateBatchCodeLabel(itemId) {
+      const batchEl = document.getElementById(`${itemId}_batchCode`);
+      const labelEl = batchEl ? batchEl.closest('.form-group')?.querySelector('label[for="' + batchEl.id + '"]') : null;
+      
+      if (batchEl && labelEl) {
+        if (batchEl.style.display !== 'none' && batchEl.style.display !== '') {
+          // Batch code is visible - make it required
+          if (!labelEl.textContent.includes('*')) {
+            labelEl.textContent = 'Batch Code *';
+          }
+        } else {
+          // Batch code is hidden - remove required indicator
+          labelEl.textContent = 'Batch Code';
+        }
+      }
     }
 
     // Update title and header based on branch selection
