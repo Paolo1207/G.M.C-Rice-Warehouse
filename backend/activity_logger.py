@@ -43,6 +43,19 @@ class ActivityLogger:
         )
     
     @staticmethod
+    def log_password_change(user_id, user_email, success=True):
+        """Log password change activity"""
+        action = "password_change_success" if success else "password_change_failed"
+        description = f"Password change {'completed' if success else 'failed'} for {user_email}"
+        ActivityLogger.log_activity(
+            user_id=user_id,
+            user_email=user_email,
+            action=action,
+            description=description,
+            details={"success": success, "timestamp": datetime.utcnow().isoformat()}
+        )
+    
+    @staticmethod
     def log_email_change(user_email, old_email, new_email, success=True):
         """Log email change activity"""
         action = "email_change_success" if success else "email_change_failed"

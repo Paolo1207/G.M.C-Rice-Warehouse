@@ -3755,8 +3755,11 @@ def manager_api_change_password():
     try:
         db.session.commit()
         
-        # Log the activity
-        ActivityLogger.log_password_change(user.id, user.email, success=True)
+        # Log the activity (don't fail the request if logging fails)
+        try:
+            ActivityLogger.log_password_change(user.id, user.email, success=True)
+        except Exception as log_err:
+            print(f"DEBUG PASSWORD CHANGE: Logging error (non-critical): {log_err}")
         
         return jsonify({"ok": True, "message": "Password changed successfully"})
     except Exception as e:
