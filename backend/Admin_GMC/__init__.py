@@ -2330,13 +2330,11 @@ def api_regional_gaps():
         gap_percentage = (gap / forecast_demand * 100) if forecast_demand > 0 else 0
         
         # Classify gap status
-        if gap < 0:  # Shortage (negative gap)
-            if abs(gap) > forecast_demand * 0.5:  # More than 50% shortage
-                status = 'critical'
-                gap_text = f'Shortage: {abs(gap):.0f}kg'
-            else:  # Less than 50% shortage
-                status = 'warning'
-                gap_text = f'Shortage: {abs(gap):.0f}kg'
+        # Requirement: Any shortage should be shown as RED (critical).
+        # Surplus remains orange (warning). Balanced stays blue (info).
+        if gap < 0:  # Any shortage
+            status = 'critical'
+            gap_text = f'Shortage: {abs(gap):.0f}kg'
         elif gap > forecast_demand * 0.2:  # Surplus more than 20% of demand
             status = 'warning'
             gap_text = f'Surplus: {gap:.0f}kg'
