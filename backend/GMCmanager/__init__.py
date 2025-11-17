@@ -123,6 +123,7 @@ def item_to_dict(it: InventoryItem):
         "auto": float(it.auto_level) if it.auto_level is not None else None,
         "margin": it.margin,
         "status": it.status,  # assumes a @hybrid_property or column present
+        "updated_at": it.updated_at.isoformat() if it.updated_at else None,
     }
 
 
@@ -507,6 +508,10 @@ def mgr_inventory_update(item_id: int):
             if "sku"      in data: it.product.sku      = (data["sku"] or None)
             if "desc"     in data: it.product.description = (data["desc"] or None)
 
+        # Update timestamp
+        from datetime import datetime
+        it.updated_at = datetime.utcnow()
+
         db.session.commit()
         return jsonify({"ok": True, "item": item_to_dict(it)}), 200
     except IntegrityError:
@@ -575,6 +580,9 @@ def mgr_inventory_restock(item_id: int):
             return jsonify({"ok": False, "error": "qty/quantity must be > 0"}), 400
 
         it.stock_kg = (it.stock_kg or 0) + qty
+        
+        # Update timestamp
+        it.updated_at = datetime.utcnow()
 
         # Optional date override
         created_at = None
@@ -658,6 +666,10 @@ def mgr_inventory_restock_general():
         
         # Update stock
         inventory_item.stock_kg = (inventory_item.stock_kg or 0.0) + quantity
+        
+        # Update timestamp
+        from datetime import datetime
+        inventory_item.updated_at = datetime.utcnow()
         
         # Create restock log - manager performs the restock
         log = RestockLog(
@@ -3059,6 +3071,7 @@ def mgr_sales_bulk():
                     if current_stock >= quantity_sold_kg:
                         new_stock = current_stock - quantity_sold_kg
                         inventory_item.stock_kg = max(0, new_stock)
+                        inventory_item.updated_at = datetime.utcnow()
                         print(f"DEBUG: Deducted {quantity_sold_kg}kg from batch '{requested_batch_code}' "
                               f"({current_stock}kg -> {new_stock}kg)")
                     else:
@@ -3066,6 +3079,7 @@ def mgr_sales_bulk():
                         print(f"WARNING: Insufficient stock in batch '{requested_batch_code}'. "
                               f"Available: {current_stock}kg, Requested: {quantity_sold_kg}kg")
                         inventory_item.stock_kg = 0
+                        inventory_item.updated_at = datetime.utcnow()
                         print(f"DEBUG: Deducted all available {current_stock}kg from batch '{requested_batch_code}'")
                 else:
                     print(f"WARNING: Batch '{requested_batch_code}' not found for {product_name} in branch {branch_id}")
@@ -3126,6 +3140,7 @@ def mgr_sales_bulk():
                     deduction = min(remaining_to_deduct, current_stock)
                     new_stock = current_stock - deduction
                     inv_item.stock_kg = max(0, new_stock)  # Don't go below 0
+                    inv_item.updated_at = datetime.utcnow()  # Update timestamp
                     
                     batches_used.append({
                         'batch_code': inv_item.batch_code or '(no batch)',
@@ -3180,13 +3195,20 @@ def mgr_export_report(report_type):
             return jsonify({"ok": False, "error": "Branch not found"}), 400
         
         format_type = request.args.get('format', 'csv')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
+        # Support both 'from'/'to' and 'start_date'/'end_date' parameters
+        start_date = request.args.get('from') or request.args.get('start_date')
+        end_date = request.args.get('to') or request.args.get('end_date')
         
         # Get the appropriate data based on report type
         if report_type == 'sales':
             data = _get_sales_export_data(branch_id, start_date, end_date)
-            filename = f"sales_report_{branch_id}_{start_date or 'all'}.{format_type}"
+            # Include date range in filename if available
+            if start_date and end_date:
+                filename = f"sales_report_{branch_id}_{start_date}_{end_date}.{format_type}"
+            elif start_date:
+                filename = f"sales_report_{branch_id}_{start_date}.{format_type}"
+            else:
+                filename = f"sales_report_{branch_id}_all.{format_type}"
         elif report_type == 'inventory':
             data = _get_inventory_export_data(branch_id, start_date, end_date)
             filename = f"inventory_report_{branch_id}_{start_date or 'all'}.{format_type}"
@@ -3245,10 +3267,10 @@ def _get_sales_export_data(branch_id, start_date, end_date):
     total_amount = 0
     for sale in sales:
         total_amount += float(sale.total_amount or 0)
+        # Format date as MM/DD/YYYY for better Excel compatibility
+        date_str = sale.transaction_date.strftime('%m/%d/%Y') if sale.transaction_date else ''
         data.append({
-            'Transaction ID': sale.id,
-            'Date': sale.transaction_date.strftime('%Y-%m-%d'),  # Format as YYYY-MM-DD for Excel
-            'Customer': sale.customer_name or 'Walk-in',
+            'Date': date_str,
             'Product': sale.product.name,
             'Quantity (kg)': float(sale.quantity_sold),
             'Unit Price (₱)': float(sale.unit_price or 0),
@@ -3260,9 +3282,7 @@ def _get_sales_export_data(branch_id, start_date, end_date):
     if data:
         total_quantity = sum(float(d['Quantity (kg)']) for d in data)
         data.append({
-            'Transaction ID': '',
             'Date': '',
-            'Customer': '',
             'Product': 'TOTAL',
             'Quantity (kg)': total_quantity,
             'Unit Price (₱)': '',

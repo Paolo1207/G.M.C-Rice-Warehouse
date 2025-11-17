@@ -87,6 +87,9 @@ class InventoryItem(db.Model):
     warn_level = db.Column(db.Float)
     auto_level = db.Column(db.Float)
     margin = db.Column(db.String(20))  # keep string (e.g., "20%")
+    
+    # timestamps
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     branch = db.relationship("Branch", back_populates="inventory_items")
     product = db.relationship("Product", back_populates="inventory_items")
