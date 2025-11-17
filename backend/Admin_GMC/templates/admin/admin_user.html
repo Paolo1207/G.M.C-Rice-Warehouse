@@ -149,7 +149,7 @@
         <div class="user-header">
             <h2>👤 User Management</h2>
             <div class="user-filter-bar">
-                <input type="text" id="searchInput" placeholder="Search by Name, Warehouse ID, or Location...">
+                <input type="text" id="searchInput" placeholder="Search by Name, Warehouse ID, or Location..." oninput="handleSearch()">
                 <button class="add-user-btn" onclick="showAddUserModal()">+ Add New User</button>
             </div>
         </div>
@@ -335,6 +335,8 @@
       // Search function
       function handleSearch() {
         const searchInput = document.getElementById('searchInput');
+        if (!searchInput) return;
+        
         const query = searchInput.value.toLowerCase().trim();
         
         if (!query) {
@@ -342,13 +344,22 @@
           return;
         }
         
-        const filteredUsers = currentUsers.filter(user => 
-          user.name.toLowerCase().includes(query) ||
-          user.warehouse_id.toLowerCase().includes(query) ||
-          user.location.toLowerCase().includes(query) ||
-          user.role.toLowerCase().includes(query) ||
-          (user.email && user.email.toLowerCase().includes(query))
-        );
+        // Safely filter users, handling null/undefined values
+        const filteredUsers = currentUsers.filter(user => {
+          const name = (user.name || '').toLowerCase();
+          const warehouseId = (user.warehouse_id || '').toLowerCase();
+          const location = (user.location || '').toLowerCase();
+          const role = (user.role || '').toLowerCase();
+          const email = (user.email || '').toLowerCase();
+          const branchName = (user.branch_name || '').toLowerCase();
+          
+          return name.includes(query) ||
+                 warehouseId.includes(query) ||
+                 location.includes(query) ||
+                 role.includes(query) ||
+                 email.includes(query) ||
+                 branchName.includes(query);
+        });
         
         updateUserTable(filteredUsers);
       }
