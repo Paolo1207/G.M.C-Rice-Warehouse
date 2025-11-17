@@ -174,8 +174,19 @@
                         <option value="7">Last 7 Days</option>
                         <option value="30">Last 30 Days</option>
                         <option value="90" selected>Last 90 Days</option>
+                        <option value="custom">Custom Range</option>
                     </select>
                 </label>
+                <div id="customDateRange" style="display: none; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px;">
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 14px;">
+                        From:
+                        <input type="date" id="startDate" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-width: 150px;">
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 5px; font-size: 14px;">
+                        To:
+                        <input type="date" id="endDate" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; min-width: 150px;">
+                    </label>
+                </div>
                 <label>Rice Variant:
                     <select id="salesProduct"></select>
                 </label>
@@ -265,7 +276,70 @@
       }
 
       function bindFilters(){
-        daysSel.addEventListener('change', refreshAll);
+        daysSel.addEventListener('change', () => {
+          const customRangeDiv = document.getElementById('customDateRange');
+          if (daysSel.value === 'custom') {
+            // Show custom date range inputs
+            if (customRangeDiv) {
+              customRangeDiv.style.display = 'flex';
+              // Set default dates (last 30 days) if not already set
+              const startDateInput = document.getElementById('startDate');
+              const endDateInput = document.getElementById('endDate');
+              if (startDateInput && !startDateInput.value) {
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                endDateInput.value = endDate.toISOString().split('T')[0];
+                startDateInput.value = startDate.toISOString().split('T')[0];
+              }
+            }
+          } else {
+            // Hide custom date range inputs
+            if (customRangeDiv) {
+              customRangeDiv.style.display = 'none';
+            }
+          }
+          refreshAll();
+        });
+        
+        // Add event listeners for custom date inputs
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        if (startDateInput) {
+          startDateInput.addEventListener('change', () => {
+            if (daysSel.value === 'custom') {
+              // Validate: start date should not be after end date
+              if (endDateInput && endDateInput.value && startDateInput.value > endDateInput.value) {
+                alert('Start date cannot be after end date. Please select a valid date range.');
+                startDateInput.value = endDateInput.value;
+                return;
+              }
+              // Set max date for end date input
+              if (endDateInput) {
+                endDateInput.setAttribute('min', startDateInput.value);
+              }
+              refreshAll();
+            }
+          });
+        }
+        if (endDateInput) {
+          endDateInput.addEventListener('change', () => {
+            if (daysSel.value === 'custom') {
+              // Validate: end date should not be before start date
+              if (startDateInput && startDateInput.value && endDateInput.value < startDateInput.value) {
+                alert('End date cannot be before start date. Please select a valid date range.');
+                endDateInput.value = startDateInput.value;
+                return;
+              }
+              // Set min date for start date input
+              if (startDateInput) {
+                startDateInput.setAttribute('max', endDateInput.value);
+              }
+              refreshAll();
+            }
+          });
+        }
+        
         prodSel.addEventListener('change', refreshAll);
         brSel.addEventListener('change', async () => {
           await loadProductsForBranch();
@@ -321,7 +395,24 @@
 
       function params(){
         const q = new URLSearchParams();
-        if (daysSel && daysSel.value) q.set('days', daysSel.value);
+        if (daysSel && daysSel.value) {
+          if (daysSel.value === 'custom') {
+            // Use custom date range
+            const startDate = document.getElementById('startDate')?.value;
+            const endDate = document.getElementById('endDate')?.value;
+            // Only include dates if both are set
+            if (startDate && endDate) {
+              q.set('start_date', startDate);
+              q.set('end_date', endDate);
+            } else if (startDate || endDate) {
+              // If only one date is set, show a warning and use default range
+              console.warn('Both start and end dates are required for custom range');
+            }
+          } else {
+            // Use predefined days
+            q.set('days', daysSel.value);
+          }
+        }
         if (prodSel && prodSel.value) q.set('product_id', prodSel.value);
         if (brSel && brSel.value) q.set('branch_id', brSel.value);
         return q.toString();
