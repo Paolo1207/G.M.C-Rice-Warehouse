@@ -127,6 +127,7 @@ class InventoryItem(db.Model):
             "auto": self.auto_level,
             "margin": self.margin,
             "status": self.status,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 class RestockLog(db.Model):

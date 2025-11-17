@@ -229,7 +229,13 @@
                             </div>
                             <div class="form-group">
                                 <label for="editCategory">Category</label>
-                                <input type="text" id="editCategory" name="category" placeholder="Premium">
+                                <select id="editCategory" name="category">
+                                    <option value="">Select Category</option>
+                                    <option value="white">White Rice</option>
+                                    <option value="premium">Premium Rice</option>
+                                    <option value="regular">Regular Rice</option>
+                                    <option value="special">Special Varieties</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label for="editBarcode">Barcode Number</label>
@@ -383,6 +389,17 @@
             return d.toLocaleDateString('en-US', options);
         }
 
+        function formatCategory(category) {
+            if (!category || category === '—') return '—';
+            const categoryMap = {
+                'white': 'White Rice',
+                'premium': 'Premium Rice',
+                'regular': 'Regular Rice',
+                'special': 'Special Varieties'
+            };
+            return categoryMap[category.toLowerCase()] || category;
+        }
+
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -500,7 +517,7 @@
                 const batchDisplay = item.batchCode || '—';
                 row.innerHTML = `
                     <td>${item.name}</td>
-                    <td>${item.category || '—'}</td>
+                    <td>${formatCategory(item.category)}</td>
                     <td>${batchDisplay}</td>
                     <td>${item.quantity}</td>
                     <td>${formattedPrice}</td>
@@ -605,7 +622,11 @@
 
                 document.getElementById('editItemId').value = it.id;
                 document.getElementById('editProductName').value = it.product_name || '';
-                document.getElementById('editCategory').value = it.category || '';
+                // Set category dropdown value
+                const editCategorySelect = document.getElementById('editCategory');
+                if (editCategorySelect && it.category) {
+                    editCategorySelect.value = it.category;
+                }
                 document.getElementById('editBarcode').value = it.barcode || '';
                 document.getElementById('editSku').value = it.sku || '';
                 document.getElementById('editDescription').value = it.desc || '';
@@ -615,6 +636,7 @@
                 document.getElementById('editGrn').value = it.grn || '';
                 document.getElementById('editWarningThreshold').value = it.warn ?? '';
                 document.getElementById('editAutoOrderLevel').value = it.auto ?? '';
+                document.getElementById('editSellingMargin').value = it.margin || '';
 
                 document.getElementById('editStockModal').style.display = 'block';
             } catch (e) {
@@ -686,21 +708,34 @@
                         <input value="${String(value ?? '')}" readonly>
                     </div>`;
 
+                const formatDate = (dateString) => {
+                    if (!dateString) return 'N/A';
+                    try {
+                        const d = new Date(dateString);
+                        if (isNaN(d.getTime())) return dateString;
+                        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                    } catch (e) {
+                        return dateString;
+                    }
+                };
+
                 const fields = [
                     V('Product Name', it.product_name),
-                    V('Category', it.category),
-                    V('Barcode', it.barcode),
-                    V('SKU', it.sku),
-                    V('Recorded Stock (kg)', it.stock),
-                    V('Unit Price', it.price),
-                    V('Warning Threshold', it.warn),
-                    V('Auto Order Level', it.auto),
-                    V('Batch Code', it.batch || ''),
-                    V('GRN Number', it.grn || it.grn_number || ''),
+                    V('Category', formatCategory(it.category)),
+                    V('Barcode', it.barcode || '—'),
+                    V('SKU', it.sku || '—'),
+                    V('Recorded Stock (kg)', it.stock || 0),
+                    V('Unit Price', it.price ? `₱${Number(it.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₱0.00'),
+                    V('Warning Threshold', it.warn || it.warn_level || '—'),
+                    V('Auto Order Level', it.auto || it.auto_level || '—'),
+                    V('Selling Price Margin', it.margin || '—'),
+                    V('Batch Code', it.batch || it.batch_code || '—'),
+                    V('GRN Number', it.grn || it.grn_number || '—'),
+                    V('Last Updated', formatDate(it.updated_at || it.last_updated || it.modified_at || it.created_at)),
                     `
                     <div class="form-group col-span-3">
                         <label style="color:#1a365d">Description</label>
-                        <input value="${it.desc ?? ''}" readonly>
+                        <textarea readonly style="width:100%;padding:8px;border:1px solid #e6eef9;border-radius:4px;min-height:60px;resize:none;">${it.desc || it.description || '—'}</textarea>
                     </div>
                     `,
                     `

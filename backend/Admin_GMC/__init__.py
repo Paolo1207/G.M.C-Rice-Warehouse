@@ -227,6 +227,9 @@ def api_create_product():
             if auto_level is not None: inv.auto_level = auto_level
             if margin is not None:     inv.margin = margin
             if grn_number is not None: inv.grn_number = grn_number
+            # Update timestamp when modifying existing inventory
+            from datetime import datetime
+            inv.updated_at = datetime.utcnow()
 
     try:
         db.session.commit()
@@ -351,6 +354,8 @@ def api_branch_inventory(branch_id):
             "warn_level": item.warn_level,
             "auto": item.auto_level,
             "auto_level": item.auto_level,
+            "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+            "last_updated": item.updated_at.isoformat() if item.updated_at else None,
         })
     
     return jsonify({
@@ -586,6 +591,8 @@ def api_list_products_by_branch():
                 "auto_level": it.auto_level,
                 "margin": it.margin,
                 "status": ("out" if (it.stock_kg or 0) <= 0 else ("low" if (it.warn_level is not None and (it.stock_kg or 0) < it.warn_level) else "available")),
+                "updated_at": it.updated_at.isoformat() if it.updated_at else None,
+                "last_updated": it.updated_at.isoformat() if it.updated_at else None,
             })
             print(f"DEBUG: Added item: product='{it.product.name if it.product else None}', batch='{it.batch_code}', stock={it.stock_kg}")
         except Exception as e:
@@ -636,6 +643,11 @@ def api_update_inventory_item(inventory_id: int):
     set_if(data, "warn",       inv, "warn_level", float)
     set_if(data, "auto",       inv, "auto_level", float)
     set_if(data, "margin",     inv, "margin", str)
+    
+    # Update timestamp when any inventory field is modified
+    if any(key in data for key in ["stock_kg", "unit_price", "batch", "grn", "warn", "auto", "margin"]):
+        from datetime import datetime
+        inv.updated_at = datetime.utcnow()
 
     try:
         db.session.commit()
@@ -790,6 +802,8 @@ def api_restock_inventory_item(inventory_id: int):
     if existing_inv:
         # Add to existing batch
         existing_inv.stock_kg = (existing_inv.stock_kg or 0) + qty
+        # Update timestamp when restocking existing inventory
+        existing_inv.updated_at = datetime.utcnow()
         target_inv = existing_inv
     else:
         # Create new inventory item with new batch code
@@ -870,6 +884,7 @@ def api_restock_inventory_item(inventory_id: int):
         "auto": fresh.auto_level,
         "margin": fresh.margin,
         "status": ("out" if (fresh.stock_kg or 0) <= 0 else ("low" if (fresh.warn_level is not None and (fresh.stock_kg or 0) < fresh.warn_level) else "available")),
+        "updated_at": fresh.updated_at.isoformat() if fresh.updated_at else None,
     }
     return jsonify({"ok": True, "item": item_dict, "log": log.to_dict()}), 201
 
