@@ -271,16 +271,17 @@
             // Show custom date range inputs
             if (customRangeDiv) {
               customRangeDiv.style.display = 'flex';
-              // Set default dates (last 30 days) if not already set
+              // Set default dates to today for both To and From
               const startDateInput = document.getElementById('startDate');
               const endDateInput = document.getElementById('endDate');
-              if (startDateInput && !startDateInput.value) {
-                const endDate = new Date();
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 30);
-                // Set To first (endDate), then From (startDate)
-                endDateInput.value = endDate.toISOString().split('T')[0];
-                startDateInput.value = startDate.toISOString().split('T')[0];
+              const today = new Date();
+              const todayStr = today.toISOString().split('T')[0];
+              // Always set both to today when custom range is first selected
+              if (startDateInput) {
+                startDateInput.value = todayStr;
+              }
+              if (endDateInput) {
+                endDateInput.value = todayStr;
               }
             }
           } else {
