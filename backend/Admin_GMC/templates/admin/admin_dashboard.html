@@ -318,11 +318,6 @@
                         <div class="metric-value" id="avg-order-value">₱0</div>
                         <div class="metric-change" id="avg-order-change">+0%</div>
                     </div>
-                    <div class="metric-item">
-                        <div class="metric-label">Customer Satisfaction</div>
-                        <div class="metric-value" id="satisfaction-value">0.0/5</div>
-                        <div class="metric-change" id="satisfaction-change">+0.0</div>
-                    </div>
                 </div>
             </div>
             <div class="dashboard-widget recent-activity-widget">
@@ -528,10 +523,6 @@
                     // Update avg order value
                     document.getElementById('avg-order-value').textContent = metrics.avg_order_value.formatted;
                     updateMetricChange('avg-order-change', metrics.avg_order_value.change);
-                    
-                    // Update customer satisfaction
-                    document.getElementById('satisfaction-value').textContent = metrics.customer_satisfaction.formatted;
-                    updateMetricChange('satisfaction-change', metrics.customer_satisfaction.change);
                 }
             } catch (error) {
                 console.error('Error loading key metrics:', error);

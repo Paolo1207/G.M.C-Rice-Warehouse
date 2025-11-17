@@ -1116,15 +1116,42 @@ function onDeleteItem(e){
 
 async function performDelete(inventoryId) {
   try {
-    const res = await fetch(`/admin/api/products/${encodeURIComponent(inventoryId)}`, { 
+    const url = `/admin/api/products/${encodeURIComponent(inventoryId)}?delete_product_if_orphan=1`;
+    const res = await fetch(url, { 
       method: "DELETE",
       credentials: 'include'
     });
     
-    const data = await res.json();
+    const contentType = res.headers.get('content-type') || '';
+    let data = null;
+    let rawText = null;
+    
+    if (res.status === 204) {
+      data = { ok: true };
+    } else if (contentType.includes('application/json')) {
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        console.error("Failed to parse delete JSON response:", jsonErr);
+      }
+    } else {
+      rawText = await res.text();
+    }
+    
+    if (!data && rawText !== null) {
+      if (!res.ok) {
+        const plain = rawText.replace(/<[^>]*>/g, ' ').trim();
+        throw new Error(plain || `Server returned status ${res.status}`);
+      }
+      data = { ok: true };
+    }
+    
+    if (!data) {
+      throw new Error(`Unable to process server response (status ${res.status})`);
+    }
     
     if (!res.ok || data.ok === false) {
-      throw new Error(data?.error || "Delete failed");
+      throw new Error(data?.error || `Delete failed (status ${res.status})`);
     }
     
     // Refresh the inventory data
