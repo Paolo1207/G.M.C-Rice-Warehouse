@@ -362,30 +362,40 @@
 
     async function handlePasswordChange(e) {
       e.preventDefault();
-      const currentPassword = document.getElementById('currentPassword').value;
-      const newPassword = document.getElementById('newPassword').value;
-      const confirmPassword = document.getElementById('confirmPassword').value;
+      
+      const formData = new FormData(e.target);
+      const currentPassword = formData.get('currentPassword') || document.getElementById('currentPassword').value;
+      const newPassword = formData.get('newPassword') || document.getElementById('newPassword').value;
+      const confirmPassword = formData.get('confirmPassword') || document.getElementById('confirmPassword').value;
 
-      if (newPassword !== confirmPassword) {
-        showNotification('New passwords do not match', 'error');
+      // Validate passwords
+      if (!currentPassword) {
+        showNotification('Current password is required', 'error');
         return;
       }
 
-      if (newPassword.length < 6) {
-        showNotification('Password must be at least 6 characters', 'error');
+      if (!newPassword) {
+        showNotification('New password is required', 'error');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showNotification('Passwords do not match', 'error');
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        showNotification('Password must be at least 8 characters', 'error');
         return;
       }
 
       try {
-        // CSRF token is optional since backend has CSRF disabled
-        // But we'll still send it if available
-        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : null;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         
         const headers = {
           'Content-Type': 'application/json'
         };
-        // Only add CSRF token if it exists (optional)
+        
         if (csrfToken) {
           headers['X-CSRFToken'] = csrfToken;
         }
@@ -397,18 +407,19 @@
             currentPassword: currentPassword,
             newPassword: newPassword
           }),
-          credentials: 'include' // Ensure session cookies are sent
+          credentials: 'include'
         });
         
         const data = await response.json();
         
         if (response.ok) {
-          showNotification('Password changed successfully', 'success');
+          showNotification('Password changed successfully!', 'success');
           e.target.reset();
-          document.querySelector('.strength-bar').style.width = '0%';
-          document.getElementById('strengthValue').textContent = 'None';
+          const strengthBar = document.querySelector('.strength-bar');
+          const strengthValue = document.getElementById('strengthValue');
+          if (strengthBar) strengthBar.style.width = '0%';
+          if (strengthValue) strengthValue.textContent = 'None';
         } else {
-          // Check if it's a CSRF error and show a more helpful message
           const errorMsg = data.error || 'Error changing password';
           if (errorMsg.includes('CSRF') || errorMsg.includes('csrf')) {
             showNotification('Session expired. Please refresh the page and try again.', 'error');
@@ -417,8 +428,8 @@
           }
         }
       } catch (err) {
-        console.error(err);
-        showNotification('Error changing password', 'error');
+        console.error('Error changing password:', err);
+        showNotification('Failed to change password', 'error');
       }
     }
 
