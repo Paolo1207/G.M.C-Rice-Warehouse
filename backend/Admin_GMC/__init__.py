@@ -4355,6 +4355,21 @@ def api_delete_user(user_id):
                 "error": "Cannot delete main admin user"
             }), 400
         
+        # Clean up dependent records to satisfy FK constraints
+        try:
+            # Delete password reset records for this user
+            from models import PasswordReset, EmailVerification, ActivityLog
+            PasswordReset.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+            # Delete pending email verification records
+            EmailVerification.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+            # Keep activity logs but detach FK; preserve email for audit
+            db.session.query(ActivityLog)\
+                .filter(ActivityLog.user_id == user.id)\
+                .update({"user_id": None, "user_email": user.email}, synchronize_session=False)
+        except Exception:
+            # Even if cleanup fails, proceed; outer except will handle rollback if needed
+            pass
+        
         db.session.delete(user)
         db.session.commit()
         
