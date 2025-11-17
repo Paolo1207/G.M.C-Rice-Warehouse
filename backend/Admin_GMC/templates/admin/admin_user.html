@@ -170,7 +170,6 @@
                         <th>Name</th>
                         <th>Warehouse ID</th>
                         <th>Location</th>
-                        <th>Contact Number</th>
                         <th>Role</th>
                         <th>Actions</th>
                     </tr>
@@ -207,7 +206,6 @@
                             <option value="Sta. Cruz">Sta. Cruz</option>
                         </select>
                     </label>
-                    <label>Contact Number:<input type="text" id="userContact" placeholder="e.g., 0917-123-4567"></label>
                     <div class="user-form-actions">
                         <button type="submit" id="saveBtn">Save</button>
                         <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
@@ -288,7 +286,6 @@
             <td>${user.name}</td>
             <td>${user.warehouse_id}</td>
             <td>${user.location}</td>
-            <td>${user.contact_number}</td>
             <td><span class="role-badge ${user.role.toLowerCase()}">${user.role}</span></td>
             <td>
               <button class="view-btn" onclick="viewUser(${user.id})">View</button>
@@ -345,7 +342,6 @@
           user.name.toLowerCase().includes(query) ||
           user.warehouse_id.toLowerCase().includes(query) ||
           user.location.toLowerCase().includes(query) ||
-          (user.contact_number && user.contact_number.toLowerCase().includes(query)) ||
           user.role.toLowerCase().includes(query) ||
           (user.email && user.email.toLowerCase().includes(query))
         );
@@ -408,9 +404,6 @@
             <strong>Location:</strong> ${user.location}
           </div>
           <div class="user-detail-item">
-            <strong>Contact:</strong> ${user.contact_number}
-          </div>
-          <div class="user-detail-item">
             <strong>Role:</strong> <span class="role-badge ${user.role.toLowerCase()}">${user.role}</span>
           </div>
         `;
@@ -434,7 +427,6 @@
         document.getElementById('userId').value = user.id;
         document.getElementById('userName').value = user.name;
         document.getElementById('userEmail').value = user.email;
-        document.getElementById('userContact').value = user.contact_number;
         document.getElementById('userRole').value = user.role;
         // Set branch value and toggle visibility based on role
         toggleBranchField();
