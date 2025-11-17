@@ -192,7 +192,7 @@
    <!-- Branch Inventory Modal (replicates your screenshot) -->
 <div id="branch-inventory-modal" class="modal" aria-hidden="true">
   <div class="modal-content glass-card">
-    <button class="close-btn" id="invModalClose" aria-label="Close">&times;</button>
+    <button class="close-btn" id="invModalClose" type="button" aria-label="Close">&times;</button>
 
     <div class="modal-header" style="gap: 10px;">
       <h3 id="invModalTitle">Branch - Inventory</h3>
@@ -1936,6 +1936,41 @@ async function exportAllBranches() {
         .delete-modal-content {
             max-width: 500px;
             text-align: center;
+        }
+        
+        /* Improved Close Button (large, easy to click, like rounded icon) */
+        .modal .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            border: 1px solid rgba(0,0,0,0.08);
+            background: linear-gradient(135deg, #6dd5ed 0%, #2e7d32 100%);
+            color: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            line-height: 1;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+            transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+            z-index: 1002;
+            opacity: 0.96;
+        }
+        .modal .close-btn:hover {
+            transform: scale(1.06);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.16);
+            opacity: 1;
+        }
+        .modal .close-btn:active {
+            transform: scale(0.98);
+        }
+        .modal .close-btn:focus-visible {
+            outline: 3px solid rgba(46,125,50,0.35);
+            outline-offset: 2px;
         }
         
         .delete-modal-content h4 {
