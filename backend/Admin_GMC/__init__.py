@@ -8,7 +8,7 @@ from models import ExportLog
 from forecasting_service import forecasting_service
 from reports_service import reports_service
 from auth_helpers import admin_required
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import numpy as np
 import json
 import os
@@ -1372,7 +1372,7 @@ def api_sales_trend():
         if to:
             try: end = datetime.strptime(to, '%Y-%m-%d').date()
             except: pass
-        start = end - timedelta(days=days or 90)
+        start = end - td(days=days or 90)
         if frm:
             try: start = datetime.strptime(frm, '%Y-%m-%d').date()
             except: pass
@@ -1408,13 +1408,13 @@ def api_sales_trend():
         while current_date <= end:
             if granularity == 'daily':
                 all_dates.append(current_date)
-                current_date += timedelta(days=1)
+                current_date += td(days=1)
             elif granularity == 'week':
                 # For weekly, add week start dates
-                week_start = current_date - timedelta(days=current_date.weekday())
+                week_start = current_date - td(days=current_date.weekday())
                 if week_start not in all_dates:
                     all_dates.append(week_start)
-                current_date += timedelta(days=7)
+                current_date += td(days=7)
             else:
                 # Monthly
                 month_start = current_date.replace(day=1)
