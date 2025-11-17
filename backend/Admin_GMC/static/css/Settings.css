@@ -162,25 +162,26 @@
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  background: transparent;
+  background: transparent !important; /* remove green pill background */
   border: none;
   cursor: pointer;
   padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #111; /* Use neutral dark icon color (eye/eye-slash) */
+  color: #111; /* neutral dark icon */
   transition: all 0.2s ease;
   z-index: 10;
   width: 32px;
   height: 32px;
   border-radius: 4px;
-  opacity: 1; /* Fully visible, no faded green box */
+  opacity: 1;
+  box-shadow: none !important;
 }
 
 .password-toggle:hover {
   color: #000;
-  background: transparent; /* Remove green hover background */
+  background: transparent !important; /* keep transparent on hover */
   opacity: 1;
 }
 
@@ -189,7 +190,7 @@
 }
 
 .password-toggle:focus {
-  outline: none; /* No green focus ring */
+  outline: none !important; /* No green focus ring */
   outline-offset: 2px;
   opacity: 1;
 }
