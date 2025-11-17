@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Sales - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager blueprint static -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/sales.css') }}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}" class="active"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="sales-container">
+        <div class="sales-header">
+          <h2>Sales Analysis</h2>
+        </div>
+
+        <!-- Filters -->
+        <div class="sales-filters">
+          <div class="filter-group">
+            <select id="dateRange">
+              <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+              <option value="90">Last 3 Months</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            <select id="productFilter">
+              <option value="">All Products</option>
+            </select>
+          </div>
+          <div class="date-range" id="customDateRange" style="display:none;">
+            <input type="date" id="startDate">
+            <input type="date" id="endDate">
+          </div>
+        </div>
+
+        <!-- Overview -->
+        <div class="sales-overview">
+          <div class="overview-card">
+            <div class="card-icon"><i class="fas fa-shopping-cart"></i></div>
+            <div class="card-content">
+              <h3>Total Units Sold</h3>
+              <p class="number">5,678</p>
+              <p class="trend positive">+12.5% from last period</p>
+            </div>
+          </div>
+          <div class="overview-card">
+            <div class="card-icon success"><i class="fas fa-money-bill-wave"></i></div>
+            <div class="card-content">
+              <h3>Total Price of Purchase</h3>
+              <p class="number" id="totalPriceDisplay">₱0.00</p>
+              <p class="trend positive">Total purchase amount</p>
+            </div>
+          </div>
+          <div class="overview-card">
+            <div class="card-icon warning"><i class="fas fa-star"></i></div>
+            <div class="card-content">
+              <h3>Top Selling Product</h3>
+              <p class="product">Product A</p>
+              <p class="quantity">1,234 units</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="sales-charts">
+          <div class="chart-container">
+            <h3>Daily Sales Trend</h3>
+            <canvas id="dailySalesChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <h3>Product Performance</h3>
+            <canvas id="productPerformanceChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <h3>Top Products Share</h3>
+            <canvas id="productShareChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="sales-table-container">
+          <h3>Sales Log</h3>
+          <div class="table-actions">
+            <div class="search-box">
+              <input type="text" id="searchSales" placeholder="Search sales...">
+              <i class="fas fa-search"></i>
+            </div>
+            <div class="export-options">
+              <button class="btn secondary" onclick="exportToCSV()"><i class="fas fa-file-csv"></i> CSV</button>
+              <button class="btn secondary" onclick="printSales()"><i class="fas fa-print"></i> Print</button>
+            </div>
+          </div>
+
+          <table class="sales-table">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Quantity Sold</th>
+                <th>Batch</th>
+                <th>Sale Date & Time</th>
+                <th>Branch</th>
+              </tr>
+            </thead>
+            <tbody id="salesTableBody"><!-- populated by JS --></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+  <script>
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        initSales();
+      } catch (err) {
+        console.error('Init error:', err);
+        showNotification('Error loading sales data. Please refresh.', 'error');
+      }
+    });
+
+    let MANAGER_BRANCH_ID = null;
+    let dailyChart, perfChart, shareChart;
+    let salesTableData = []; // Store sales data for filtering
+
+    function initSales() {
+      const urlParams = new URLSearchParams(window.location.search);
+      MANAGER_BRANCH_ID = urlParams.get('branch') || null;
+      setupFilters();
+      loadAll();
+      const search = document.getElementById('searchSales');
+      if (search) search.addEventListener('input', filterSales);
+    }
+
+    function setupFilters() {
+      try {
+        const dateRange = document.getElementById('dateRange');
+        const custom = document.getElementById('customDateRange');
+        if (!dateRange || !custom) throw new Error('Missing date range elements');
+
+        dateRange.addEventListener('change', function () {
+          if (this.value === 'custom') {
+            custom.style.display = 'flex';
+            // Set default dates to today
+            const today = new Date().toISOString().split('T')[0];
+            const startDateInput = document.getElementById('startDate');
+            const endDateInput = document.getElementById('endDate');
+            if (startDateInput) startDateInput.value = today;
+            if (endDateInput) endDateInput.value = today;
+            // Automatically refresh data when custom range is selected
+            setTimeout(() => loadAll(), 100); // Small delay to ensure dates are set
+          } else {
+            custom.style.display = 'none';
+            loadAll();
+          }
+        });
+
+        // Add event listeners for custom date inputs
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        
+        const refreshOnDateChange = () => {
+          if (dateRange.value === 'custom') {
+            // Check if both dates are set before refreshing
+            const startVal = startDateInput?.value;
+            const endVal = endDateInput?.value;
+            if (startVal && endVal) {
+              loadAll();
+            }
+          }
+        };
+        
+        if (startDateInput) {
+          startDateInput.addEventListener('change', refreshOnDateChange);
+          startDateInput.addEventListener('input', refreshOnDateChange);
+        }
+        if (endDateInput) {
+          endDateInput.addEventListener('change', refreshOnDateChange);
+          endDateInput.addEventListener('input', refreshOnDateChange);
+        }
+
+        hydrateProducts();
+        const pf = document.getElementById('productFilter');
+        if (pf) pf.addEventListener('change', loadAll);
+      } catch (e) {
+        console.error('Filter setup error:', e);
+        showNotification('Error setting up filters', 'error');
+      }
+    }
+
+    async function loadAll(){
+      // Load KPIs first to set the correct price immediately
+      await loadKPIs();
+      // Then load other data in parallel
+      await Promise.all([loadTrend(), loadTopShare(), loadSalesData()]);
+    }
+
+    async function hydrateProducts(){
+      try{
+        const pf = document.getElementById('productFilter');
+        if (!pf) return;
+        const q = new URLSearchParams();
+        if (MANAGER_BRANCH_ID) q.set('branch_id', MANAGER_BRANCH_ID);
+        const r = await fetch('/admin/api/products/branch?'+q.toString());
+        const j = await r.json();
+        const items = (j.items||[]);
+        const seen = new Map();
+        items.forEach(it=>{ if(!seen.has(it.product_id)) seen.set(it.product_id, it.product_name); });
+        pf.innerHTML = '<option value="">All Products</option>' + Array.from(seen.entries()).map(([id,name])=>`<option value="${id}">${name}</option>`).join('');
+      }catch(e){ console.warn('hydrateProducts failed', e); }
+    }
+
+    function queryParams(){
+      const q = new URLSearchParams();
+      const dr = document.getElementById('dateRange');
+      const daysMap = { '7':7, '30':30, '90':90 };
+      
+      // Handle custom date range
+      if (dr?.value === 'custom') {
+        const startDate = document.getElementById('startDate')?.value;
+        const endDate = document.getElementById('endDate')?.value;
+        if (startDate) q.set('from', startDate);
+        if (endDate) q.set('to', endDate);
+        // Also set days to cover the range (for backward compatibility)
+        if (startDate && endDate) {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          q.set('days', diffDays);
+        }
+      } else {
+        const days = daysMap[dr?.value] || 30;
+        q.set('days', days);
+      }
+      
+      const pf = document.getElementById('productFilter');
+      if (pf && pf.value) q.set('product_id', pf.value);
+      if (MANAGER_BRANCH_ID) q.set('branch_id', MANAGER_BRANCH_ID);
+      return q.toString();
+    }
+
+    async function loadKPIs(){
+      try{
+        // Get total units sold from KPIs
+        const j = await fetch('/admin/api/sales/kpis?'+queryParams()).then(r=>r.json());
+        if (!j.ok) return;
+        const unitsSoldEl = document.querySelector('.overview-card:nth-child(1) .number');
+        if (unitsSoldEl) {
+          const units = Number(j.kpis.units_sold||0);
+          unitsSoldEl.textContent = `${units.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
+        }
+        
+        // Get total price of purchase from sales API (which returns totals.amount)
+        const salesData = await fetch('/admin/api/sales?'+queryParams()).then(r=>r.json());
+        const totalPriceEl = document.getElementById('totalPriceDisplay') || document.querySelector('.overview-card:nth-child(2) .number');
+        
+        if (totalPriceEl) {
+          let totalPrice = 0;
+          if (salesData.ok && salesData.totals) {
+            totalPrice = Number(salesData.totals.amount || 0);
+          } else if (j.kpis && j.kpis.month_sales) {
+            // Fallback to KPIs month_sales if available
+            totalPrice = Number(j.kpis.month_sales || 0);
+          }
+          
+          // Update immediately without any animation
+          totalPriceEl.textContent = `₱${totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+        
+        // Get top selling product
+        const tp = await fetch('/admin/api/sales/top_products?'+queryParams()).then(r=>r.json());
+        if ((tp.rows||[])[0]){
+          const productEl = document.querySelector('.overview-card:nth-child(3) .product');
+          const quantityEl = document.querySelector('.overview-card:nth-child(3) .quantity');
+          if (productEl) productEl.textContent = tp.rows[0].name;
+          if (quantityEl) quantityEl.textContent = `${Number(tp.rows[0].quantity||0).toLocaleString()} units`;
+        }
+      }catch(e){ 
+        console.error('kpis',e);
+        // Show error state
+        const totalPriceEl = document.getElementById('totalPriceDisplay') || document.querySelector('.overview-card:nth-child(2) .number');
+        if (totalPriceEl) {
+          totalPriceEl.textContent = '₱0.00';
+        }
+      }
+    }
+
+    async function loadTrend(){
+      try{
+        const j = await fetch('/admin/api/sales/trend?granularity=daily&'+queryParams()).then(r=>r.json());
+        const el = document.getElementById('dailySalesChart');
+        if (!el || !j.ok) return;
+        if (dailyChart) dailyChart.destroy();
+        dailyChart = new Chart(el.getContext('2d'), { type:'bar', data:{ labels:j.labels||[], datasets:(j.series||[]).map((s,i)=>({ label:s.branch_name||('Branch '+s.branch_id), data:s.data||[], backgroundColor:['#4caf50','#2196f3','#ff9800','#e91e63'][i%4] })) }, options:{ responsive:true }});
+      }catch(e){ console.error('trend',e); }
+    }
+
+    async function loadTopShare(){
+      try{
+        const j = await fetch('/admin/api/sales/top_products?'+queryParams()).then(r=>r.json());
+        const labels = (j.rows||[]).map(r=>r.name);
+        const qty = (j.rows||[]).map(r=>r.quantity||0);
+        const el = document.getElementById('productShareChart');
+        if (shareChart) shareChart.destroy();
+        if (el) shareChart = new Chart(el.getContext('2d'), { type:'pie', data:{ labels, datasets:[{ data: qty, backgroundColor:['#4caf50','#2196f3','#ff9800','#e91e63','#9c27b0','#795548'] }] }, options:{ responsive:true }});
+        const perfEl = document.getElementById('productPerformanceChart');
+        if (perfEl){
+          if (perfChart) perfChart.destroy();
+          perfChart = new Chart(perfEl.getContext('2d'), { type:'line', data:{ labels, datasets:[{ label:'Qty', data: qty, borderColor:'#4caf50', tension:0.2 }] }, options:{ responsive:true }});
+        }
+      }catch(e){ console.error('share',e); }
+    }
+
+    async function loadSalesData() {
+      try {
+        const j = await fetch('/admin/api/sales?'+queryParams()).then(r=>r.json());
+        const rows = j.rows || [];
+        // Store data for filtering
+        salesTableData = rows.map(r=>({ 
+          id:r.id, 
+          product:r.product_name, 
+          quantity:r.qty, 
+          batch:r.batch_code || '-',
+          saleDate:r.date || r.transaction_date || r.datetime,
+          saleDateTime:r.transaction_date || r.datetime || (r.date ? `${r.date} 00:00:00` : null),
+          branch:r.branch_name, 
+          amount: r.amount || 0
+        }));
+        renderSalesTable(salesTableData);
+        updateOverviewCards(rows.map(r=>({ product:r.product_name, quantity:r.qty, saleDate:r.date })));
+      } catch (e) {
+        console.error('Load data error:', e);
+        showNotification('Error loading sales data', 'error');
+      }
+    }
+
+    function updateOverviewCards(data) {
+      try {
+        const total = data.reduce((s, r) => s + r.quantity, 0);
+        const unitsSoldEl = document.querySelector('.overview-card:nth-child(1) .number');
+        if (unitsSoldEl) {
+          unitsSoldEl.textContent = `${total.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kg`;
+        }
+
+        // Don't update the second card (Total Price of Purchase) - it's handled by loadKPIs()
+        // The second card should only show the total price, not an average
+
+        const byProduct = data.reduce((acc, r) => ((acc[r.product] = (acc[r.product] || 0) + r.quantity), acc), {});
+        const [topName, topQty] = Object.entries(byProduct).sort((a,b)=>b[1]-a[1])[0] || [];
+        if (topName) {
+          document.querySelector('.overview-card:nth-child(3) .product').textContent = topName;
+          document.querySelector('.overview-card:nth-child(3) .quantity').textContent = `${Number(topQty).toLocaleString()} units`;
+        }
+      } catch (e) {
+        console.error('Overview error:', e);
+      }
+    }
+
+    function renderSalesTable(data) {
+      try {
+        const tb = document.getElementById('salesTableBody');
+        if (!tb) throw new Error('Missing table body');
+        tb.innerHTML = '';
+        data.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.product}</td>
+            <td>${item.quantity.toLocaleString()}</td>
+            <td>${item.batch || '-'}</td>
+            <td>${formatDateTime(item.saleDateTime || item.saleDate)}</td>
+            <td>${item.branch}</td>`;
+          tb.appendChild(tr);
+        });
+      } catch (e) {
+        console.error('Render table error:', e);
+        showNotification('Error displaying sales data', 'error');
+      }
+    }
+
+    function filterSales() {
+      try {
+        const searchQuery = (document.getElementById('searchSales')?.value || '').toLowerCase().trim();
+        const tb = document.getElementById('salesTableBody');
+        if (!tb) return;
+        
+        if (!searchQuery) {
+          // Show all rows if search is empty
+          renderSalesTable(salesTableData);
+          return;
+        }
+        
+        // Filter the data
+        const filtered = salesTableData.filter(item => {
+          return item.product.toLowerCase().includes(searchQuery) ||
+                 item.branch.toLowerCase().includes(searchQuery) ||
+                 (item.saleDate && item.saleDate.toLowerCase().includes(searchQuery)) ||
+                 (item.saleDateTime && item.saleDateTime.toLowerCase().includes(searchQuery)) ||
+                 item.quantity.toString().includes(searchQuery) ||
+                 (item.batch && item.batch !== '-' && item.batch.toLowerCase().includes(searchQuery));
+        });
+        
+        // Re-render with filtered data
+        renderSalesTable(filtered);
+      } catch (e) {
+        console.error('Filter error:', e);
+      }
+    }
+
+    // Exports / actions
+    function exportToCSV(){ 
+      window.location.href = `/manager/api/reports/export/sales?format=csv&${queryParams()}`;
+    }
+    function printSales(){ window.print(); }
+
+    // Utils
+    function formatDate(s){ return new Date(s).toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'}); }
+    function formatDateTime(dateTimeStr) {
+      if (!dateTimeStr) return '-';
+      try {
+        const date = new Date(dateTimeStr);
+        if (isNaN(date.getTime())) return formatDate(dateTimeStr);
+        
+        // Format with date and time in Philippines timezone (Asia/Manila, UTC+8)
+        const options = {
+          timeZone: 'Asia/Manila',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        };
+        return date.toLocaleString('en-US', options);
+      } catch (e) {
+        return formatDate(dateTimeStr);
+      }
+    }
+    function showNotification(msg, type='info'){
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.innerHTML = `<i class="fas ${type==='success'?'fa-check-circle':type==='error'?'fa-exclamation-circle':'fa-info-circle'}"></i><span>${msg}</span>`;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(), 3000);
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const branchName = urlParams.get('branch_name');
+      const branchId = urlParams.get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Sales - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+</body>
+</html>

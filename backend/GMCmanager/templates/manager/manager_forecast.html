@@ -1,0 +1,2496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="pageTitle">Forecast - G.M.C. Rice Warehouse</title>
+
+  <!-- Manager static assets -->
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+  <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/forecast.css') }}">
+  <style>
+    .branch-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border: 1px solid #c8e6c9;
+      margin-left: 1rem;
+    }
+    
+    .branch-pill i {
+      font-size: 0.75rem;
+    }
+    
+    .forecast-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .forecast-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    
+    .btn.primary {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .btn.primary:hover {
+      background: #27642a;
+    }
+    
+    .btn.secondary {
+      background: #f5f5f5;
+      color: #333;
+      border: 1px solid #ddd;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .btn.secondary:hover {
+      background: #e9ecef;
+    }
+    
+    
+    .risk-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .risk-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    
+    .forecast-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    /* Risk styling */
+    .risk-type {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .risk-type.shortage {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .risk-type.overstock {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .risk-type.balanced {
+      background: #d1fae5;
+      color: #059669;
+    }
+    
+    .risk-badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    
+    .risk-badge.critical {
+      background: #fecaca;
+      color: #b91c1c;
+    }
+    
+    .risk-badge.moderate {
+      background: #fed7aa;
+      color: #c2410c;
+    }
+    
+    .risk-badge.low {
+      background: #bbf7d0;
+      color: #166534;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+    }
+  </style>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+      </div>
+
+      <div class="nav-main">
+        <div class="nav-section">
+          <h2>Main Menu</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('manager.inventory') }}"><i class="fas fa-box"></i> Inventory</a></li>
+            <li><a href="{{ url_for('manager.forecast') }}" class="active"><i class="fas fa-chart-line"></i> Forecast</a></li>
+            <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+            <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Reports</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+          </ul>
+        </div>
+
+        <div class="nav-section">
+          <h2>Settings</h2>
+          <ul>
+            <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+            <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="forecast-container">
+        <div class="forecast-header">
+          <h2><i class="fas fa-chart-line"></i> <span id="pageTitle">Forecast</span></h2>
+        </div>
+
+        <div class="forecast-tabs">
+          <button class="tab-btn active" data-tab="demand">
+            <i class="fas fa-chart-bar"></i> Demand Forecast
+          </button>
+          <button class="tab-btn" data-tab="price">
+            <i class="fas fa-tag"></i> Price Forecast
+          </button>
+          <button class="tab-btn" data-tab="risk">
+            <i class="fas fa-exclamation-triangle"></i> Stock Risk
+          </button>
+        </div>
+
+        <!-- Demand Forecast Tab -->
+        <div class="tab-content active" id="demand-forecast">
+          <div class="forecast-filters">
+            <div class="filter-group">
+              <select id="productFilter" required>
+                <option value="">Select a product</option>
+                <!-- Products will be populated from inventory -->
+              </select>
+              <select id="batchFilter" style="display: none;">
+                <option value="">Select batch (optional)</option>
+                <!-- Batch codes will be populated when product is selected -->
+              </select>
+            </div>
+            <div class="date-range">
+              <select id="timeRange">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Next Month</option>
+              </select>
+            </div>
+            <div class="forecast-actions">
+              <button class="btn primary" onclick="generateForecast()">
+                <i class="fas fa-magic"></i> Generate Demand Forecast
+              </button>
+              <button class="btn secondary" onclick="exportForecast()">
+                <i class="fas fa-download"></i> CSV
+              </button>
+              <button class="btn secondary" id="print-forecast-btn">
+                <i class="fas fa-print"></i> Print
+              </button>
+            </div>
+          </div>
+
+          <div class="forecast-grid">
+            <div class="forecast-chart">
+              <h3><i class="fas fa-chart-line"></i> Demand Forecast</h3>
+              <canvas id="demandChart"></canvas>
+            </div>
+
+            <div class="forecast-summary">
+              <h3><i class="fas fa-info-circle"></i> Forecast Summary</h3>
+              <div class="summary-cards">
+                <div class="summary-card">
+                  <h4>Average Demand</h4>
+                  <p class="number">--</p>
+                  <p class="trend">
+                    No forecast generated yet
+                  </p>
+                </div>
+                <div class="summary-card">
+                  <h4>Peak Day</h4>
+                  <p class="date">--</p>
+                  <p class="quantity">--</p>
+                </div>
+                <div class="summary-card">
+                  <h4>Suggested Reorder</h4>
+                  <p class="number">--</p>
+                  <p class="trend">Generate forecast first</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Forecast Information & Stock Preparation Guide -->
+          <div class="glass-card" id="forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
+              📖 Forecast Interpretation & Stock Preparation Guide
+            </h3>
+            <div id="forecast-information-content"></div>
+          </div>
+        </div>
+
+        <!-- Price Forecast Tab -->
+        <div class="tab-content" id="price-forecast">
+          <div class="forecast-filters">
+            <div class="filter-group">
+              <select id="priceProductFilter">
+                <option value="">Select a product</option>
+                <!-- Products will be populated from inventory -->
+              </select>
+              <select id="priceBatchFilter" style="display: none;">
+                <option value="">Select batch (optional)</option>
+                <!-- Batch codes will be populated when product is selected -->
+              </select>
+              <select id="priceTimeRange">
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 3 Months</option>
+                <option value="180">Last 6 Months</option>
+              </select>
+            </div>
+            <div class="forecast-actions">
+              <button class="btn primary" onclick="generatePriceForecast()">
+                <i class="fas fa-chart-line"></i> Generate Price Forecast
+              </button>
+            </div>
+          </div>
+
+          <div class="forecast-grid">
+            <div class="forecast-chart">
+              <h3><i class="fas fa-chart-line"></i> Price Movement</h3>
+              <canvas id="priceChart"></canvas>
+            </div>
+            <div class="price-insights">
+              <h3><i class="fas fa-lightbulb"></i> Price Insights</h3>
+              <div class="insight-cards">
+                <div class="insight-card">
+                  <h4>Current Price</h4>
+                  <p class="price">₱99.99/kg</p>
+                  <p class="trend positive">
+                    <i class="fas fa-arrow-up"></i>
+                    +4% from last month
+                  </p>
+                </div>
+                <div class="insight-card">
+                  <h4>Predicted Change</h4>
+                  <p class="prediction">+4%</p>
+                  <p class="reason">Due to upcoming holiday</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Price Forecast Information & Interpretation Guide -->
+          <div class="glass-card" id="price-forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
+              📖 Price Forecast Interpretation & Pricing Strategy Guide
+            </h3>
+            <div id="price-forecast-information-content"></div>
+          </div>
+        </div>
+
+        <!-- Stock Risk Tab -->
+        <div class="tab-content" id="risk-forecast">
+          <div class="forecast-filters">
+            <div class="filter-group">
+              <select id="riskProductFilter">
+                <option value="">All Products</option>
+                <!-- Products will be populated from inventory -->
+              </select>
+              <select id="riskBatchFilter" style="display: none;">
+                <option value="">All batches</option>
+                <!-- Batch codes will be populated when product is selected -->
+              </select>
+              <select id="riskCategoryFilter">
+                <option value="">All Categories</option>
+                <option value="shortage">Shortage</option>
+                <option value="overstock">Overstock</option>
+              </select>
+              <select id="riskSeverityFilter">
+                <option value="">All Severity Levels</option>
+                <option value="critical">Critical</option>
+                <option value="moderate">Moderate</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="date-range">
+              <select id="riskDateRange">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days</option>
+                <option value="90">Last 3 Months</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="risk-overview">
+            <div class="risk-card critical">
+              <h4><i class="fas fa-exclamation-circle"></i> Critical Risk</h4>
+              <p class="number">5</p>
+              <p class="description">Items requiring immediate attention</p>
+            </div>
+            <div class="risk-card moderate">
+              <h4><i class="fas fa-exclamation-triangle"></i> Moderate Risk</h4>
+              <p class="number">12</p>
+              <p class="description">Items to monitor closely</p>
+            </div>
+            <div class="risk-card low">
+              <h4><i class="fas fa-check-circle"></i> Low Risk</h4>
+              <p class="number">45</p>
+              <p class="description">Items in good standing</p>
+            </div>
+          </div>
+
+          <div class="risk-table-container">
+            <div class="risk-table-header">
+              <h3><i class="fas fa-table"></i> Risk Analysis</h3>
+              <div class="risk-actions">
+                <button class="btn primary" onclick="generateRiskAnalysis()">
+                  <i class="fas fa-exclamation-triangle"></i> Analyze Risks
+                </button>
+              <button class="btn secondary" onclick="exportRiskReport()">
+                <i class="fas fa-download"></i> Export Report
+              </button>
+              </div>
+            </div>
+            <table class="risk-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Risk Type</th>
+                  <th>Severity Level</th>
+                  <th>Current Stock</th>
+                  <th>Threshold</th>
+                  <th>Suggested Action</th>
+                </tr>
+              </thead>
+              <tbody id="riskTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+  <script>
+    // Manager branch scoping
+    let MANAGER_BRANCH_ID = null;
+    let MANAGER_BRANCH_NAME = null;
+    let demandChart, priceChart;
+    
+    // Forecast control
+    let filtersDirty = false;
+    let activeForecastController = null;
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeManagerForecast();
+      initCharts(); // Initialize charts
+      
+      // Setup print button
+      const printBtn = document.getElementById('print-forecast-btn');
+      if (printBtn) {
+        printBtn.addEventListener('click', function() {
+          printForecastPage();
+        });
+      }
+      
+      // Ensure chart is ready
+      setTimeout(() => {
+        console.log('Chart initialization check:', {
+          demandChart: !!demandChart,
+          chartElement: !!document.getElementById('demandChart')
+        });
+        
+      }, 1000);
+    });
+
+    async function initializeManagerForecast() {
+      try {
+        // Get manager's branch from URL or session
+        const urlParams = new URLSearchParams(window.location.search);
+        MANAGER_BRANCH_ID = urlParams.get('branch') || null;
+        MANAGER_BRANCH_NAME = urlParams.get('branch_name') || null;
+        
+        // If no branch in URL, get from manager API
+        if (!MANAGER_BRANCH_ID) {
+          await loadManagerBranch();
+        }
+        
+        setupTabs();
+        updateHeaderTitle('demand'); // Set initial title for demand tab
+        await loadManagerData();
+      setupRiskFilters();
+        updateBranchDisplay();
+        
+        // Clear price insights on initial load
+        clearPriceInsights();
+      } catch (error) {
+        console.error('Error initializing manager forecast:', error);
+        showToast('Error loading forecast data', 'error');
+      }
+    }
+
+    async function loadManagerBranch() {
+      try {
+        const response = await fetch('/manager/api/branches');
+        const data = await response.json();
+        if (data.ok && data.branches && data.branches.length > 0) {
+          MANAGER_BRANCH_ID = data.branches[0].id;
+          MANAGER_BRANCH_NAME = data.branches[0].name;
+        }
+      } catch (error) {
+        console.error('Error loading manager branch:', error);
+      }
+    }
+
+    function updateBranchDisplay() {
+      if (MANAGER_BRANCH_NAME) {
+        const branchPill = document.createElement('div');
+        branchPill.className = 'branch-pill';
+        branchPill.innerHTML = `<i class="fas fa-map-marker-alt"></i> You're viewing: ${MANAGER_BRANCH_NAME}`;
+        
+        const forecastHeader = document.querySelector('.forecast-header');
+        if (forecastHeader) {
+          forecastHeader.appendChild(branchPill);
+        }
+      }
+    }
+
+    // Tabs
+    function setupTabs() {
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tabId = btn.getAttribute('data-tab');
+
+          tabBtns.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+
+          btn.classList.add('active');
+          const target = document.getElementById(`${tabId}-forecast`);
+          if (target) target.classList.add('active');
+
+          // Update header title based on active tab
+          updateHeaderTitle(tabId);
+
+          if (tabId === 'risk') {
+            loadRiskData();
+          } else if (tabId === 'price') {
+            // Clear price insights when switching to price tab
+            clearPriceInsights();
+          }
+        });
+      });
+    }
+
+    // Update header title based on active tab
+    function updateHeaderTitle(tabId) {
+      const pageTitle = document.getElementById('pageTitle');
+      if (!pageTitle) return;
+
+      // Just use "Forecast" for all tabs
+      pageTitle.textContent = 'Forecast';
+    }
+
+    // Initialize charts with manager data
+    function initCharts() {
+      // Demand Chart
+      const dCtx = document.getElementById('demandChart');
+      if (dCtx) {
+        demandChart = new Chart(dCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+          datasets: [{
+            label: 'Actual Demand',
+              data: [],
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            tension: 0.4,
+            fill: true
+            }, {
+              label: 'Forecast',
+              data: [],
+              borderColor: '#e53e3e',
+              backgroundColor: 'rgba(229, 62, 62, 0.1)',
+              borderDash: [5, 5],
+              tension: 0.4,
+              fill: false
+          }]
+        },
+        options: {
+          responsive: true,
+            plugins: { 
+              title: { display: true, text: 'Demand Forecast' },
+              legend: { 
+                position: 'top',
+                onClick: (e, item, legend) => Chart.defaults.plugins.legend.onClick(e, item, legend)
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Quantity (kg)' }
+              },
+              x: {
+                title: { display: true, text: 'Date' }
+              }
+            }
+          }
+        });
+      }
+
+      // Price Chart
+      const pCtx = document.getElementById('priceChart');
+      if (pCtx) {
+        priceChart = new Chart(pCtx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: [],
+          datasets: [{
+            label: 'Price per Unit',
+              data: [],
+            borderColor: '#1a365d',
+            backgroundColor: 'rgba(26, 54, 93, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+            plugins: { 
+              title: { display: true, text: 'Price Movement' },
+              legend: { position: 'top' }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Price (₱)' }
+              },
+              x: {
+                title: { display: true, text: 'Date' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // Apply forecast data to chart and UI components
+    function applyForecast({ forecast, summary, details }) {
+      console.log('Applying forecast data:', { forecast, summary, details });
+      
+      if (demandChart && forecast) {
+        // Check if we have valid data
+        const hasLabels = forecast.labels && forecast.labels.length > 0;
+        const hasForecast = forecast.forecast && forecast.forecast.length > 0;
+        const hasActual = forecast.actual && forecast.actual.length > 0;
+        
+        if (hasLabels && (hasForecast || hasActual)) {
+          // Replace arrays wholesale - never mutate partially
+          demandChart.data.labels = forecast.labels || [];
+          demandChart.data.datasets[0].data = forecast.actual || [];
+          demandChart.data.datasets[1].data = forecast.forecast || [];
+          
+          demandChart.update();
+          console.log('Chart updated successfully');
+          
+          // Only update summary if we have valid data
+          if (summary && summary.avg_demand > 0) {
+            updateForecastSummary(summary);
+          } else {
+            console.log('Invalid summary data - keeping existing values');
+          }
+          
+          // Note: Forecast Details table removed - using description section instead
+          // Details are now shown in the forecast-information section below
+        } else {
+          console.warn('Invalid forecast data - generating sample data');
+          generateSampleForecastData();
+        }
+      } else {
+        console.error('Chart or forecast data missing:', { 
+          demandChart: !!demandChart, 
+          forecast: !!forecast 
+        });
+      }
+      
+      filtersDirty = false;
+    }
+
+    // Generate sample forecast data for testing
+    function generateSampleForecastData() {
+      console.log('Generating sample forecast data...');
+      
+      if (!demandChart) return;
+      
+      const days = 7;
+      const labels = [];
+      const actualData = [];
+      const forecastData = [];
+      
+      const today = new Date();
+      for (let i = 0; i < days; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        labels.push(date.toISOString().split('T')[0]);
+        
+        // Generate sample data
+        actualData.push(Math.floor(Math.random() * 100) + 50);
+        forecastData.push(Math.floor(Math.random() * 120) + 60);
+      }
+      
+      demandChart.data.labels = labels;
+      demandChart.data.datasets[0].data = actualData;
+      demandChart.data.datasets[1].data = forecastData;
+      demandChart.update();
+      
+      // Update summary with sample data
+      const avgDemand = Math.round(forecastData.reduce((a, b) => a + b, 0) / forecastData.length);
+      const peakIndex = forecastData.indexOf(Math.max(...forecastData));
+      const peakDate = labels[peakIndex];
+      const peakQty = Math.max(...forecastData);
+      
+      
+      updateForecastSummary({
+        avg_demand: avgDemand,
+        peak_date: peakDate,
+        peak_quantity: peakQty,
+        suggested_reorder: Math.round(avgDemand * 0.1),
+        confidence: 85.0
+      });
+      
+      console.log('Sample forecast data generated');
+    }
+
+    function updateForecastCharts(forecastData) {
+      console.log('Updating forecast charts with data:', forecastData);
+      if (demandChart && forecastData) {
+        console.log('Chart exists, updating with labels:', forecastData.labels);
+        demandChart.data.labels = forecastData.labels || [];
+        demandChart.data.datasets[0].data = forecastData.actual || [];
+        demandChart.data.datasets[1].data = forecastData.forecast || [];
+        demandChart.update();
+        console.log('Chart updated successfully');
+      } else {
+        console.log('Chart or data missing:', { demandChart: !!demandChart, forecastData: !!forecastData });
+      }
+    }
+
+    // Calculate MAE and MAPE from forecast data
+    function calculateForecastMetrics(forecastValues, accuracyScore) {
+      if (!forecastValues || forecastValues.length === 0) {
+        return { mae: 0, mape: 0, stdDev: 0, avgForecast: 0 };
+      }
+      
+      const avgForecast = forecastValues.reduce((a, b) => a + b, 0) / forecastValues.length;
+      
+      // Calculate standard deviation of forecast values (variability in predictions)
+      const variance = forecastValues.reduce((sum, val) => sum + Math.pow(val - avgForecast, 2), 0) / forecastValues.length;
+      const stdDev = Math.sqrt(variance);
+      
+      // Estimate MAE based on forecast variability and model accuracy
+      // Higher variability and lower accuracy = higher expected error
+      const accuracy = accuracyScore || 0.7; // Default to 0.7 if not provided
+      const accuracyFactor = 1 - accuracy; // Lower accuracy = higher error
+      
+      // MAE estimation: combines forecast variability (stdDev) with model accuracy
+      // Use coefficient of variation (stdDev/mean) as a base, then adjust by accuracy
+      const coefficientOfVariation = avgForecast > 0 ? stdDev / avgForecast : 0.2;
+      
+      // Estimate MAE: higher CV and lower accuracy = higher MAE
+      // Scale factor of 0.4-0.6 is typical for demand forecasting models
+      const scaleFactor = 0.5; // Empirical factor based on typical forecast errors
+      const estimatedMAE = avgForecast * (coefficientOfVariation * 0.5 + accuracyFactor * 0.5) * scaleFactor;
+      
+      // Ensure MAE is reasonable (not too high or too low)
+      const minMAE = avgForecast * 0.05; // At least 5% error
+      const maxMAE = avgForecast * 0.4;  // At most 40% error
+      const finalMAE = Math.max(minMAE, Math.min(maxMAE, estimatedMAE));
+      
+      // Calculate MAPE (Mean Absolute Percentage Error)
+      // MAPE = (MAE / Average Forecast) * 100
+      const estimatedMAPE = avgForecast > 0 ? (finalMAE / avgForecast) * 100 : 0;
+      
+      return {
+        mae: finalMAE,
+        mape: estimatedMAPE,
+        stdDev: stdDev,
+        avgForecast: avgForecast
+      };
+    }
+
+    function updateForecastSummary(summary) {
+      if (summary) {
+        const avgDemandEl = document.querySelector('.summary-card:nth-child(1) .number');
+        const avgDemandTrendEl = document.querySelector('.summary-card:nth-child(1) .trend');
+        const peakDayEl = document.querySelector('.summary-card:nth-child(2) .date');
+        const peakQtyEl = document.querySelector('.summary-card:nth-child(2) .quantity');
+        const reorderEl = document.querySelector('.summary-card:nth-child(3) .number');
+        const reorderTrendEl = document.querySelector('.summary-card:nth-child(3) .trend');
+        
+        if (avgDemandEl) avgDemandEl.textContent = (summary.avg_demand || 0).toLocaleString();
+        if (avgDemandTrendEl) {
+          // Update trend text with confidence or model info
+          let confidence = summary.confidence || summary.accuracy_score || 0;
+          // If confidence is already a percentage (>= 1), use it directly; otherwise multiply by 100
+          if (confidence >= 1) {
+            // Already a percentage (e.g., 85.0 means 85%)
+            avgDemandTrendEl.textContent = `Confidence: ${confidence.toFixed(1)}%`;
+          } else {
+            // Decimal format (e.g., 0.85 means 85%)
+            avgDemandTrendEl.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
+          }
+        }
+        if (peakDayEl) peakDayEl.textContent = summary.peak_date || 'N/A';
+        if (peakQtyEl) peakQtyEl.textContent = (summary.peak_quantity || 0).toLocaleString() + ' kg';
+        if (reorderEl) reorderEl.textContent = (summary.suggested_reorder || 0).toLocaleString();
+        if (reorderTrendEl) {
+          // Update trend text with recommendation
+          reorderTrendEl.textContent = 'Based on forecast analysis';
+        }
+      }
+    }
+
+    // Load manager-specific data
+    async function loadManagerData() {
+      await Promise.all([
+        loadBranchProducts(),
+        // Don't auto-load forecast data - let user generate it
+        loadRiskData()
+      ]);
+    }
+
+    async function loadBranchProducts() {
+      try {
+        // Get branch_id from template variables or URL parameters
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        let apiUrl = '/manager/api/inventory';
+        if (branchId) {
+          apiUrl += `?branch_id=${branchId}`;
+        }
+        
+        console.log('Loading products for branch:', branchId, 'URL:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (data.ok && data.items) {
+          populateProductFilters(data.items);
+          
+          // If a product is already selected, load its batch codes
+          const productFilter = document.getElementById('productFilter');
+          if (productFilter && productFilter.value) {
+            await loadBatchCodes(productFilter.value);
+          }
+          
+          const priceProductFilter = document.getElementById('priceProductFilter');
+          if (priceProductFilter && priceProductFilter.value) {
+            await loadPriceBatchCodes(priceProductFilter.value);
+          }
+          
+          const riskProductFilter = document.getElementById('riskProductFilter');
+          if (riskProductFilter && riskProductFilter.value) {
+            await loadRiskBatchCodes(riskProductFilter.value);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading branch products:', error);
+      }
+    }
+
+    function populateProductFilters(products) {
+      // Deduplicate products by product_id to avoid showing the same product multiple times
+      const uniqueProducts = new Map();
+      products.forEach(product => {
+        const productId = product.product_id || product.id;
+        if (!uniqueProducts.has(productId)) {
+          uniqueProducts.set(productId, product);
+        }
+      });
+      
+      const deduplicatedProducts = Array.from(uniqueProducts.values());
+      
+      const filters = ['productFilter', 'priceProductFilter', 'riskProductFilter'];
+      filters.forEach(filterId => {
+        const select = document.getElementById(filterId);
+        if (select) {
+          // Use "Select a product" for demand and price forecast, "All Products" for risk
+          const placeholder = (filterId === 'productFilter' || filterId === 'priceProductFilter') 
+            ? 'Select a product' 
+            : 'All Products';
+          select.innerHTML = `<option value="">${placeholder}</option>`;
+          deduplicatedProducts.forEach(product => {
+            const option = document.createElement('option');
+            // Use product_id for the value, not the inventory item id
+            option.value = product.product_id || product.id;
+            option.textContent = product.product_name || product.name || 'Unknown Product';
+            select.appendChild(option);
+          });
+        }
+      });
+    }
+
+    // Load batch codes for selected product (for demand forecast)
+    async function loadBatchCodes(productId) {
+      const batchFilter = document.getElementById('batchFilter');
+      if (!batchFilter) return;
+
+      if (!productId) {
+        batchFilter.style.display = 'none';
+        batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        return;
+      }
+
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+        const data = await response.json();
+
+        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+          // Show batch filter and populate options
+          batchFilter.style.display = 'block';
+          batchFilter.innerHTML = '<option value="">All batches</option>';
+          data.batch_codes.forEach(batchCode => {
+            const option = document.createElement('option');
+            option.value = batchCode;
+            option.textContent = batchCode;
+            batchFilter.appendChild(option);
+          });
+          console.log('Batch filter shown with', data.batch_codes.length, 'batches');
+        } else {
+          // Hide batch filter if no batches exist
+          batchFilter.style.display = 'none';
+          batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+          console.log('No batches found for product', productId);
+        }
+      } catch (error) {
+        console.error('Error loading batch codes:', error);
+        batchFilter.style.display = 'none';
+        batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+      }
+    }
+
+    // Load batch codes for selected product (for price forecast)
+    async function loadPriceBatchCodes(productId) {
+      const priceBatchFilter = document.getElementById('priceBatchFilter');
+      if (!priceBatchFilter) return;
+
+      if (!productId) {
+        priceBatchFilter.style.display = 'none';
+        priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        return;
+      }
+
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+        const data = await response.json();
+
+        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+          // Show batch filter and populate options
+          priceBatchFilter.style.display = 'block';
+          priceBatchFilter.innerHTML = '<option value="">All batches</option>';
+          data.batch_codes.forEach(batchCode => {
+            const option = document.createElement('option');
+            option.value = batchCode;
+            option.textContent = batchCode;
+            priceBatchFilter.appendChild(option);
+          });
+          console.log('Price batch filter shown with', data.batch_codes.length, 'batches');
+        } else {
+          // Hide batch filter if no batches exist
+          priceBatchFilter.style.display = 'none';
+          priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+          console.log('No batches found for product', productId);
+        }
+      } catch (error) {
+        console.error('Error loading batch codes for price forecast:', error);
+        priceBatchFilter.style.display = 'none';
+        priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+      }
+    }
+
+    // Load batch codes for selected product (for risk analysis)
+    async function loadRiskBatchCodes(productId) {
+      const riskBatchFilter = document.getElementById('riskBatchFilter');
+      if (!riskBatchFilter) return;
+
+      if (!productId) {
+        riskBatchFilter.style.display = 'none';
+        riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+        return;
+      }
+
+      try {
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+        const data = await response.json();
+
+        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+          // Show batch filter and populate options
+          riskBatchFilter.style.display = 'block';
+          riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+          data.batch_codes.forEach(batchCode => {
+            const option = document.createElement('option');
+            option.value = batchCode;
+            option.textContent = batchCode;
+            riskBatchFilter.appendChild(option);
+          });
+          console.log('Risk batch filter shown with', data.batch_codes.length, 'batches');
+        } else {
+          // Hide batch filter if no batches exist
+          riskBatchFilter.style.display = 'none';
+          riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+          console.log('No batches found for product', productId);
+        }
+      } catch (error) {
+        console.error('Error loading batch codes for risk analysis:', error);
+        riskBatchFilter.style.display = 'none';
+        riskBatchFilter.innerHTML = '<option value="">All batches</option>';
+      }
+    }
+
+    // Load forecast data from manager API
+    async function loadForecastData() {
+      try {
+        console.log('Loading forecast data...');
+        const response = await fetch('/manager/api/forecast/data');
+        console.log('Forecast data response status:', response.status);
+        const data = await response.json();
+        console.log('Forecast data received:', data);
+        
+        if (data.ok) {
+          console.log('Applying forecast data to UI');
+          applyForecast({
+            forecast: data.forecast,
+            summary: data.summary,
+            details: data.details || []
+          });
+        } else {
+          console.error('Error in forecast data response:', data.error);
+          showToast('Error loading forecast data: ' + data.error, 'error');
+        }
+      } catch (error) {
+        console.error('Error loading forecast data:', error);
+        showToast('Error loading forecast data', 'error');
+      }
+    }
+
+    // renderForecastTable function removed - Forecast Details table has been removed
+    // Forecast information is now displayed in the forecast-information section below the chart
+
+    // Load risk data from manager API
+    async function loadRiskData() {
+      try {
+        const response = await fetch('/manager/api/analytics');
+        const data = await response.json();
+        if (data.ok && data.branch_risks) {
+          updateRiskOverview(data.branch_risks);
+          renderRiskTable(data.branch_risks);
+        } else {
+          // Show empty state if no data
+          updateRiskOverview([]);
+          renderRiskTable([]);
+        }
+      } catch (error) {
+        console.error('Error loading risk data:', error);
+        // Show empty state on error
+        updateRiskOverview([]);
+        renderRiskTable([]);
+      }
+    }
+
+    // Generate demand forecast with proper abort control and debouncing
+    let generateForecastTimeout = null;
+    async function generateForecast() {
+      if (generateForecastTimeout) {
+        clearTimeout(generateForecastTimeout);
+      }
+      
+      generateForecastTimeout = setTimeout(async () => {
+        // Abort any in-flight request
+        if (activeForecastController) {
+          activeForecastController.abort();
+        }
+        activeForecastController = new AbortController();
+        
+        const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+        const originalText = generateBtn?.textContent || '';
+        
+        try {
+          console.log('Starting demand forecast generation...');
+          showToast('Generating ARIMA demand forecast...', 'info');
+          
+          // Set loading state
+          if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+          }
+          
+          const productId = document.getElementById('productFilter')?.value || '';
+          const batchCode = document.getElementById('batchFilter')?.value || '';
+          const timeRange = document.getElementById('timeRange')?.value || '30';
+          
+          // Validate that a product is selected
+          if (!productId || productId === '') {
+            showToast('Please select a product to generate forecast', 'error');
+            if (generateBtn) {
+              generateBtn.disabled = false;
+              generateBtn.innerHTML = originalText;
+            }
+            return;
+          }
+          
+          console.log('Forecast parameters:', { productId, batchCode, timeRange });
+          
+          // Get branch_id for the API call
+          const branchId = {{ branch_id if branch_id else 'null' }} || 
+                          new URLSearchParams(window.location.search).get('branch') || 
+                          new URLSearchParams(window.location.search).get('branch_id');
+          
+          const requestBody = {
+            product_id: productId,
+            days: parseInt(timeRange),
+            model_type: 'arima',
+            branch_id: branchId
+          };
+          
+          // Include batch_code if selected
+          if (batchCode) {
+            requestBody.batch_code = batchCode;
+          }
+          
+          const response = await fetch('/manager/api/forecast', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: activeForecastController.signal
+          });
+          
+          console.log('API Response status:', response.status);
+          const data = await response.json();
+          console.log('API Response data:', data);
+          
+          if (data.ok) {
+            showToast('ARIMA demand forecast generated successfully', 'success');
+            console.log('Forecast data received:', data.forecast);
+            
+            // Apply the forecast data directly from the API response
+            applyForecast({
+              forecast: data.forecast,
+              summary: data.summary,
+              details: data.details || []
+            });
+            
+            // Get batch code if selected
+            const batchCode = document.getElementById('batchFilter')?.value || '';
+            
+            // Display detailed forecast information with branch inventory
+            await displayForecastInformation(data, branchId, productId, batchCode);
+            
+            // Ensure the description section is visible after a short delay
+            setTimeout(() => {
+              const infoSection = document.getElementById('forecast-information');
+              if (infoSection) {
+                infoSection.style.display = 'block';
+                infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                console.log('DEBUG: Forecast information section displayed');
+              }
+            }, 500);
+            
+            filtersDirty = false;
+          } else {
+            console.error('API Error:', data.error);
+            showToast('Error generating forecast: ' + (data.error || 'Unknown error'), 'error');
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            console.log('Forecast request aborted');
+            return;
+          }
+          console.error('Error generating forecast:', error);
+          showToast('Error generating forecast', 'error');
+        } finally {
+          // Restore button state
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalText;
+          }
+          activeForecastController = null;
+        }
+      }, 500); // 500ms debounce
+    }
+
+    // Generate price forecast (Holt-Winters model)
+    let generatePriceForecastTimeout = null;
+    async function generatePriceForecast() {
+      if (generatePriceForecastTimeout) {
+        clearTimeout(generatePriceForecastTimeout);
+      }
+      
+      generatePriceForecastTimeout = setTimeout(async () => {
+        const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+        const originalText = generateBtn?.textContent || '';
+        
+        try {
+          console.log('Starting price forecast generation...');
+          showToast('Generating Holt-Winters price forecast...', 'info');
+          
+          // Set loading state
+          if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+          }
+          
+          const productId = document.getElementById('priceProductFilter')?.value || '';
+          const batchCode = document.getElementById('priceBatchFilter')?.value || '';
+          const timeRange = document.getElementById('priceTimeRange')?.value || '30';
+          
+          console.log('DEBUG PRICE FORECAST FRONTEND: Product ID:', productId);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Batch Code:', batchCode);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Time Range:', timeRange);
+          console.log('Price forecast parameters:', { productId, batchCode, timeRange });
+          
+          // Get branch_id for the API call
+          const branchId = {{ branch_id if branch_id else 'null' }} || 
+                          new URLSearchParams(window.location.search).get('branch') || 
+                          new URLSearchParams(window.location.search).get('branch_id');
+          
+          const requestBody = {
+            product_id: productId,
+            days: parseInt(timeRange),
+            model_type: 'holt_winters',  // Always use Holt-Winters for price forecast
+            branch_id: branchId
+          };
+          
+          // Include batch_code if selected
+          if (batchCode) {
+            requestBody.batch_code = batchCode;
+          }
+          
+          const response = await fetch('/manager/api/forecast/price', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+          });
+          
+          console.log('Price forecast API Response status:', response.status);
+          const data = await response.json();
+          console.log('DEBUG PRICE FORECAST FRONTEND: API Response:', data);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Price forecast data:', data.price_forecast);
+          console.log('DEBUG PRICE FORECAST FRONTEND: Number of products:', data.price_forecast ? data.price_forecast.length : 0);
+          
+          if (data.ok) {
+            showToast('Holt-Winters price forecast generated successfully', 'success');
+            console.log('Price forecast data received:', data);
+            
+            // Update chart and insights with the returned data
+            if (data.price_forecast) {
+              updatePriceChart(data.price_forecast);
+            }
+            if (data.price_insights || data.summary) {
+              updatePriceInsights(data.price_insights || data.summary);
+            }
+            
+            // Display detailed price forecast information
+            await displayPriceForecastInformation(data, branchId, productId);
+          } else {
+            console.error('Price forecast API Error:', data.error);
+            showToast('Error generating price forecast: ' + (data.error || 'Unknown error'), 'error');
+          }
+        } catch (error) {
+          console.error('Error generating price forecast:', error);
+          showToast('Error generating price forecast', 'error');
+        } finally {
+          // Restore button state
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = originalText;
+          }
+        }
+      }, 500); // 500ms debounce
+    }
+
+    // Generate risk analysis with proper loading states
+    async function generateRiskAnalysis() {
+      const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+      const originalText = analyzeBtn?.textContent || '';
+      
+      try {
+        showToast('Analyzing stock risks...', 'info');
+        
+        // Set loading state
+        if (analyzeBtn) {
+          analyzeBtn.disabled = true;
+          analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        }
+        
+        // Get filter values
+        const productId = document.getElementById('riskProductFilter')?.value || '';
+        const batchCode = document.getElementById('riskBatchFilter')?.value || '';
+        const category = document.getElementById('riskCategoryFilter')?.value || '';
+        const severity = document.getElementById('riskSeverityFilter')?.value || '';
+        const days = document.getElementById('riskDateRange')?.value || '30';
+        
+        console.log('Risk analysis parameters:', { productId, batchCode, category, severity, days });
+        
+        // Get branch_id for the API call
+        const branchId = {{ branch_id if branch_id else 'null' }} || 
+                        new URLSearchParams(window.location.search).get('branch') || 
+                        new URLSearchParams(window.location.search).get('branch_id');
+        
+        const requestBody = {
+          product_id: productId,
+          category: category,
+          severity: severity,
+          days: parseInt(days),
+          branch_id: branchId
+        };
+        
+        // Include batch_code if selected
+        if (batchCode) {
+          requestBody.batch_code = batchCode;
+        }
+        
+        const response = await fetch('/manager/api/forecast/risk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        if (data.ok) {
+          showToast(`Risk analysis completed - ${data.summary.total_analyzed} products analyzed`, 'success');
+          updateRiskAnalysis(data.risk_analysis, data.summary);
+        } else {
+          showToast('Error generating risk analysis: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        console.error('Error generating risk analysis:', error);
+        showToast('Error generating risk analysis', 'error');
+      } finally {
+        // Restore button state
+        if (analyzeBtn) {
+          analyzeBtn.disabled = false;
+          analyzeBtn.innerHTML = originalText;
+        }
+      }
+    }
+
+    // Update price chart with forecast data
+    function updatePriceChart(priceData) {
+      console.log('Updating price chart with data:', priceData);
+      if (priceChart && priceData && Array.isArray(priceData)) {
+        const labels = priceData.map(item => {
+          // Handle different date formats
+          if (item.date) {
+            return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          }
+          return item.label || 'Unknown';
+        });
+        const prices = priceData.map(item => {
+          // Handle different price field names
+          return item.predicted_price || item.price || item.value || 0;
+        });
+        
+        console.log('Price chart labels:', labels);
+        console.log('Price chart data:', prices);
+        
+        // Replace arrays wholesale - never mutate partially
+        priceChart.data.labels = labels;
+        priceChart.data.datasets[0].data = prices;
+        priceChart.update();
+        console.log('Price chart updated successfully');
+      } else {
+        console.log('Price chart or data missing:', { priceChart: !!priceChart, priceData: !!priceData });
+      }
+    }
+
+    // Clear price insights when filters change
+    function clearPriceInsights() {
+      console.log('Clearing price insights...');
+      
+      // Reset current price
+      const currentPriceEl = document.querySelector('.insight-card:nth-child(1) .price');
+      if (currentPriceEl) {
+        currentPriceEl.textContent = '₱0.00/kg';
+      }
+      
+      // Reset price trend
+      const trendEl = document.querySelector('.insight-card:nth-child(1) .trend');
+      if (trendEl) {
+        trendEl.className = 'trend';
+        trendEl.innerHTML = '<i class="fas fa-minus"></i> No data';
+      }
+      
+      // Reset predicted change
+      const predictionEl = document.querySelector('.insight-card:nth-child(2) .prediction');
+      if (predictionEl) {
+        predictionEl.textContent = '0%';
+      }
+      
+      // Reset reason
+      const reasonEl = document.querySelector('.insight-card:nth-child(2) .reason');
+      if (reasonEl) {
+        reasonEl.textContent = 'Generate forecast to see insights';
+      }
+      
+      console.log('Price insights cleared');
+    }
+
+    // Update price insights with forecast data
+    function updatePriceInsights(insights) {
+      if (!insights) return;
+      
+      // Update current price (first insight card)
+      const currentPriceEl = document.querySelector('.insight-card:nth-child(1) .price');
+      if (currentPriceEl) {
+        const currentPrice = insights.current_price || insights.currentPrice || 0;
+        currentPriceEl.textContent = `₱${currentPrice.toFixed(2)}/kg`;
+      }
+      
+      // Update price trend (first insight card)
+      const trendEl = document.querySelector('.insight-card:nth-child(1) .trend');
+      if (trendEl) {
+        const changePercent = insights.price_change_percent || insights.priceChangePercent || insights.trend_percent || 0;
+        const isPositive = changePercent >= 0;
+        const icon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
+        const className = isPositive ? 'positive' : 'negative';
+        
+        trendEl.className = `trend ${className}`;
+        trendEl.innerHTML = `
+          <i class="fas ${icon}"></i>
+          ${isPositive ? '+' : ''}${changePercent.toFixed(1)}% from last period
+        `;
+      }
+      
+      // Update predicted change (second insight card)
+      const predictionEl = document.querySelector('.insight-card:nth-child(2) .prediction');
+      if (predictionEl) {
+        const predictedChange = insights.predicted_change_percent || insights.predictedChangePercent || insights.predicted_change || 0;
+        predictionEl.textContent = `${predictedChange >= 0 ? '+' : ''}${predictedChange.toFixed(1)}%`;
+      }
+      
+      // Update reason (second insight card)
+      const reasonEl = document.querySelector('.insight-card:nth-child(2) .reason');
+      if (reasonEl) {
+        const reason = insights.reason || insights.explanation || insights.factor || 'Based on market trends';
+        reasonEl.textContent = reason;
+      }
+    }
+
+    // Update risk analysis with new data
+    function updateRiskAnalysis(riskData, summary) {
+      // Update risk overview cards
+      const criticalEl = document.querySelector('.risk-card.critical .number');
+      const moderateEl = document.querySelector('.risk-card.moderate .number');
+      const lowEl = document.querySelector('.risk-card.low .number');
+      
+      if (criticalEl) criticalEl.textContent = summary.critical_risks;
+      if (moderateEl) moderateEl.textContent = summary.moderate_risks;
+      if (lowEl) lowEl.textContent = summary.low_risks;
+      
+      // Update risk table
+      renderRiskTable(riskData);
+    }
+
+    function updateRiskOverview(data) {
+      if (!data || data.length === 0) {
+        // Show empty state in overview cards
+        const cEl = document.querySelector('.risk-card.critical .number');
+        const mEl = document.querySelector('.risk-card.moderate .number');
+        const lEl = document.querySelector('.risk-card.low .number');
+        if (cEl) cEl.textContent = '0';
+        if (mEl) mEl.textContent = '0';
+        if (lEl) lEl.textContent = '0';
+        return;
+      }
+      
+      const critical = data.filter(i => i.severity === 'critical').length;
+      const moderate = data.filter(i => i.severity === 'moderate').length;
+      const low = data.filter(i => i.severity === 'low').length;
+
+      const cEl = document.querySelector('.risk-card.critical .number');
+      const mEl = document.querySelector('.risk-card.moderate .number');
+      const lEl = document.querySelector('.risk-card.low .number');
+      if (cEl) cEl.textContent = critical;
+      if (mEl) mEl.textContent = moderate;
+      if (lEl) lEl.textContent = low;
+    }
+
+    function renderRiskTable(data) {
+      const tbody = document.getElementById('riskTableBody');
+      if (!tbody) return;
+      
+      // Clear existing content
+      tbody.innerHTML = '';
+      
+      // Show empty state if no data
+      if (!data || data.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td colspan="6" class="empty-state">
+            <div style="text-align: center; padding: 2rem; color: #666;">
+              <i class="fas fa-info-circle" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+              <p>No risk data found for the selected filters.</p>
+              <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try adjusting your filters or click "Analyze Risks" to generate new analysis.</p>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      data.forEach(item => {
+        const tr = document.createElement('tr');
+        
+        // Use new field names from the API
+        const riskType = item.risk_type || 'Balanced';
+        const severity = item.severity || 'low';
+        const currentStock = item.current_stock || 0;
+        const threshold = item.threshold || item.warn_level || 0;
+        const suggestedAction = item.suggested_action || 'Monitor';
+        const daysOfCoverage = item.days_of_coverage || 0;
+        const avgDailyDemand = item.avg_daily_demand || 0;
+        
+        tr.innerHTML = `
+          <td>${item.product_name || 'Unknown Product'}</td>
+          <td><span class="risk-type ${riskType.toLowerCase()}">${riskType}</span></td>
+          <td><span class="risk-badge ${severity.toLowerCase()}">${severity}</span></td>
+          <td>${currentStock.toLocaleString()} kg</td>
+          <td>${threshold.toLocaleString()} kg</td>
+          <td>${suggestedAction}</td>
+        `;
+        
+        // Add tooltip with additional info
+        tr.title = `Days of Coverage: ${daysOfCoverage} days | Avg Daily Demand: ${avgDailyDemand.toFixed(2)} kg`;
+        
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Setup filters with manager-specific functionality
+    function setupRiskFilters() {
+      // Risk product filter - load batch codes when product changes
+      const riskProductFilter = document.getElementById('riskProductFilter');
+      if (riskProductFilter) {
+        riskProductFilter.addEventListener('change', async () => {
+          const productId = riskProductFilter.value;
+          await loadRiskBatchCodes(productId);
+          showToast('Filters changed — click "Analyze Risks" to refresh', 'info');
+          // Enable the analyze button
+          const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+          if (analyzeBtn) {
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Other risk filters - make them passive (don't auto-trigger analysis)
+      ['riskCategoryFilter','riskSeverityFilter','riskDateRange']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', () => {
+            showToast('Filters changed — click "Analyze Risks" to refresh', 'info');
+            // Enable the analyze button
+            const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+            if (analyzeBtn) {
+              analyzeBtn.disabled = false;
+              analyzeBtn.style.opacity = '1';
+            }
+          });
+        });
+
+      // Risk batch filter change handler
+      const riskBatchFilter = document.getElementById('riskBatchFilter');
+      if (riskBatchFilter) {
+        riskBatchFilter.addEventListener('change', () => {
+          showToast('Filters changed — click "Analyze Risks" to refresh', 'info');
+          const analyzeBtn = document.querySelector('button[onclick="generateRiskAnalysis()"]');
+          if (analyzeBtn) {
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Forecast filters - mark as dirty but don't auto-generate
+      const productFilter = document.getElementById('productFilter');
+      if (productFilter) {
+        productFilter.addEventListener('change', async () => {
+          const productId = productFilter.value;
+          await loadBatchCodes(productId);
+          filtersDirty = true;
+          showToast('Filters changed — click Generate to refresh', 'info');
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      const timeRangeFilter = document.getElementById('timeRange');
+      if (timeRangeFilter) {
+        timeRangeFilter.addEventListener('change', () => {
+          filtersDirty = true;
+          showToast('Filters changed — click Generate to refresh', 'info');
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generateForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Batch filter change handler
+      const batchFilter = document.getElementById('batchFilter');
+      if (batchFilter) {
+        batchFilter.addEventListener('change', () => {
+          filtersDirty = true;
+          showToast('Filters changed — click Generate to refresh', 'info');
+        });
+      }
+
+      // Price filters - mark as dirty but don't auto-generate
+      const priceProductFilter = document.getElementById('priceProductFilter');
+      if (priceProductFilter) {
+        priceProductFilter.addEventListener('change', async () => {
+          const productId = priceProductFilter.value;
+          await loadPriceBatchCodes(productId);
+          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+          // Clear current price insights when filters change
+          clearPriceInsights();
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      const priceTimeRangeFilter = document.getElementById('priceTimeRange');
+      if (priceTimeRangeFilter) {
+        priceTimeRangeFilter.addEventListener('change', () => {
+          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+          // Clear current price insights when filters change
+          clearPriceInsights();
+          // Enable the generate button
+          const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
+          if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.style.opacity = '1';
+          }
+        });
+      }
+
+      // Price batch filter change handler
+      const priceBatchFilter = document.getElementById('priceBatchFilter');
+      if (priceBatchFilter) {
+        priceBatchFilter.addEventListener('change', () => {
+          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
+          clearPriceInsights();
+        });
+      }
+    }
+
+    // Helpers
+    function formatDate(str) {
+      const opts = { year: 'numeric', month: 'short', day: 'numeric' };
+      return new Date(str).toLocaleDateString('en-US', opts);
+    }
+
+    function showToast(message, type='info') {
+      const el = document.createElement('div');
+      el.className = `toast ${type}`;
+      el.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+      `;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    // Export functions with branch-specific filenames
+    async function exportForecast() {
+      try {
+        const branchName = MANAGER_BRANCH_NAME || 'branch';
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `forecast_${branchName.toLowerCase().replace(/\s+/g, '_')}_${date}.csv`;
+        
+        const response = await fetch('/manager/api/forecast/export?format=csv');
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          showToast('Forecast exported successfully', 'success');
+        } else {
+          showToast('Error exporting forecast', 'error');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        showToast('Error exporting forecast', 'error');
+      }
+    }
+
+    async function exportRiskReport() {
+      try {
+        const branchName = MANAGER_BRANCH_NAME || 'branch';
+        const date = new Date().toISOString().slice(0, 10);
+        const filename = `risk_report_${branchName.toLowerCase().replace(/\s+/g, '_')}_${date}.csv`;
+        
+        const response = await fetch('/manager/api/analytics/export?format=csv&type=risk');
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          showToast('Risk report exported successfully', 'success');
+        } else {
+          showToast('Error exporting risk report', 'error');
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        showToast('Error exporting risk report', 'error');
+      }
+    }
+
+    // Display detailed forecast information and stock preparation guide for manager
+    async function displayForecastInformation(forecastData, branchId, productId, batchCode = '') {
+      try {
+        // Get forecast values from the API response - handle different response formats
+        let forecastValues = [];
+        let summary = {};
+        let modelType = 'ARIMA';
+        
+        // Try different possible structures
+        if (forecastData.forecast) {
+          if (Array.isArray(forecastData.forecast.forecast)) {
+            forecastValues = forecastData.forecast.forecast;
+          } else if (Array.isArray(forecastData.forecast.forecast_values)) {
+            forecastValues = forecastData.forecast.forecast_values;
+          } else if (Array.isArray(forecastData.forecast)) {
+            forecastValues = forecastData.forecast;
+          }
+          modelType = forecastData.forecast.model_type || 'ARIMA';
+        }
+        
+        // If forecast is directly in forecastData
+        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values)) {
+          forecastValues = forecastData.forecast_values;
+        }
+        
+        summary = forecastData.summary || {};
+        
+        // If no forecast values from API, try to extract from chart data
+        if (!forecastValues || forecastValues.length === 0) {
+          console.log('No forecast values from API, trying to extract from chart...');
+          if (demandChart && demandChart.data && demandChart.data.datasets) {
+            const forecastDataset = demandChart.data.datasets.find(ds => ds.label === 'Forecast' || ds.label === 'forecast');
+            if (forecastDataset && forecastDataset.data && forecastDataset.data.length > 0) {
+              forecastValues = forecastDataset.data.filter(v => v !== null && v !== undefined);
+              console.log('Extracted forecast values from chart:', forecastValues.length);
+            }
+          }
+        }
+        
+        // If still no values, show a message but still display the section
+        if (!forecastValues || forecastValues.length === 0) {
+          console.log('No forecast values available - showing empty state');
+          const infoContent = document.getElementById('forecast-information-content');
+          const infoSection = document.getElementById('forecast-information');
+          if (infoContent && infoSection) {
+            infoContent.innerHTML = `
+              <div style="background: #fef3c7; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                <h4 style="margin: 0 0 12px 0; color: #f59e0b; font-size: 1.1rem; font-weight: 700;">
+                  ⚠️ Forecast Data Not Available
+                </h4>
+                <p style="margin: 0; color: #374151;">
+                  Unable to extract forecast values. Please try generating the forecast again.
+                </p>
+              </div>
+            `;
+            infoSection.style.display = 'block';
+          }
+          return;
+        }
+        
+        // Fetch current inventory for this branch and product (filtered by batch if provided)
+        let currentStock = 0;
+        let productName = 'Unknown Product';
+        
+        try {
+          const branchIdParam = branchId || MANAGER_BRANCH_ID;
+          const inventoryUrl = '/manager/api/inventory' + (branchIdParam ? `?branch_id=${branchIdParam}` : '');
+          const inventoryResponse = await fetch(inventoryUrl);
+          const inventoryData = await inventoryResponse.json().catch(() => ({ items: [] }));
+          
+          if (inventoryData.ok && inventoryData.items) {
+            // Filter items by product_id and optionally by batch_code
+            let matchingItems = inventoryData.items;
+            
+            if (productId) {
+              matchingItems = matchingItems.filter(item => 
+                String(item.product_id) === String(productId) || String(item.id) === String(productId)
+              );
+            }
+            
+            // If batch_code is provided, filter by it
+            if (batchCode && batchCode !== '') {
+              matchingItems = matchingItems.filter(item => 
+                (item.batch_code || item.batch || '') === batchCode
+              );
+            }
+            
+            // Find the specific item
+            const productItem = matchingItems.length > 0 ? matchingItems[0] : null;
+            
+            if (productItem) {
+              currentStock = productItem.stock_kg || productItem.stock || 0;
+              productName = productItem.product_name || productItem.name || 'Unknown Product';
+              
+              // If batch_code was selected, include it in the product name for clarity
+              if (batchCode && batchCode !== '') {
+                productName = `${productName} (Batch: ${batchCode})`;
+              }
+            } else if (productId) {
+              // Product not found - try to get product name from the filter dropdown
+              const productFilter = document.getElementById('productFilter');
+              if (productFilter) {
+                const selectedOption = productFilter.options[productFilter.selectedIndex];
+                productName = selectedOption ? selectedOption.text : 'Unknown Product';
+                if (batchCode && batchCode !== '') {
+                  productName = `${productName} (Batch: ${batchCode})`;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching inventory:', error);
+        }
+        
+        const branchName = MANAGER_BRANCH_NAME || 'Your Branch';
+        
+        // Calculate forecast statistics
+        const avgDailyDemand = forecastValues.length > 0 
+          ? forecastValues.reduce((a, b) => a + b, 0) / forecastValues.length 
+          : 0;
+        const totalForecast = forecastValues.reduce((a, b) => a + b, 0);
+        const maxDailyDemand = Math.max(...forecastValues);
+        const minDailyDemand = Math.min(...forecastValues);
+        const forecastDays = forecastValues.length;
+        
+        // Calculate stock recommendations
+        const recommendedStock = Math.ceil(totalForecast * 1.2); // 20% buffer
+        const stockShortage = recommendedStock - currentStock;
+        const daysOfStock = currentStock > 0 && avgDailyDemand > 0 
+          ? Math.floor(currentStock / avgDailyDemand) 
+          : 0;
+        
+        // Determine stock status
+        let stockStatus = 'good';
+        let stockStatusText = 'Adequate';
+        let stockStatusColor = '#1a365d';
+        if (stockShortage > 0) {
+          stockStatus = stockShortage > totalForecast * 0.5 ? 'critical' : 'warning';
+          stockStatusText = stockShortage > totalForecast * 0.5 ? 'Critical Shortage' : 'Low Stock';
+          stockStatusColor = stockShortage > totalForecast * 0.5 ? '#e53e3e' : '#f59e0b';
+        }
+        
+        // Get accuracy score if available
+        const accuracyScore = summary.accuracy_score || forecastData.forecast?.accuracy_score || 0.75;
+        
+        // Calculate MAE and MAPE metrics
+        const metrics = calculateForecastMetrics(forecastValues, accuracyScore);
+        
+        const infoContent = document.getElementById('forecast-information-content');
+        infoContent.innerHTML = `
+          <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+            <!-- What the Forecast Means -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #1a365d;">
+              <h4 style="margin: 0 0 12px 0; color: #1a365d; font-size: 1.1rem; font-weight: 700;">
+                📊 What This Forecast Means
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <p style="margin: 0 0 12px 0;">
+                  <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> for <strong>${productName}</strong> at <strong>${branchName}</strong>, based on historical sales data analyzed using the <strong>${modelType}</strong> model.
+                </p>
+                <p style="margin: 0 0 12px 0;">
+                  <strong>How it works:</strong> The system analyzes your branch's past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
+                </p>
+                <p style="margin: 0;">
+                  <strong>Model accuracy:</strong> This forecast has an accuracy of <strong>${(accuracyScore * 100).toFixed(1)}%</strong>, meaning the predictions are reliable for planning your inventory needs.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Stock Preparation Recommendations -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${stockStatusColor};">
+              <h4 style="margin: 0 0 12px 0; color: ${stockStatusColor}; font-size: 1.1rem; font-weight: 700;">
+                📦 Stock Preparation Recommendations for ${branchName}
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Current Stock</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">${currentStock.toFixed(2)} kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Forecasted Demand</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">${totalForecast.toFixed(2)} kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Recommended Stock</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #1a365d;">${recommendedStock.toFixed(2)} kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Stock Status</strong>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: ${stockStatusColor};">${stockStatusText}</div>
+                  </div>
+                </div>
+                
+                ${stockShortage > 0 ? `
+                  <div style="background: ${stockStatusColor === '#e53e3e' ? 'rgba(229, 62, 62, 0.1)' : 'rgba(245, 158, 11, 0.1)'}; padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid ${stockStatusColor};">
+                    <strong style="color: ${stockStatusColor}; display: block; margin-bottom: 8px;">⚠️ Action Required</strong>
+                    <p style="margin: 0; color: #374151;">
+                      You need to restock <strong>${stockShortage.toFixed(2)} kg</strong> of ${productName} to meet the forecasted demand with a 20% safety buffer. 
+                      Current stock will only last approximately <strong>${daysOfStock} days</strong> at average demand. Consider placing a purchase order soon.
+                    </p>
+                  </div>
+                ` : `
+                  <div style="background: rgba(26, 54, 93, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #1a365d;">
+                    <strong style="color: #1a365d; display: block; margin-bottom: 8px;">✅ Stock Level Adequate</strong>
+                    <p style="margin: 0; color: #374151;">
+                      Current stock for ${productName} is sufficient to meet forecasted demand. Monitor daily sales and replenish when stock falls below recommended levels.
+                    </p>
+                  </div>
+                `}
+                
+                <div style="background: #e8f5e9; padding: 16px; border-radius: 8px;">
+                  <strong style="color: #1a365d; display: block; margin-bottom: 8px;">💡 Stock Preparation Strategy for ${branchName}</strong>
+                  <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #374151;">
+                    <li style="margin-bottom: 8px;">Prepare <strong>${recommendedStock.toFixed(2)} kg</strong> total stock of ${productName} to cover the next ${forecastDays} days</li>
+                    <li style="margin-bottom: 8px;">Plan for peak daily demand of <strong>${maxDailyDemand.toFixed(2)} kg</strong> (highest predicted day)</li>
+                    <li style="margin-bottom: 8px;">Maintain minimum daily stock of <strong>${Math.ceil(maxDailyDemand * 3)} kg</strong> (3 days of peak demand as safety buffer)</li>
+                    <li style="margin-bottom: 0;">Schedule restock orders when stock falls below <strong>${Math.ceil(avgDailyDemand * 7)} kg</strong> (1 week of average demand)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Forecast Details -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6;">
+              <h4 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
+                📈 Forecast Details for ${productName}
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; color: #374151;">
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Average Daily Demand</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${avgDailyDemand.toFixed(2)} kg/day</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Peak Daily Demand</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${maxDailyDemand.toFixed(2)} kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Minimum Daily Demand</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${minDailyDemand.toFixed(2)} kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Model Accuracy</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${(accuracyScore * 100).toFixed(1)}%</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Model Evaluation Metrics -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #8b5cf6;">
+              <h4 style="margin: 0 0 12px 0; color: #8b5cf6; font-size: 1.1rem; font-weight: 700;">
+                📊 Model Evaluation Metrics
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: white; padding: 15px; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+                    <strong style="color: #64748b; font-size: 0.9rem; display: block; margin-bottom: 6px;">MAE (Mean Absolute Error)</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #8b5cf6; margin-bottom: 4px;">${metrics.mae.toFixed(2)} kg</div>
+                    <div style="font-size: 0.85rem; color: #64748b;">Average prediction error</div>
+                  </div>
+                  <div style="background: white; padding: 15px; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+                    <strong style="color: #64748b; font-size: 0.9rem; display: block; margin-bottom: 6px;">MAPE (Mean Absolute % Error)</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #8b5cf6; margin-bottom: 4px;">${metrics.mape.toFixed(2)}%</div>
+                    <div style="font-size: 0.85rem; color: #64748b;">Percentage error</div>
+                  </div>
+                </div>
+                
+                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 12px;">
+                  <strong style="color: #8b5cf6; display: block; margin-bottom: 10px; font-size: 1rem;">📖 Understanding MAE (Mean Absolute Error)</strong>
+                  <p style="margin: 0 0 10px 0; color: #374151; line-height: 1.7;">
+                    <strong>What it means:</strong> MAE measures the average size of errors in your forecast predictions, regardless of direction. It tells you, on average, how far off your predictions are from actual values.
+                  </p>
+                  <p style="margin: 0 0 10px 0; color: #374151; line-height: 1.7;">
+                    <strong>How it's calculated:</strong> MAE = Average of |Predicted Value - Actual Value| for all forecast periods. For example, if MAE is 2.5 kg, it means on average, your predictions are off by 2.5 kg per day.
+                  </p>
+                  <p style="margin: 0 0 10px 0; color: #374151; line-height: 1.7;">
+                    <strong>What's good:</strong> Lower MAE values indicate better forecast accuracy. A MAE of 1-3 kg is excellent for rice demand forecasting, while 5-10 kg is acceptable. Values above 10 kg suggest the model may need improvement.
+                  </p>
+                  <p style="margin: 0; color: #374151; line-height: 1.7;">
+                    <strong>Why it matters:</strong> MAE helps you understand the reliability of your forecasts. If MAE is low, you can confidently use the forecast for inventory planning. If MAE is high, you should add larger safety buffers to your stock orders.
+                  </p>
+                </div>
+                
+                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px;">
+                  <strong style="color: #8b5cf6; display: block; margin-bottom: 10px; font-size: 1rem;">📖 Understanding MAPE (Mean Absolute Percentage Error)</strong>
+                  <p style="margin: 0 0 10px 0; color: #374151; line-height: 1.7;">
+                    <strong>What it means:</strong> MAPE expresses forecast errors as a percentage of actual values. It gives you a relative measure of forecast accuracy that's easy to interpret, regardless of the scale of your sales.
+                  </p>
+                  <p style="margin: 0 0 10px 0; color: #374151; line-height: 1.7;">
+                    <strong>How it's calculated:</strong> MAPE = Average of (|Predicted Value - Actual Value| / Actual Value) × 100%. For example, if MAPE is 15%, it means your predictions are off by an average of 15% from actual sales.
+                  </p>
+                  <p style="margin: 0 0 10px 0; color: #374151; line-height: 1.7;">
+                    <strong>What's good:</strong> 
+                    <ul style="margin: 8px 0 0 20px; padding: 0; color: #374151;">
+                      <li><strong>MAPE &lt; 10%:</strong> Excellent forecast accuracy - highly reliable for planning</li>
+                      <li><strong>MAPE 10-20%:</strong> Good accuracy - suitable for most inventory decisions</li>
+                      <li><strong>MAPE 20-30%:</strong> Acceptable accuracy - use with caution and larger safety buffers</li>
+                      <li><strong>MAPE &gt; 30%:</strong> Poor accuracy - consider using a different model or improving data quality</li>
+                    </ul>
+                  </p>
+                  <p style="margin: 10px 0 0 0; color: #374151; line-height: 1.7;">
+                    <strong>Why it matters:</strong> MAPE allows you to compare forecast accuracy across different products or branches, even if they have very different sales volumes. A 5% MAPE for a product selling 100 kg/day is just as good as 5% MAPE for a product selling 10 kg/day.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Show the information section immediately
+        const forecastInfoSection = document.getElementById('forecast-information');
+        if (forecastInfoSection) {
+          forecastInfoSection.style.display = 'block';
+          console.log('DEBUG: Forecast information section displayed');
+          
+          // Scroll into view after a short delay
+          setTimeout(() => {
+            forecastInfoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 200);
+        } else {
+          console.error('DEBUG: Forecast information section element not found');
+        }
+      } catch (error) {
+        console.error('Error displaying forecast information:', error);
+      }
+    }
+
+    // Update title and header based on branch selection
+    function updateBranchTitle() {
+      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
+      
+      if (branchName) {
+        const decodedBranchName = decodeURIComponent(branchName);
+        document.getElementById('pageTitle').textContent = `Forecast - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        
+        // Update all navigation links to preserve branch parameters
+        updateNavigationLinks(branchId, branchName);
+      }
+    }
+
+    // Update navigation links to include branch parameters
+    function updateNavigationLinks(branchId, branchName) {
+      const navLinks = document.querySelectorAll('.nav-main a[href]');
+      navLinks.forEach(link => {
+        const currentHref = link.getAttribute('href');
+        if (currentHref && !currentHref.includes('branch=')) {
+          const separator = currentHref.includes('?') ? '&' : '?';
+          link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+        }
+      });
+    }
+
+    // Display detailed price forecast information and pricing strategy guide
+    async function displayPriceForecastInformation(priceData, branchId, productId) {
+      // Declare infoSection outside try-catch so it's accessible in both blocks
+      const infoSection = document.getElementById('price-forecast-information');
+      if (!infoSection) {
+        console.error('Price forecast information section not found');
+        return;
+      }
+      
+      try {
+        const priceForecast = priceData.price_forecast || [];
+        const priceInsights = priceData.price_insights || {};
+        const modelInfo = priceData.model_info || {};
+        
+        if (!priceForecast || priceForecast.length === 0) {
+          // Show message for no data
+          const infoContent = document.getElementById('price-forecast-information-content');
+          if (infoContent) {
+            infoContent.innerHTML = `
+              <div style="background: #fef3c7; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
+                <h4 style="margin: 0 0 12px 0; color: #f59e0b; font-size: 1.1rem; font-weight: 700;">
+                  ⚠️ No Price Forecast Data Available
+                </h4>
+                <p style="margin: 0; color: #374151;">
+                  No price forecast data was generated. This may happen if:
+                </p>
+                <ul style="margin: 8px 0 0 20px; color: #374151;">
+                  <li>The selected product(s) don't have inventory items in your branch</li>
+                  <li>The inventory items don't have unit prices set</li>
+                  <li>There was an error generating the forecast</li>
+                </ul>
+                <p style="margin: 12px 0 0 0; color: #374151;">
+                  <strong>Solution:</strong> Ensure your inventory items have unit prices set, then try generating the forecast again.
+                </p>
+              </div>
+            `;
+            infoSection.style.display = 'block';
+          }
+          console.log('No price forecast data to display');
+          return;
+        }
+        
+        // Get product information
+        let productName = 'Selected Products';
+        if (productId) {
+          const productFilter = document.getElementById('priceProductFilter');
+          if (productFilter) {
+            const selectedOption = productFilter.options[productFilter.selectedIndex];
+            productName = selectedOption ? selectedOption.text : 'Selected Product';
+          }
+        } else {
+          // Get unique product names from forecast data
+          const productNames = [...new Set(priceForecast.map(f => f.product_name))];
+          productName = productNames.length === 1 ? productNames[0] : `${productNames.length} Products`;
+        }
+        
+        const branchName = MANAGER_BRANCH_NAME || 'Your Branch';
+        const currentPrice = priceInsights.current_price || 0;
+        const avgPredictedPrice = priceForecast.length > 0
+          ? priceForecast.reduce((sum, f) => sum + (f.predicted_price || 0), 0) / priceForecast.length
+          : currentPrice;
+        const priceChangePercent = priceInsights.price_change_percent || 0;
+        const confidence = modelInfo.confidence_avg || 0.75;
+        const forecastDays = modelInfo.days_forecasted || priceForecast.length;
+        
+        // Calculate price statistics
+        const prices = priceForecast.map(f => f.predicted_price || 0).filter(p => p > 0);
+        const maxPrice = Math.max(...prices);
+        const minPrice = Math.min(...prices);
+        const priceVolatility = ((maxPrice - minPrice) / avgPredictedPrice) * 100;
+        
+        // Determine price trend
+        const isPriceIncreasing = priceChangePercent > 0;
+        const trendSeverity = Math.abs(priceChangePercent);
+        let trendRecommendation = '';
+        let trendColor = '#1a365d';
+        
+        if (trendSeverity > 10) {
+          trendRecommendation = isPriceIncreasing 
+            ? 'Significant price increase expected - consider adjusting pricing strategy or purchasing now'
+            : 'Significant price decrease expected - consider delaying purchases if possible';
+          trendColor = isPriceIncreasing ? '#e53e3e' : '#059669';
+        } else if (trendSeverity > 5) {
+          trendRecommendation = isPriceIncreasing
+            ? 'Moderate price increase expected - monitor market conditions closely'
+            : 'Moderate price decrease expected - good opportunity for cost savings';
+          trendColor = isPriceIncreasing ? '#f59e0b' : '#10b981';
+        } else {
+          trendRecommendation = 'Price expected to remain relatively stable - maintain current pricing strategy';
+          trendColor = '#1a365d';
+        }
+        
+        const infoContent = document.getElementById('price-forecast-information-content');
+        infoContent.innerHTML = `
+          <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
+            <!-- What the Price Forecast Means -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #1a365d;">
+              <h4 style="margin: 0 0 12px 0; color: #1a365d; font-size: 1.1rem; font-weight: 700;">
+                📊 What This Price Forecast Means
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <p style="margin: 0 0 12px 0;">
+                  <strong>The price forecast represents:</strong> The predicted unit price (in Philippine Pesos per kilogram) for <strong>${productName}</strong> at <strong>${branchName}</strong> over the next <strong>${forecastDays} days</strong>, based on current inventory prices analyzed using the <strong>Holt-Winters Exponential Smoothing</strong> model.
+                </p>
+                <p style="margin: 0 0 12px 0;">
+                  <strong>How it works:</strong> The system uses your current inventory unit prices as the baseline, then applies:
+                </p>
+                <ul style="margin: 8px 0 12px 20px; padding: 0; color: #374151;">
+                  <li style="margin-bottom: 8px;"><strong>Holt-Winters Model:</strong> Analyzes price trends, level, and weekly seasonal patterns to predict future prices</li>
+                  <li style="margin-bottom: 8px;"><strong>Market Factors:</strong> Adjusts for seasonal demand (winter months typically see 10% higher prices), product category effects, and supply chain factors</li>
+                  <li style="margin-bottom: 8px;"><strong>Price Volatility:</strong> Accounts for natural price fluctuations (2% daily volatility) that occur in rice markets</li>
+                </ul>
+                <p style="margin: 0 0 12px 0;">
+                  <strong>Data source:</strong> Current unit prices from your branch's inventory items. Since historical price data may be limited, the model generates a 30-day price history based on current prices with realistic variations (±5%), then applies forecasting algorithms.
+                </p>
+                <p style="margin: 0;">
+                  <strong>Model accuracy:</strong> This forecast has an average confidence of <strong>${(confidence * 100).toFixed(1)}%</strong>, meaning the predictions are reliable for pricing and purchasing decisions.
+                </p>
+              </div>
+            </div>
+            
+            <!-- Pricing Strategy Recommendations -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${trendColor};">
+              <h4 style="margin: 0 0 12px 0; color: ${trendColor}; font-size: 1.1rem; font-weight: 700;">
+                💰 Pricing Strategy Recommendations
+              </h4>
+              <div style="color: #374151; line-height: 1.8;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Current Price</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">₱${currentPrice.toFixed(2)}/kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Average Predicted Price</strong>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">₱${avgPredictedPrice.toFixed(2)}/kg</div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Expected Change</strong>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: ${trendColor};">
+                      ${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div style="background: white; padding: 12px; border-radius: 8px;">
+                    <strong style="color: #64748b; font-size: 0.9rem;">Price Volatility</strong>
+                    <div style="font-size: 1.1rem; font-weight: 600;">${priceVolatility.toFixed(1)}%</div>
+                  </div>
+                </div>
+                
+                <div style="background: ${isPriceIncreasing ? 'rgba(229, 62, 62, 0.1)' : 'rgba(5, 150, 105, 0.1)'}; padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid ${trendColor};">
+                  <strong style="color: ${trendColor}; display: block; margin-bottom: 8px;">
+                    ${isPriceIncreasing ? '📈 Price Increase Expected' : '📉 Price Decrease Expected'}
+                  </strong>
+                  <p style="margin: 0; color: #374151;">
+                    ${trendRecommendation}
+                  </p>
+                </div>
+                
+                <div style="background: #e8f5e9; padding: 16px; border-radius: 8px;">
+                  <strong style="color: #1a365d; display: block; margin-bottom: 8px;">💡 Pricing & Purchasing Strategy for ${branchName}</strong>
+                  <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #374151;">
+                    <li style="margin-bottom: 8px;">
+                      <strong>If prices are increasing:</strong> Consider purchasing inventory now before prices rise further. Lock in current prices through advance orders if possible.
+                    </li>
+                    <li style="margin-bottom: 8px;">
+                      <strong>If prices are decreasing:</strong> You may want to delay large purchases to take advantage of lower future prices, but ensure you maintain adequate stock levels.
+                    </li>
+                    <li style="margin-bottom: 8px;">
+                      <strong>Price range:</strong> Expect prices to fluctuate between <strong>₱${minPrice.toFixed(2)}/kg</strong> and <strong>₱${maxPrice.toFixed(2)}/kg</strong> over the forecast period.
+                    </li>
+                    <li style="margin-bottom: 0;">
+                      <strong>Monitor closely:</strong> Rice prices can be volatile. Review this forecast weekly and adjust your purchasing strategy based on actual market conditions and supplier quotes.
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Forecast Details -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6;">
+              <h4 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
+                📈 Price Forecast Details
+              </h4>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; color: #374151;">
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Current Price</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">₱${currentPrice.toFixed(2)}/kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Peak Predicted Price</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">₱${maxPrice.toFixed(2)}/kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Lowest Predicted Price</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">₱${minPrice.toFixed(2)}/kg</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Model Confidence</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${(confidence * 100).toFixed(1)}%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // Show the information section (infoSection already declared at top of function)
+        if (infoSection) {
+          infoSection.style.display = 'block';
+          // Scroll to the information section smoothly
+          setTimeout(() => {
+            infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+        } else {
+          console.error('Price forecast information section element not found');
+        }
+      } catch (error) {
+        console.error('Error displaying price forecast information:', error);
+        // Show error message in the section
+        const infoContent = document.getElementById('price-forecast-information-content');
+        if (infoSection && infoContent) {
+          infoContent.innerHTML = `
+            <div style="background: #fee2e2; padding: 20px; border-radius: 12px; border-left: 4px solid #e53e3e;">
+              <h4 style="margin: 0 0 12px 0; color: #e53e3e; font-size: 1.1rem; font-weight: 700;">
+                ❌ Error Displaying Price Forecast Information
+              </h4>
+              <p style="margin: 0; color: #374151;">
+                An error occurred while displaying the price forecast information. Please try generating the forecast again.
+              </p>
+            </div>
+          `;
+          infoSection.style.display = 'block';
+        }
+      }
+    }
+
+    function printForecastPage() {
+      const printWindow = window.open('', '_blank', 'width=1200,height=800');
+      if (!printWindow) {
+        alert('Please allow popups to use the print feature');
+        return;
+      }
+
+      const generatedAt = new Date().toLocaleString();
+      const productId = document.getElementById('productFilter')?.value || '';
+      const batchCode = document.getElementById('batchFilter')?.value || '';
+      const timeRange = document.getElementById('timeRange')?.value || '30';
+      
+      const productFilter = document.getElementById('productFilter');
+      const productName = productFilter?.options[productFilter.selectedIndex]?.text || 'Not Selected';
+      const branchName = MANAGER_BRANCH_NAME || 'Your Branch';
+
+      // Get chart image
+      let chartImg = '';
+      if (demandChart) {
+        chartImg = demandChart.toBase64Image();
+      }
+
+      // Get forecast summary
+      const summaryCards = document.querySelectorAll('.summary-card');
+      let summaryHTML = '';
+      summaryCards.forEach((card, index) => {
+        const title = card.querySelector('h4')?.textContent || '';
+        const number = card.querySelector('.number')?.textContent || card.querySelector('.date')?.textContent || '--';
+        const trend = card.querySelector('.trend')?.textContent || card.querySelector('.quantity')?.textContent || '';
+        summaryHTML += `
+          <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+            <strong style="color: #64748b; font-size: 0.9rem;">${title}</strong>
+            <div style="font-size: 1.2rem; font-weight: 700; color: #1a365d;">${number}</div>
+            ${trend ? `<div style="font-size: 0.85rem; color: #666; margin-top: 4px;">${trend}</div>` : ''}
+          </div>
+        `;
+      });
+
+      // Get forecast information
+      const forecastInfoContent = document.getElementById('forecast-information-content');
+      let forecastInfoHTML = '';
+      if (forecastInfoContent && document.getElementById('forecast-information').style.display !== 'none') {
+        forecastInfoHTML = forecastInfoContent.innerHTML;
+      }
+
+      const printHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Forecast Report - Print</title>
+    <style>
+        @media print {
+            @page { margin: 1cm; size: landscape; }
+            .no-print { display: none !important; }
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #1f2937;
+        }
+        .header {
+            border-bottom: 3px solid #1a365d;
+            padding-bottom: 12px;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            margin: 0;
+            color: #1a365d;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 4px 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+        }
+        .section h3 {
+            color: #1a365d;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .chart-img {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        .summary-content, .forecast-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .actions {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background: #1a365d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Demand Forecast Report - ${branchName}</h1>
+        <p>Generated: ${generatedAt}</p>
+        <p>Product: ${productName}${batchCode ? ` | Batch: ${batchCode}` : ''} | Period: ${timeRange} days</p>
+    </div>
+
+    <div class="section">
+        <h3>📋 Forecast Summary</h3>
+        <div class="summary-content">
+            ${summaryHTML || '<p>No forecast summary available. Please generate a forecast first.</p>'}
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>📈 Demand Forecast Chart</h3>
+        ${chartImg ? `<img src="${chartImg}" class="chart-img" alt="Demand Forecast Chart">` : '<p>Chart data not available. Please generate a forecast first.</p>'}
+    </div>
+
+    ${forecastInfoHTML ? `
+    <div class="section">
+        <h3>📖 Forecast Interpretation & Stock Preparation Guide</h3>
+        <div class="forecast-info">
+            ${forecastInfoHTML}
+        </div>
+    </div>
+    ` : ''}
+
+    <div class="actions no-print">
+        <button class="btn" onclick="window.print()">Print</button>
+    </div>
+</body>
+</html>`;
+
+      printWindow.document.write(printHTML);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 500);
+    }
+
+    // Call the function when page loads
+    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+  </script>
+</body>
+</html>

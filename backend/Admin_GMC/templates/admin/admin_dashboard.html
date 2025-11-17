@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - G.M.C Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="{{ url_for('admin.static', filename='js/dashboard.js') }}"></script>
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+      <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+           <li class="active" title="Dashboard"><a href="{{ url_for('admin.admin_dashboard') }}"><span class="sidebar-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="13" width="7" height="8" rx="2"/><rect x="14" y="3" width="7" height="18" rx="2"/></svg></span><span class="sidebar-label">Dashboard</span></a></li>
+        <li title="Analytics"><a href="{{ url_for('admin.analytics') }}"><span class="sidebar-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span><span class="sidebar-label">Analytics</span></a></li>
+
+          <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+            <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+         <li title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+            <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+           
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+          <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+   <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name sidebar-label" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+         <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="dashboard-header">
+            <div class="dashboard-title-section">
+                <h2>🏠 Dashboard</h2>
+            </div>
+        </div>
+
+        <!-- Real-time Status Cards -->
+        <div class="dashboard-cards-row">
+            <div class="dashboard-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="7" width="18" height="13" rx="2"/>
+                        <path d="M16 3v4"/>
+                        <path d="M8 3v4"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Today's Sales</div>
+                    <div class="dashboard-card-value" id="today-sales">₱0</div>
+                    <div class="dashboard-card-change positive">Real-time data</div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-icon warning">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Low Stock Items</div>
+                    <div class="dashboard-card-value" id="low-stock-count">0</div>
+                    <div class="dashboard-card-change negative">Items below warning level</div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                        <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Total Orders</div>
+                    <div class="dashboard-card-value" id="total-orders">0</div>
+                    <div class="dashboard-card-change positive">All branches</div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                        <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                </div>
+                <div class="card-content">
+                <div class="dashboard-card-title">Total Sales</div>
+                    <div class="dashboard-card-value" id="month-sales">₱0</div>
+                    <div class="dashboard-card-change">All-time total</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Row -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget alerts-widget">
+                <div class="widget-header">
+                    <h3>🚨 Alerts</h3>
+                    <span class="alert-count" id="alert-count">0</span>
+                </div>
+                <div class="alerts-list" id="alerts-list">
+                    <div class="alert-item loading">
+                        <div class="alert-icon">⏳</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Loading alerts...</div>
+                            <div class="alert-desc">Fetching system alerts</div>
+                        </div>
+                        <div class="alert-time">--:--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Trend Chart -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>📈 Sales Trend</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period" id="salesTrendPeriod">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <select class="branch-filter" id="salesTrendBranch">
+                            <option value="">All Branches</option>
+                            <option value="1">Marawoy</option>
+                            <option value="2">Lipa</option>
+                            <option value="3">Malvar</option>
+                            <option value="4">Bulacnin</option>
+                            <option value="5">Boac</option>
+                            <option value="6">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="salesTrendChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Forecast vs Actual Chart -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget-wide chart-widget">
+                <div class="widget-header">
+                    <h3>🔮 Forecast vs Actual</h3>
+                    <div class="chart-controls">
+                        <select class="chart-period" id="forecastPeriod">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <select class="branch-filter" id="forecastBranch">
+                            <option value="">All Branches</option>
+                            <option value="1">Marawoy</option>
+                            <option value="2">Lipa</option>
+                            <option value="3">Malvar</option>
+                            <option value="4">Bulacnin</option>
+                            <option value="5">Boac</option>
+                            <option value="6">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="forecastVsActualChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products Chart -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget chart-widget">
+                <div class="widget-header">
+                    <h3>🏆 Top Products</h3>
+                    <div class="chart-controls">
+                        <span class="chart-subtitle">Manager Sales</span>
+                        <select class="branch-filter" id="topProductsBranch">
+                            <option value="">All Branches</option>
+                            <option value="1">Marawoy</option>
+                            <option value="2">Lipa</option>
+                            <option value="3">Malvar</option>
+                            <option value="4">Bulacnin</option>
+                            <option value="5">Boac</option>
+                            <option value="6">Sta. Cruz</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="topProductsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Metrics Row -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget metrics-widget">
+                <div class="widget-header">
+                    <h3>📈 Key Metrics</h3>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-label">Revenue</div>
+                        <div class="metric-value" id="revenue-value">₱0</div>
+                        <div class="metric-change" id="revenue-change">+0%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Orders</div>
+                        <div class="metric-value" id="orders-value">0</div>
+                        <div class="metric-change" id="orders-change">+0%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Avg Order Value</div>
+                        <div class="metric-value" id="avg-order-value">₱0</div>
+                        <div class="metric-change" id="avg-order-change">+0%</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-label">Customer Satisfaction</div>
+                        <div class="metric-value" id="satisfaction-value">0.0/5</div>
+                        <div class="metric-change" id="satisfaction-change">+0.0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-widget recent-activity-widget">
+                <div class="widget-header">
+                    <h3>🕒 Recent Activity</h3>
+                </div>
+                <div class="activity-list" id="activityList">
+                    <div class="activity-item loading">
+                        <div class="activity-icon">⏳</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Loading...</div>
+                            <div class="activity-desc">Fetching recent activities</div>
+                            <div class="activity-time">--:--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Row -->
+        <div class="dashboard-widgets-row">
+            <div class="dashboard-widget quick-actions-widget">
+                <div class="widget-header">
+                    <h3>⚡ Quick Actions</h3>
+                    <div class="quick-actions-subtitle">Common tasks and shortcuts</div>
+                </div>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-btn primary-action" onclick="window.location.href='{{ url_for('admin.inventory') }}'">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Add New Product</div>
+                            <div class="quick-action-desc">Create new inventory item</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn" onclick="window.location.href='{{ url_for('admin.user') }}'">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="7" r="4"/>
+                                <path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Manage Users</div>
+                            <div class="quick-action-desc">User permissions & roles</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn" onclick="window.location.href='{{ url_for('admin.settings') }}'">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09A1.65 1.65 0 0 0 12 5.1V5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06-.06a1.65 1.65 0 0 0-.33 1.82v.09c0 .66.26 1.3.73 1.77z"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">System Settings</div>
+                            <div class="quick-action-desc">Configure preferences</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn" onclick="window.location.href='{{ url_for('admin.sales') }}'">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 17l6-6 4 4 8-8"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Sales Management</div>
+                            <div class="quick-action-desc">View sales data</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <button class="quick-action-btn" onclick="window.location.href='{{ url_for('admin.forecast') }}'">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 17l6-6 4 4 8-8"/>
+                                <path d="M14 7h7v7"/>
+                            </svg>
+                        </div>
+                        <div class="quick-action-content">
+                            <div class="quick-action-title">Forecast Analysis</div>
+                            <div class="quick-action-desc">View predictions</div>
+                        </div>
+                        <div class="quick-action-arrow">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            <div class="dashboard-widget system-status-widget">
+                <div class="widget-header">
+                    <h3>🔧 System Status</h3>
+                    <div class="status-refresh-btn" onclick="refreshSystemStatus()" title="Refresh Status">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6"/>
+                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+                        </svg>
+                </div>
+                </div>
+                <div class="system-status-list" id="systemStatusList">
+                    <div class="status-item" id="databaseStatus">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">Database</div>
+                            <div class="status-desc">Checking connection...</div>
+                        </div>
+                        <div class="status-time" id="databaseTime">--:--</div>
+                    </div>
+                    <div class="status-item" id="apiStatus">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">API Services</div>
+                            <div class="status-desc">Testing response time...</div>
+                        </div>
+                        <div class="status-time" id="apiTime">--:--</div>
+                    </div>
+                    <div class="status-item" id="inventoryStatus">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">Inventory System</div>
+                            <div class="status-desc">Checking stock levels...</div>
+                        </div>
+                        <div class="status-time" id="inventoryTime">--:--</div>
+                    </div>
+                    <div class="status-item" id="forecastStatus">
+                        <div class="status-indicator"></div>
+                        <div class="status-content">
+                            <div class="status-title">Forecast Engine</div>
+                            <div class="status-desc">Validating models...</div>
+                        </div>
+                        <div class="status-time" id="forecastTime">--:--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+
+        // Load KPI data from API
+        async function loadKPIData() {
+            try {
+                // Use dashboard API for all KPIs (includes today_sales, month_sales, low_stock_count, forecast_accuracy)
+                // This shows TOTAL across ALL branches for admin view
+                const response = await fetch('/admin/api/dashboard/kpis');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const kpis = data.kpis;
+                    
+                    // Update all KPI cards with data from dashboard API
+                    document.getElementById('today-sales').textContent = '₱' + (kpis.today_sales || 0).toLocaleString();
+                    document.getElementById('month-sales').textContent = '₱' + (kpis.total_sales || kpis.month_sales || 0).toLocaleString();
+                    document.getElementById('low-stock-count').textContent = kpis.low_stock_count || 0;
+                    document.getElementById('total-orders').textContent = (kpis.total_orders || 0).toLocaleString();
+                }
+            } catch (error) {
+                console.error('Error loading KPI data:', error);
+            }
+        }
+
+        // Load Key Metrics data from API
+        async function loadKeyMetrics() {
+            try {
+                const response = await fetch('/admin/api/dashboard/key-metrics');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const metrics = data.metrics;
+                    
+                    // Update revenue
+                    document.getElementById('revenue-value').textContent = metrics.revenue.formatted;
+                    updateMetricChange('revenue-change', metrics.revenue.change);
+                    
+                    // Update orders
+                    document.getElementById('orders-value').textContent = metrics.orders.formatted;
+                    updateMetricChange('orders-change', metrics.orders.change);
+                    
+                    // Update avg order value
+                    document.getElementById('avg-order-value').textContent = metrics.avg_order_value.formatted;
+                    updateMetricChange('avg-order-change', metrics.avg_order_value.change);
+                    
+                    // Update customer satisfaction
+                    document.getElementById('satisfaction-value').textContent = metrics.customer_satisfaction.formatted;
+                    updateMetricChange('satisfaction-change', metrics.customer_satisfaction.change);
+                }
+            } catch (error) {
+                console.error('Error loading key metrics:', error);
+            }
+        }
+
+        // Update metric change indicator
+        function updateMetricChange(elementId, change) {
+            const element = document.getElementById(elementId);
+            const isPositive = change >= 0;
+            const sign = isPositive ? '+' : '';
+            
+            element.textContent = `${sign}${change.toFixed(1)}%`;
+            element.className = `metric-change ${isPositive ? 'positive' : 'negative'}`;
+        }
+
+        // Load Recent Activity data from API
+        async function loadRecentActivity() {
+            try {
+                const response = await fetch('/admin/api/dashboard/recent-activity');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const activities = data.activities;
+                    const activityList = document.getElementById('activityList');
+                    
+                    // Clear loading state
+                    activityList.innerHTML = '';
+                    
+                    // Add activities
+                    activities.forEach(activity => {
+                        const activityItem = document.createElement('div');
+                        activityItem.className = 'activity-item';
+                        activityItem.innerHTML = `
+                            <div class="activity-icon">${activity.icon}</div>
+                            <div class="activity-content">
+                                <div class="activity-title">${activity.title}</div>
+                                <div class="activity-desc">${activity.description}</div>
+                                <div class="activity-time">${activity.time_ago}</div>
+                            </div>
+                        `;
+                        activityList.appendChild(activityItem);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading recent activity:', error);
+                // Show error state
+                const activityList = document.getElementById('activityList');
+                activityList.innerHTML = `
+                    <div class="activity-item error">
+                        <div class="activity-icon">⚠️</div>
+                        <div class="activity-content">
+                            <div class="activity-title">Error</div>
+                            <div class="activity-desc">Failed to load activities</div>
+                            <div class="activity-time">--:--</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load all chart data (initial load)
+        async function loadChartData() {
+            await Promise.all([
+                loadSalesTrendData(),
+                loadForecastData(),
+                loadTopProductsData()
+            ]);
+        }
+
+        // Load Sales Trend data with its own filters
+        async function loadSalesTrendData() {
+            try {
+                const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+                const salesTrendBranch = document.getElementById('salesTrendBranch')?.value || '';
+
+                const params = new URLSearchParams();
+                if (salesTrendBranch) params.append('branch_id', salesTrendBranch);
+                if (salesTrendPeriod) params.append('days', salesTrendPeriod);
+
+                console.log('Loading Sales Trend with filters:', { salesTrendPeriod, salesTrendBranch });
+
+                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    updateSalesTrendChart(data.charts.sales_trend);
+                    updateSalesTrendFilterDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading sales trend data:', error);
+            }
+        }
+
+        // Load Forecast data with its own filters
+        async function loadForecastData() {
+            try {
+                const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
+                const forecastBranch = document.getElementById('forecastBranch')?.value || '';
+
+                const params = new URLSearchParams();
+                if (forecastBranch) params.append('branch_id', forecastBranch);
+                if (forecastPeriod) params.append('days', forecastPeriod);
+
+                console.log('Loading Forecast with filters:', { forecastPeriod, forecastBranch });
+
+                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    updateForecastVsActualChart(data.charts.forecast_vs_actual);
+                    updateForecastFilterDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading forecast data:', error);
+            }
+        }
+
+        // Load Top Products data with its own filters
+        async function loadTopProductsData() {
+            try {
+                const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
+
+                const params = new URLSearchParams();
+                if (topProductsBranch) params.append('branch_id', topProductsBranch);
+
+                console.log('Loading Top Products with filters:', { topProductsBranch });
+
+                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+                const data = await response.json();
+                
+                if (data.ok) {
+                    updateTopProductsChart(data.charts.top_products);
+                    updateTopProductsFilterDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading top products data:', error);
+            }
+        }
+
+        // Show loading state for charts
+        function showChartLoadingState() {
+            const chartContainers = document.querySelectorAll('.chart-container');
+            chartContainers.forEach(container => {
+                const canvas = container.querySelector('canvas');
+                if (canvas) {
+                    canvas.style.opacity = '0.5';
+                }
+            });
+        }
+
+        // Hide loading state for charts
+        function hideChartLoadingState() {
+            const chartContainers = document.querySelectorAll('.chart-container');
+            chartContainers.forEach(container => {
+                const canvas = container.querySelector('canvas');
+                if (canvas) {
+                    canvas.style.opacity = '1';
+                }
+            });
+        }
+
+        // Update filter display for Sales Trend
+        function updateSalesTrendFilterDisplay() {
+            const salesTrendBranch = document.getElementById('salesTrendBranch')?.value || '';
+            const salesTrendPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+
+            const salesTrendTitle = document.querySelector('#salesTrendChart').closest('.chart-widget')?.querySelector('.chart-subtitle');
+            if (salesTrendTitle) {
+                const branchText = salesTrendBranch ? ` - Branch ${salesTrendBranch}` : ' - All Branches';
+                salesTrendTitle.textContent = `Sales Trend (Last ${salesTrendPeriod} days${branchText})`;
+            }
+        }
+
+        // Update filter display for Forecast
+        function updateForecastFilterDisplay() {
+            const forecastBranch = document.getElementById('forecastBranch')?.value || '';
+            const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
+
+            const forecastTitle = document.querySelector('#forecastVsActualChart').closest('.chart-widget')?.querySelector('.chart-subtitle');
+            if (forecastTitle) {
+                const branchText = forecastBranch ? ` - Branch ${forecastBranch}` : ' - All Branches';
+                forecastTitle.textContent = `Forecast vs Actual (Last ${forecastPeriod} days${branchText})`;
+            }
+        }
+
+        // Update filter display for Top Products
+        function updateTopProductsFilterDisplay() {
+            const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
+
+            const topProductsTitle = document.querySelector('#topProductsChart').closest('.chart-widget')?.querySelector('.chart-subtitle');
+            if (topProductsTitle) {
+                const branchText = topProductsBranch ? ` - Branch ${topProductsBranch}` : ' - All Branches';
+                topProductsTitle.textContent = `Manager Sales${branchText}`;
+            }
+        }
+
+        // Branch color palette
+        const branchColors = [
+            { border: '#2e7d32', fill: 'rgba(46, 125, 50, 0.1)' },   // Green - Marawoy
+            { border: '#1976d2', fill: 'rgba(25, 118, 210, 0.1)' }, // Blue - Lipa
+            { border: '#f57c00', fill: 'rgba(245, 124, 0, 0.1)' },  // Orange - Malvar
+            { border: '#7b1fa2', fill: 'rgba(123, 31, 162, 0.1)' }, // Purple - Bulacnin
+            { border: '#c2185b', fill: 'rgba(194, 24, 91, 0.1)' },   // Pink - Boac
+            { border: '#0288d1', fill: 'rgba(2, 136, 209, 0.1)' },   // Light Blue - Sta. Cruz
+        ];
+
+        // Update Sales Trend Chart
+        function updateSalesTrendChart(data) {
+            const ctx = document.getElementById('salesTrendChart');
+            if (!ctx) return;
+
+            if (window.salesTrendChart && typeof window.salesTrendChart.destroy === 'function') {
+                window.salesTrendChart.destroy();
+            }
+
+            // Check if data is branch-specific (array of branch objects) or aggregated (array of date objects)
+            const isBranchSpecific = data && data.length > 0 && data[0].hasOwnProperty('branch_id');
+            const salesTrendBranch = document.getElementById('salesTrendBranch')?.value || '';
+            const selectedPeriod = document.getElementById('salesTrendPeriod')?.value || '30';
+
+            let labels = [];
+            let datasets = [];
+
+            if (isBranchSpecific && !salesTrendBranch) {
+                // All branches - multiple lines
+                if (data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [{
+                        label: 'No Data',
+                        data: [0],
+                        borderColor: '#cccccc',
+                        backgroundColor: 'rgba(204, 204, 204, 0.1)',
+                        borderWidth: 2,
+                        fill: false
+                    }];
+                } else {
+                    // Get all unique dates from all branches
+                    const allDates = new Set();
+                    data.forEach(branch => {
+                        branch.data.forEach(item => allDates.add(item.date));
+                    });
+                    labels = Array.from(allDates).sort();
+
+                    // Create dataset for each branch
+                    data.forEach((branch, index) => {
+                        const colorIndex = (branch.branch_id - 1) % branchColors.length;
+                        const colors = branchColors[colorIndex];
+                        
+                        // Map branch data to labels
+                        const branchData = labels.map(date => {
+                            const item = branch.data.find(d => d.date === date);
+                            return item ? item.sales : 0;
+                        });
+
+                        datasets.push({
+                            label: branch.branch_name,
+                            data: branchData,
+                            borderColor: colors.border,
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+                    });
+                }
+            } else {
+                // Single branch or aggregated - single line
+                if (!data || data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [{
+                        label: 'Daily Sales (₱)',
+                        data: [0],
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }];
+                } else {
+                    labels = data.map(item => item.date);
+                    const salesData = data.map(item => item.sales);
+                    
+                    datasets = [{
+                        label: 'Daily Sales (₱)',
+                        data: salesData,
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2e7d32',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }];
+                }
+            }
+
+            window.salesTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                    labels: labels,
+                datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8,
+                                font: {
+                                    size: 11
+                                },
+                                usePointStyle: true
+                            }
+                        },
+                        title: { 
+                            display: true, 
+                            text: `Sales Trend (Last ${selectedPeriod} Days)`,
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return '₱' + context.parsed.y.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '₱' + value.toLocaleString();
+                                },
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Update Forecast vs Actual Chart
+        function updateForecastVsActualChart(data) {
+            const ctx = document.getElementById('forecastVsActualChart');
+            if (!ctx) return;
+
+            if (window.forecastVsActualChart && typeof window.forecastVsActualChart.destroy === 'function') {
+                window.forecastVsActualChart.destroy();
+            }
+
+            // Check if data is branch-specific (array of branch objects) or aggregated (array of date objects)
+            const isBranchSpecific = data && data.length > 0 && data[0].hasOwnProperty('branch_id');
+            const forecastBranch = document.getElementById('forecastBranch')?.value || '';
+
+            let labels = [];
+            let datasets = [];
+
+            if (isBranchSpecific && !forecastBranch) {
+                // All branches - multiple lines for actual and forecast
+                if (data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [
+                        {
+                            label: 'Actual Sales (kg)',
+                            data: [0],
+                            borderColor: '#1976d2',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Forecast (kg)',
+                            data: [0],
+                            borderColor: '#ff9800',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ];
+                } else {
+                    // Get all unique dates from all branches
+                    const allDates = new Set();
+                    data.forEach(branch => {
+                        branch.data.forEach(item => allDates.add(item.date));
+                    });
+                    labels = Array.from(allDates).sort();
+
+                    // Create datasets for each branch (actual and forecast)
+                    data.forEach((branch, index) => {
+                        const colorIndex = (branch.branch_id - 1) % branchColors.length;
+                        const colors = branchColors[colorIndex];
+                        
+                        // Map branch data to labels
+                        const actualData = labels.map(date => {
+                            const item = branch.data.find(d => d.date === date);
+                            return item ? item.actual : 0;
+                        });
+
+                        const forecastData = labels.map(date => {
+                            const item = branch.data.find(d => d.date === date);
+                            return item ? item.forecast : 0;
+                        });
+
+                        // Actual line (solid)
+                        datasets.push({
+                            label: `${branch.branch_name} - Actual`,
+                            data: actualData,
+                            borderColor: colors.border,
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+
+                        // Forecast line (dashed, slightly lighter) - use same color but with opacity
+                        datasets.push({
+                            label: `${branch.branch_name} - Forecast`,
+                            data: forecastData,
+                            borderColor: colors.border + '80', // Add 50% opacity (hex 80 = 128/255)
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border + '80',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+                    });
+                }
+            } else {
+                // Single branch or aggregated - two lines (actual and forecast)
+                if (!data || data.length === 0) {
+                    labels = ['No Data'];
+                    datasets = [
+                        {
+                            label: 'Actual Sales (kg)',
+                            data: [0],
+                            borderColor: '#1976d2',
+                            borderWidth: 2,
+                            fill: false
+                        },
+                        {
+                            label: 'Forecast (kg)',
+                            data: [0],
+                            borderColor: '#ff9800',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false
+                        }
+                    ];
+                } else {
+                    labels = data.map(item => item.date);
+                    const actualData = data.map(item => item.actual);
+                    const forecastData = data.map(item => item.forecast);
+                    
+                    datasets = [
+                        {
+                            label: 'Actual Sales (kg)',
+                            data: actualData,
+                            borderColor: '#1976d2',
+                            backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: '#1976d2',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'Forecast (kg)',
+                            data: forecastData,
+                            borderColor: '#ff9800',
+                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                            borderWidth: 3,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: '#ff9800',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        }
+                    ];
+                }
+            }
+
+            window.forecastVsActualChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8,
+                            font: {
+                                size: 11
+                            },
+                            usePointStyle: true
+                        }
+                    },
+                    title: { 
+                        display: true, 
+                        text: 'Forecast vs Actual Sales',
+                        font: { size: 14, weight: 'bold' }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#2e7d32',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
+                                }
+                            }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                            title: { 
+                                display: true, 
+                                text: 'Quantity (kg)',
+                                font: { size: 12, weight: 'bold' }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                    return value.toLocaleString() + ' kg';
+                            },
+                                font: { size: 11 }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                                font: { size: 11 }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                    }
+                }
+            });
+        }
+
+        // Update Top Products Chart
+        function updateTopProductsChart(data) {
+            const ctx = document.getElementById('topProductsChart');
+            if (!ctx) return;
+
+            if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
+                window.topProductsChart.destroy();
+            }
+
+            // Handle empty data
+            if (!data || data.length === 0) {
+                data = [{ name: 'No Data', quantity: 0 }];
+            }
+
+            const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
+            const isAllBranches = !topProductsBranch;
+            
+            // Check if data has branch information
+            const hasBranchInfo = data.length > 0 && (data[0].branch_name || data[0].branch_id);
+            
+            // Create labels with branch information when viewing all branches
+            const labels = data.map(item => {
+                if (isAllBranches && hasBranchInfo && item.branch_name) {
+                    return `${item.name} - ${item.branch_name}`;
+                }
+                return item.name;
+            });
+            const quantities = data.map(item => item.quantity);
+
+            window.topProductsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quantity Sold (kg)',
+                        data: quantities,
+                        backgroundColor: [
+                            'rgba(46, 125, 50, 0.8)',
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(236, 72, 153, 0.8)'
+                        ],
+                        borderColor: [
+                            '#2e7d32',
+                            '#3b82f6',
+                            '#f59e0b',
+                            '#8b5cf6',
+                            '#ec4899'
+                        ],
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: false 
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Top 5 Products (Manager Sales)',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                title: function(context) {
+                                    const item = data[context[0].dataIndex];
+                                    if (isAllBranches && hasBranchInfo && item.branch_name) {
+                                        return `${item.name} (${item.branch_name})`;
+                                    }
+                                    return item.name;
+                                },
+                                label: function(context) {
+                                    const item = data[context.dataIndex];
+                                    let label = 'Quantity: ' + context.parsed.y.toLocaleString() + ' kg';
+                                    
+                                    // Add branch info in tooltip if viewing all branches
+                                    if (isAllBranches && hasBranchInfo && item.branch_name) {
+                                        label += '\nBranch: ' + item.branch_name;
+                                    }
+                                    
+                                    // Add sales/revenue if available
+                                    if (item.sales) {
+                                        label += '\nRevenue: ₱' + Number(item.sales).toLocaleString();
+                                    }
+                                    
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Quantity (kg)',
+                                font: { size: 12, weight: 'bold' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' kg';
+                                },
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: { size: 11 },
+                                maxRotation: isAllBranches && hasBranchInfo ? 45 : 0,
+                                minRotation: isAllBranches && hasBranchInfo ? 45 : 0
+                            }
+                    }
+                }
+            }
+        });
+        }
+
+        // Load Alerts data
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/admin/api/dashboard/alerts');
+                const data = await response.json();
+                
+                if (data.ok) {
+                    const alerts = data.alerts;
+                    const alertsList = document.getElementById('alerts-list');
+                    const alertCount = document.getElementById('alert-count');
+                    
+                    // Update count
+                    alertCount.textContent = data.total_count || alerts.length;
+                    
+                    // Clear loading state
+                    alertsList.innerHTML = '';
+                    
+                    if (alerts.length === 0) {
+                        alertsList.innerHTML = `
+                            <div class="alert-item info">
+                                <div class="alert-icon">✅</div>
+                                <div class="alert-content">
+                                    <div class="alert-title">All Clear</div>
+                                    <div class="alert-desc">No alerts at this time</div>
+                                </div>
+                                <div class="alert-time">Just now</div>
+                            </div>
+                        `;
+                    } else {
+                        // Add alerts
+                        alerts.forEach(alert => {
+                            const alertItem = document.createElement('div');
+                            alertItem.className = `alert-item ${alert.type}`;
+                            alertItem.innerHTML = `
+                                <div class="alert-icon">${alert.icon}</div>
+                                <div class="alert-content">
+                                    <div class="alert-title">${alert.title}</div>
+                                    <div class="alert-desc">${alert.description}</div>
+                                </div>
+                                <div class="alert-time">${alert.time_ago}</div>
+                            `;
+                            alertsList.appendChild(alertItem);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                const alertsList = document.getElementById('alerts-list');
+                alertsList.innerHTML = `
+                    <div class="alert-item warning">
+                        <div class="alert-icon">⚠️</div>
+                        <div class="alert-content">
+                            <div class="alert-title">Error</div>
+                            <div class="alert-desc">Failed to load alerts</div>
+                        </div>
+                        <div class="alert-time">--:--</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize dashboard
+        async function initializeDashboard() {
+            await loadKPIData();
+            await loadKeyMetrics();
+            await loadRecentActivity();
+            await loadAlerts();
+            await loadChartData();
+            
+            // Add filter event listeners
+            setupFilterListeners();
+            
+            // Refresh data every 5 minutes
+            setInterval(async () => {
+                await loadKPIData();
+                await loadKeyMetrics();
+                await loadRecentActivity();
+                await loadAlerts();
+                await loadChartData();
+            }, 300000);
+        }
+
+        // Setup filter event listeners
+        function setupFilterListeners() {
+            // Sales trend filters
+            const salesTrendPeriod = document.getElementById('salesTrendPeriod');
+            const salesTrendBranch = document.getElementById('salesTrendBranch');
+            
+            if (salesTrendPeriod) {
+                salesTrendPeriod.addEventListener('change', () => {
+                    console.log('Sales Trend Period changed to:', salesTrendPeriod.value);
+                    loadSalesTrendData();
+                });
+            }
+            
+            if (salesTrendBranch) {
+                salesTrendBranch.addEventListener('change', () => {
+                    console.log('Sales Trend Branch changed to:', salesTrendBranch.value);
+                    loadSalesTrendData();
+                });
+            }
+
+            // Forecast filters
+            const forecastPeriod = document.getElementById('forecastPeriod');
+            const forecastBranch = document.getElementById('forecastBranch');
+            
+            if (forecastPeriod) {
+                forecastPeriod.addEventListener('change', () => {
+                    console.log('Forecast Period changed to:', forecastPeriod.value);
+                    loadForecastData();
+                });
+            }
+            
+            if (forecastBranch) {
+                forecastBranch.addEventListener('change', () => {
+                    console.log('Forecast Branch changed to:', forecastBranch.value);
+                    loadForecastData();
+                });
+            }
+
+            // Top products filter
+            const topProductsBranch = document.getElementById('topProductsBranch');
+            
+            if (topProductsBranch) {
+                topProductsBranch.addEventListener('change', () => {
+                    console.log('Top Products Branch changed to:', topProductsBranch.value);
+                    loadTopProductsData();
+                });
+            }
+        }
+
+
+        // Initialize dashboard on page load
+        document.addEventListener('DOMContentLoaded', initializeDashboard);
+
+        // Real-time System Status Monitoring
+        let statusCheckInterval;
+
+        async function checkSystemStatus() {
+            const startTime = Date.now();
+            
+            // Check Database Status
+            try {
+                const dbResponse = await fetch('/admin/api/dashboard/kpis');
+                const dbData = await dbResponse.json();
+                updateStatusItem('databaseStatus', 'online', 'Database', 'All systems operational', startTime);
+            } catch (error) {
+                updateStatusItem('databaseStatus', 'error', 'Database', 'Connection failed', startTime);
+            }
+
+            // Check API Services
+            try {
+                const apiStart = Date.now();
+                const apiResponse = await fetch('/admin/api/dashboard/charts');
+                const apiTime = Date.now() - apiStart;
+                updateStatusItem('apiStatus', 'online', 'API Services', `Response time: ${apiTime}ms`, startTime);
+            } catch (error) {
+                updateStatusItem('apiStatus', 'error', 'API Services', 'Service unavailable', startTime);
+            }
+
+            // Check Inventory System
+            try {
+                const inventoryResponse = await fetch('/admin/api/inventory/status');
+                const inventoryData = await inventoryResponse.json();
+                if (inventoryData.ok) {
+                    updateStatusItem('inventoryStatus', 'online', 'Inventory System', `${inventoryData.total_products} products tracked`, startTime);
+                } else {
+                    updateStatusItem('inventoryStatus', 'warning', 'Inventory System', 'Some issues detected', startTime);
+                }
+            } catch (error) {
+                updateStatusItem('inventoryStatus', 'error', 'Inventory System', 'System unavailable', startTime);
+            }
+
+            // Check Forecast Engine
+            try {
+                const forecastResponse = await fetch('/admin/api/forecast/status');
+                const forecastData = await forecastResponse.json();
+                if (forecastData.ok) {
+                    updateStatusItem('forecastStatus', 'online', 'Forecast Engine', `${forecastData.model_count} models active`, startTime);
+                } else {
+                    updateStatusItem('forecastStatus', 'warning', 'Forecast Engine', 'Models updating', startTime);
+                }
+            } catch (error) {
+                updateStatusItem('forecastStatus', 'error', 'Forecast Engine', 'Engine offline', startTime);
+            }
+        }
+
+        function updateStatusItem(elementId, status, title, description, startTime) {
+            const element = document.getElementById(elementId);
+            const indicator = element.querySelector('.status-indicator');
+            const titleElement = element.querySelector('.status-title');
+            const descElement = element.querySelector('.status-desc');
+            const timeElement = element.querySelector('.status-time');
+            
+            // Update status classes
+            element.className = `status-item ${status}`;
+            
+            // Update content
+            titleElement.textContent = title;
+            descElement.textContent = description;
+            
+            // Update timestamp
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            timeElement.textContent = timeString;
+        }
+
+        function refreshSystemStatus() {
+            // Show loading state
+            document.querySelectorAll('.status-item').forEach(item => {
+                item.className = 'status-item loading';
+                const desc = item.querySelector('.status-desc');
+                desc.textContent = 'Checking...';
+            });
+            
+            // Check status
+            checkSystemStatus();
+        }
+
+        function startStatusMonitoring() {
+            // Initial check
+            checkSystemStatus();
+            
+            // Set up interval for periodic checks (every 30 seconds)
+            statusCheckInterval = setInterval(checkSystemStatus, 30000);
+        }
+
+        function stopStatusMonitoring() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+        }
+
+        // Initialize system status monitoring
+        document.addEventListener('DOMContentLoaded', function() {
+            startStatusMonitoring();
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            stopStatusMonitoring();
+        });
+    </script>
+</body>
+</html>

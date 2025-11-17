@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Inventory - G.M.C. Rice Warehouse</title>
+    <!-- Static files should come from the manager blueprint -->
+    <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('manager.static', filename='css/inventory.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1 id="branchTitle">G.M.C. Rice Warehouse</h1>
+            </div>
+            <div class="nav-main">
+                <div class="nav-section">
+                    <h2>Main Menu</h2>
+                    <ul>
+                        <li><a href="{{ url_for('manager.manager_dashboard') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+                        <li><a href="{{ url_for('manager.inventory') }}" class="active"><i class="fas fa-box"></i> Inventory</a></li>
+                        <li><a href="{{ url_for('manager.forecast') }}"><i class="fas fa-chart-line"></i> Forecast</a></li>
+                        <li><a href="{{ url_for('manager.sales') }}"><i class="fas fa-shopping-cart"></i> Sales</a></li>
+                        <li><a href="{{ url_for('manager.purchase') }}"><i class="fas fa-shopping-bag"></i> Purchase</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Reports</h2>
+                    <ul>
+                        <li><a href="{{ url_for('manager.analytics') }}"><i class="fas fa-chart-bar"></i> Analytics</a></li>
+                    </ul>
+                </div>
+                <div class="nav-section">
+                    <h2>Settings</h2>
+                    <ul>
+                        <li><a href="{{ url_for('manager.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                        <li><a href="{{ url_for('manager.settings') }}"><i class="fas fa-cog"></i> Account Settings</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="inventory-container">
+                <div class="inventory-header">
+                    <h2><i class="fas fa-box"></i> Inventory Management</h2>
+                    <div class="inventory-actions">
+                        <button class="btn primary" onclick="showAddStockModal()">
+                            <i class="fas fa-plus"></i> Add Stock
+                        </button>
+                    <button class="btn success" onclick="showRestockModal()">
+                        <i class="fas fa-boxes"></i> Restock
+                        </button>
+                        <button class="btn secondary" onclick="exportInventory()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn secondary" id="printBtn" title="Print with preview">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+                </div>
+
+                <div class="inventory-filters">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchStock" placeholder="Search products...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="categoryFilter">
+                            <option value="">All Categories</option>
+                            <option value="premium">Premium Rice</option>
+                            <option value="regular">Regular Rice</option>
+                            <option value="special">Special Varieties</option>
+                        </select>
+                        <select id="statusFilter">
+                            <option value="">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="low">Low Stock</option>
+                            <option value="out">Out of Stock</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="inventory-table-container">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Batch Code</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                            <!-- Table rows will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Add/Edit Stock Modal -->
+                <div id="stockModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-box"></i> Add new product</h3>
+                            <button class="close-btn" onclick="closeStockModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
+                        </div>
+                        <form id="productForm" onsubmit="handleProductSubmit(event)">
+                            <div class="form-group">
+                                <label for="productName">Product Name</label>
+                                <input type="text" id="productName" name="productName" placeholder="Sinandomeng" required>
+                                <div class="hint">Ex: Sinandomeng</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="warningThreshold">Warning Threshold Stock Level</label>
+                                <input type="number" id="warningThreshold" name="warningThreshold" placeholder="Ex: 100" min="0">
+                                <div class="hint">Ex: 100</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="autoOrderLevel">Auto Order Stock Level</label>
+                                <input type="number" id="autoOrderLevel" name="autoOrderLevel" placeholder="Ex: 50" min="0">
+                                <div class="hint">Ex: 50</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Category</label>
+                                <select id="category" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="white">White Rice</option>
+                                    <option value="premium">Premium Rice</option>
+                                    <option value="regular">Regular Rice</option>
+                                    <option value="special">Special Varieties</option>
+                                </select>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="barcode">Barcode Number</label>
+                                <input type="text" id="barcode" name="barcode" placeholder="QWERTY0987">
+                                <div class="hint">Ex: QWERTY0987</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="batchCode">Batch Code <span class="required">*</span></label>
+                                <input type="text" id="batchCode" name="batchCode" placeholder="BATCH-001" required
+                                       pattern="[A-Za-z0-9\-_]+" 
+                                       title="Batch code can contain letters, numbers, hyphens, and underscores">
+                                <div class="hint">Ex: BATCH-001</div>
+                                <div class="hint">Required to allow multiple batches of the same product.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="grn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="grn" name="grn" placeholder="QWERTY56787">
+                                <div class="hint">Ex: QWERTY56787</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="recordedStock">Recorded Stock Level</label>
+                                <input type="number" id="recordedStock" name="recordedStock" placeholder="Ex: 2000" min="0" step="0.1">
+                                <div class="hint">Ex: 2000</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="purchasingPrice">Purchasing Price</label>
+                                <input type="text" id="purchasingPrice" name="purchasingPrice" placeholder="Ex: $100">
+                                <div class="hint">Ex: $100</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sellingMargin">Selling Price Margin</label>
+                                <input type="text" id="sellingMargin" name="sellingMargin" placeholder="Ex: 20%">
+                                <div class="hint">Ex: 20%</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="sku">SKU Code</label>
+                                <input type="text" id="sku" name="sku" class="sku-input" placeholder="RTY1234455">
+                                <div class="hint">Ex: RTY1234455</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Product Description</label>
+                                <textarea id="description" name="description" rows="3" placeholder="Ex: Type something about product here"></textarea>
+                                <div class="hint">Ex: Type something about product here</div>
+                                <div class="hint">This is a hint text to help user.</div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Add Product</button>
+                                <button type="button" class="btn secondary" onclick="closeStockModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit Inventory Modal -->
+                <div id="editStockModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-pen"></i> Edit product</h3>
+                            <button class="close-btn" onclick="closeEditModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
+                        </div>
+                        <form id="editProductForm">
+                            <input type="hidden" id="editItemId" name="__id">
+                            <div class="form-group">
+                                <label for="editProductName">Product Name</label>
+                                <input type="text" id="editProductName" name="productName" placeholder="Sinandomeng">
+                            </div>
+                            <div class="form-group">
+                                <label for="editWarningThreshold">Warning Threshold Stock Level</label>
+                                <input type="number" id="editWarningThreshold" name="warningThreshold" placeholder="Ex: 100" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="editAutoOrderLevel">Auto Order Stock Level</label>
+                                <input type="number" id="editAutoOrderLevel" name="autoOrderLevel" placeholder="Ex: 50" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="editCategory">Category</label>
+                                <select id="editCategory" name="category">
+                                    <option value="">Select Category</option>
+                                    <option value="white">White Rice</option>
+                                    <option value="premium">Premium Rice</option>
+                                    <option value="regular">Regular Rice</option>
+                                    <option value="special">Special Varieties</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="editBarcode">Barcode Number</label>
+                                <input type="text" id="editBarcode" name="barcode" placeholder="QWERTY0987">
+                            </div>
+                            <div class="form-group">
+                                <label for="editBatchCode">Batch Code <small>(optional)</small></label>
+                                <input type="text" id="editBatchCode" name="batchCode" placeholder="Leave empty to keep current"
+                                       pattern="[A-Za-z0-9\-_]+" 
+                                       title="Batch code can contain letters, numbers, hyphens, and underscores">
+                            </div>
+                            <div class="form-group">
+                                <label for="editGrn">GRN Number <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="editGrn" name="grn" placeholder="QWERTY56787">
+                            </div>
+                            <div class="form-group">
+                                <label for="editRecordedStock">Recorded Stock Level</label>
+                                <input type="number" id="editRecordedStock" name="recordedStock" placeholder="Ex: 2000" min="0" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="editPurchasingPrice">Purchasing Price</label>
+                                <input type="text" id="editPurchasingPrice" name="purchasingPrice" placeholder="Ex: $100">
+                            </div>
+                            <div class="form-group">
+                                <label for="editSellingMargin">Selling Price Margin</label>
+                                <input type="text" id="editSellingMargin" name="sellingMargin" placeholder="Ex: 20%">
+                            </div>
+                            <div class="form-group">
+                                <label for="editSku">SKU Code</label>
+                                <input type="text" id="editSku" name="sku" class="sku-input" placeholder="RTY1234455">
+                            </div>
+                            <div class="form-group">
+                                <label for="editDescription">Product Description</label>
+                                <textarea id="editDescription" name="description" rows="3" placeholder="Ex: Type something about product here"></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Update</button>
+                                <button type="button" class="btn secondary" onclick="closeEditModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- View Inventory Modal (manager theme) -->
+                <div id="viewItemModal" class="modal">
+                    <div class="modal-content" style="border-top:4px solid #1a365d">
+                        <div class="modal-header">
+                            <h3 style="color:#1a365d"><i class="fas fa-eye"></i> Product details</h3>
+                            <button class="close-btn" onclick="closeViewModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
+                        </div>
+
+                        <div class="grid-3col gap-16" id="viewFields"></div>
+
+                        <div class="form-actions" style="margin-top:16px">
+                            <button type="button" class="btn secondary" onclick="closeViewModal()">Close</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restock Modal (manager theme) -->
+                <div id="restockModal" class="modal">
+                    <div class="modal-content" style="border-top:4px solid #1a365d">
+                        <div class="modal-header">
+                            <h3 style="color:#1a365d"><i class="fas fa-boxes"></i> Restock Product</h3>
+                            <button class="close-btn" onclick="closeRestockModal()" style="position:absolute;right:12px;top:12px;width:36px;height:36px;line-height:36px;font-size:24px;border-radius:6px;z-index:2">&times;</button>
+                        </div>
+                        <form id="restockForm" onsubmit="handleRestockSubmit(event)">
+                            <div class="form-group">
+                                <label for="restockProduct">Select Product</label>
+                                <select id="restockProduct" name="product_id" required>
+                                    <option value="">Choose a product...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="restockBatchSelect">Batch Code</label>
+                                <select id="restockBatchSelect" style="display:none;">
+                                    <option value="">-- Create New Batch --</option>
+                                </select>
+                                <input id="restockBatchInput" placeholder="Enter new batch code (e.g., BATCH-001)" style="display:none;">
+                                <small id="restockBatchHint" style="display:block;margin-top:5px;color:#666;font-size:.85em;">Select product to load batch codes</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="restockQuantity">Quantity (kg)</label>
+                                <input type="number" id="restockQuantity" name="quantity" placeholder="Enter quantity in kg" min="0" step="0.1" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="restockSupplier">Supplier <span style="color: var(--text-light); font-weight: normal;">(Optional)</span></label>
+                                <input type="text" id="restockSupplier" name="supplier" placeholder="Enter supplier name">
+                            </div>
+                            <div class="form-group">
+                                <label for="restockNote">Notes</label>
+                                <textarea id="restockNote" name="note" rows="3" placeholder="Additional notes about this restock..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn primary">Record Restock</button>
+                                <button type="button" class="btn secondary" onclick="closeRestockModal()">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+        .btn.success {
+            background: linear-gradient(135deg, #1a365d, #2d5a87);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn.success:hover {
+            background: linear-gradient(135deg, #2d5a87, #1a365d);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+        }
+        
+        .btn.success i {
+            font-size: 0.9rem;
+        }
+    </style>
+
+    <script>
+        // Initialize inventory page
+        document.addEventListener('DOMContentLoaded', function() {
+            initInventory();
+        });
+
+        function initInventory() {
+            loadInventoryData();
+            setupEventListeners();
+            // Real-time updates: respond to app-wide inventory updates and poll periodically
+            window.addEventListener('inventoryDataUpdated', () => loadInventoryData());
+            setInterval(() => loadInventoryData(), 30000);
+        }
+
+        // --- Helpers ---
+        function formatDate(dateString) {
+            if (!dateString) return '--';
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return '--';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return d.toLocaleDateString('en-US', options);
+        }
+
+        function formatCategory(category) {
+            if (!category || category === '—') return '—';
+            const categoryMap = {
+                'white': 'White Rice',
+                'premium': 'Premium Rice',
+                'regular': 'Regular Rice',
+                'special': 'Special Varieties'
+            };
+            return categoryMap[category.toLowerCase()] || category;
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <i class="fas ${type === 'success' ? 'fa-check-circle' :
+                              type === 'error' ? 'fa-exclamation-circle' :
+                              'fa-info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function mapItem(it) {
+            return {
+                id: it.id,
+                name: it.product_name || '',
+                category: it.category || '',
+                batchCode: it.batch_code || it.batch || '',
+                quantity: Number(it.stock ?? 0),
+                price: Number(it.price ?? it.unit_price ?? 0),
+                status: it.status || (Number(it.stock ?? 0) <= 0 ? 'out' : 'available'),
+                lastUpdated: it.updated_at || it.last_updated || it.modified_at || it.created_at || null
+            };
+        }
+
+        // --- CRUD using manager API ---
+        async function loadInventoryData(query = '') {
+            try {
+                // Get branch_id from template variables or URL parameters
+                const branchId = {{ branch_id if branch_id else 'null' }} || 
+                                new URLSearchParams(window.location.search).get('branch') || 
+                                new URLSearchParams(window.location.search).get('branch_id');
+                
+                let apiUrl = '/manager/api/inventory';
+                const params = new URLSearchParams();
+                if (branchId) params.append('branch_id', branchId);
+                if (query) params.append('q', query);
+                
+                if (params.toString()) {
+                    apiUrl += `?${params.toString()}`;
+                }
+                
+                console.log('Loading inventory for branch:', branchId, 'URL:', apiUrl);
+                
+                const res = await fetch(apiUrl, {
+                    credentials: 'include'
+                });
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load');
+                // Store full data for print preview
+                _fullInventoryData = json.items || [];
+                const data = _fullInventoryData.map(mapItem);
+            renderInventoryTable(data);
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load inventory', 'error');
+            }
+        }
+
+        async function createProduct(payload) {
+            const res = await fetch('/manager/api/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) {
+                console.error('Create product error:', json);
+                throw new Error(json.error || 'Create failed');
+            }
+            return json.item;
+        }
+
+        async function updateItem(id, patch) {
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(patch)
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Update failed');
+            return json.item;
+        }
+
+        async function deleteItem(id) {
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Delete failed');
+            return true;
+        }
+
+        async function fetchLogs(id) {
+            const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}/logs`, {
+                credentials: 'include'
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json.ok === false) throw new Error(json.error || 'Logs failed');
+            return json.logs || [];
+        }
+
+        // Render inventory table
+        function renderInventoryTable(data) {
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                const formattedPrice = item.price ? `₱${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₱0.00';
+                const batchDisplay = item.batchCode || '—';
+                row.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${formatCategory(item.category)}</td>
+                    <td>${batchDisplay}</td>
+                    <td>${item.quantity}</td>
+                    <td>${formattedPrice}</td>
+                    <td><span class="status-badge ${item.status}">${item.status}</span></td>
+                    <td>${formatDate(item.lastUpdated)}</td>
+                    <td>
+                        <button class="btn-icon" onclick="editStock(${item.id})" title="Quick Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon" onclick="viewHistory(${item.id})" title="View History">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="btn-icon" onclick="removeItem(${item.id})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            const searchInput = document.getElementById('searchStock');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const statusFilter = document.getElementById('statusFilter');
+
+            searchInput.addEventListener('input', () => filterInventory());
+            categoryFilter.addEventListener('change', filterInventory);
+            statusFilter.addEventListener('change', filterInventory);
+
+            document.getElementById('productForm')?.addEventListener('submit', handleProductSubmit);
+        }
+
+        // Filter inventory (client-side by re-rendering from server + simple client filter)
+        async function filterInventory() {
+            const q = document.getElementById('searchStock').value.trim();
+            await loadInventoryData(q);
+            showToast('Filtered', 'info');
+        }
+
+        // Show add stock modal
+        function showAddStockModal() {
+            document.getElementById('stockModal').style.display = 'block';
+        }
+
+        // Close stock modal
+        function closeStockModal() {
+            document.getElementById('stockModal').style.display = 'none';
+        }
+
+        // Handle product create (maps to manager create API)
+        async function handleProductSubmit(event) {
+            event.preventDefault();
+            try {
+                // Get branch_id from URL or template variable
+                const branchId = {{ branch_id if branch_id else 'null' }} || 
+                                new URLSearchParams(window.location.search).get('branch') || 
+                                new URLSearchParams(window.location.search).get('branch_id');
+                
+                const fd = new FormData(event.target);
+                const payload = {
+                    branch_id: branchId ? Number(branchId) : null,
+                    product_name: (fd.get('productName') || '').trim(),
+                    category: (fd.get('category') || '').trim() || null,
+                    barcode: (fd.get('barcode') || '').trim() || null,
+                    sku: (fd.get('sku') || '').trim() || null,
+                    desc: (fd.get('description') || '').trim() || null,
+                    warn_level: fd.get('warningThreshold') === '' ? null : Number(fd.get('warningThreshold')),
+                    auto_level: fd.get('autoOrderLevel') === '' ? null : Number(fd.get('autoOrderLevel')),
+                    stock_kg: fd.get('recordedStock') === '' ? 0 : Number(fd.get('recordedStock')),
+                    unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? 0 : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
+                    margin: (fd.get('sellingMargin') || '').trim() || null,
+                    batch_code: (fd.get('batchCode') || '').trim() || null,
+                    grn_number: (fd.get('grn') || '').trim() || null
+                };
+
+                if (!payload.product_name) { showToast('Product name required', 'error'); return; }
+                if (!payload.batch_code) { showToast('Batch code is required', 'error'); return; }
+
+                console.log('Creating product with payload:', payload);
+                const createdItem = await createProduct(payload);
+                console.log('Product created successfully:', createdItem);
+                
+                closeStockModal();
+                event.target.reset();
+                showToast('Product added successfully', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error('Error creating product:', e);
+                showToast(e.message || 'Create failed', 'error');
+            }
+        }
+
+        // Open Edit modal and prefill
+        async function editStock(id) {
+            try {
+                const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`);
+                const j = await res.json();
+                if (!res.ok || j.ok === false) throw new Error(j.error || 'Load failed');
+                const it = j.item || {};
+
+                document.getElementById('editItemId').value = it.id;
+                document.getElementById('editProductName').value = it.product_name || '';
+                // Set category dropdown value
+                const editCategorySelect = document.getElementById('editCategory');
+                if (editCategorySelect && it.category) {
+                    editCategorySelect.value = it.category;
+                }
+                document.getElementById('editBarcode').value = it.barcode || '';
+                document.getElementById('editSku').value = it.sku || '';
+                document.getElementById('editDescription').value = it.desc || '';
+                document.getElementById('editRecordedStock').value = Number(it.stock ?? 0);
+                document.getElementById('editPurchasingPrice').value = Number(it.price ?? 0);
+                document.getElementById('editBatchCode').value = it.batch || '';
+                document.getElementById('editGrn').value = it.grn || '';
+                document.getElementById('editWarningThreshold').value = it.warn ?? '';
+                document.getElementById('editAutoOrderLevel').value = it.auto ?? '';
+                document.getElementById('editSellingMargin').value = it.margin || '';
+
+                document.getElementById('editStockModal').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Open edit failed', 'error');
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('editStockModal').style.display = 'none';
+        }
+
+        // Submit edit
+        document.getElementById('editProductForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const fd = new FormData(e.target);
+                const id = fd.get('__id');
+                const payload = {
+                    product_name: (fd.get('productName') || '').trim() || undefined,
+                    category: (fd.get('category') || '').trim() || undefined,
+                    barcode: (fd.get('barcode') || '').trim() || undefined,
+                    sku: (fd.get('sku') || '').trim() || undefined,
+                    desc: (fd.get('description') || '').trim() || undefined,
+                    warn: fd.get('warningThreshold') === '' ? undefined : Number(fd.get('warningThreshold')),
+                    auto: fd.get('autoOrderLevel') === '' ? undefined : Number(fd.get('autoOrderLevel')),
+                    stock_kg: fd.get('recordedStock') === '' ? undefined : Number(fd.get('recordedStock')),
+                    unit_price: (fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'') === '' ? undefined : Number((fd.get('purchasingPrice') || '').replace(/[^0-9.]/g,'')),
+                    margin: (fd.get('sellingMargin') || '').trim() || undefined,
+                    batch: (fd.get('batchCode') || '').trim() || undefined,
+                    grn: (fd.get('grn') || '').trim() || undefined
+                };
+
+                Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+                await updateItem(id, payload);
+                closeEditModal();
+                showToast('Updated', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Update failed', 'error');
+            }
+        });
+
+        async function removeItem(id) {
+            if (!confirm('Delete this item?')) return;
+            try {
+                await deleteItem(id);
+                showToast('Deleted', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Delete failed', 'error');
+            }
+        }
+
+        // View item (manager-themed modal) with server data + logs
+        async function viewHistory(id) {
+            try {
+                const res = await fetch(`/manager/api/inventory/${encodeURIComponent(id)}`);
+                const j = await res.json();
+                if (!res.ok || j.ok === false) throw new Error(j.error || 'Fetch failed');
+                const it = j.item || {};
+                const logs = await fetchLogs(id).catch(()=>[]);
+
+                const V = (label, value) => `
+                    <div class="form-group">
+                        <label style="color:#1a365d">${label}</label>
+                        <input value="${String(value ?? '')}" readonly>
+                    </div>`;
+
+                const formatDate = (dateString) => {
+                    if (!dateString) return 'N/A';
+                    try {
+                        const d = new Date(dateString);
+                        if (isNaN(d.getTime())) return dateString;
+                        return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                    } catch (e) {
+                        return dateString;
+                    }
+                };
+
+                const fields = [
+                    V('Product Name', it.product_name),
+                    V('Category', formatCategory(it.category)),
+                    V('Barcode', it.barcode || '—'),
+                    V('SKU', it.sku || '—'),
+                    V('Recorded Stock (kg)', it.stock || 0),
+                    V('Unit Price', it.price ? `₱${Number(it.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '₱0.00'),
+                    V('Warning Threshold', it.warn || it.warn_level || '—'),
+                    V('Auto Order Level', it.auto || it.auto_level || '—'),
+                    V('Selling Price Margin', it.margin || '—'),
+                    V('Batch Code', it.batch || it.batch_code || '—'),
+                    V('GRN Number', it.grn || it.grn_number || '—'),
+                    V('Last Updated', formatDate(it.updated_at || it.last_updated || it.modified_at || it.created_at)),
+                    `
+                    <div class="form-group col-span-3">
+                        <label style="color:#1a365d">Description</label>
+                        <textarea readonly style="width:100%;padding:8px;border:1px solid #e6eef9;border-radius:4px;min-height:60px;resize:none;">${it.desc || it.description || '—'}</textarea>
+                    </div>
+                    `,
+                    `
+                    <div class="form-group col-span-3">
+                        <label style="color:#1a365d">Recent Restock Logs</label>
+                        <div style="max-height:180px;overflow:auto;border:1px solid #e6eef9;border-radius:8px;padding:8px">
+                            ${logs.length ? logs.map(l => `<div style="padding:6px 4px;border-bottom:1px dashed #e6eef9">
+                                <strong>${l.date || ''}</strong> — +${Number(l.qty_kg ?? l.qty ?? 0)} kg
+                                <span style="opacity:.7"> (${l.supplier || 'Manager'})</span>
+                                <div style="opacity:.8">${l.note || ''}</div>
+                            </div>`).join('') : '<div style="opacity:.7">No logs</div>'}
+                        </div>
+                    </div>
+                    `
+                ].join('');
+
+                document.getElementById('viewFields').innerHTML = fields;
+                document.getElementById('viewItemModal').style.display = 'block';
+            } catch (e) {
+                console.error(e);
+                showToast(e.message || 'Load failed', 'error');
+            }
+        }
+
+        function closeViewModal() { document.getElementById('viewItemModal').style.display = 'none'; }
+
+        // Restock functionality
+        function showRestockModal() {
+            loadRestockProducts();
+            document.getElementById('restockModal').style.display = 'block';
+        }
+
+        function closeRestockModal() {
+            document.getElementById('restockModal').style.display = 'none';
+            document.getElementById('restockForm').reset();
+        }
+
+        let _managerInvItems = [];
+        let _managerProducts = [];
+        let _fullInventoryData = []; // Store full item data for print preview
+
+        async function loadRestockProducts() {
+            try {
+                const res = await fetch('/manager/api/inventory');
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || 'Failed to load products');
+                
+                console.log('DEBUG: Loaded products for restock:', json.items);
+                
+                const select = document.getElementById('restockProduct');
+                select.innerHTML = '<option value="">Choose a product...</option>';
+                
+                _managerInvItems = json.items || [];
+                // Build unique product list for this branch
+                const prodMap = new Map();
+                _managerInvItems.forEach(item => {
+                    if (!prodMap.has(item.product_id)) {
+                        prodMap.set(item.product_id, item.product_name);
+                    }
+                });
+                _managerProducts = Array.from(prodMap.entries()).map(([id, name]) => ({ id, name }));
+                _managerProducts.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id; // product_id
+                    option.textContent = p.name;
+                    select.appendChild(option);
+                });
+
+                // Reset batch UI on modal open
+                const batchSel = document.getElementById('restockBatchSelect');
+                const batchInp = document.getElementById('restockBatchInput');
+                const batchHint = document.getElementById('restockBatchHint');
+                if (batchSel && batchInp && batchHint) {
+                    batchSel.style.display = 'none';
+                    batchInp.style.display = 'none';
+                    batchHint.textContent = 'Select product to load batch codes';
+                }
+            } catch (e) {
+                console.error(e);
+                showToast('Failed to load products', 'error');
+            }
+        }
+
+        async function handleRestockSubmit(event) {
+            event.preventDefault();
+            try {
+                const fd = new FormData(event.target);
+                const selectedProductId = fd.get('product_id');
+                
+                if (!selectedProductId) {
+                    showToast('Please select a product', 'error');
+                    return;
+                }
+
+                const quantity = Number(fd.get('quantity'));
+                if (!quantity || quantity <= 0) {
+                    showToast('Please enter a valid quantity', 'error');
+                    return;
+                }
+
+                // Check if batch code fields are visible (batches exist for this product)
+                const batchesExist = restockBatchSelect && restockBatchSelect.style.display !== 'none';
+                const selectedBatchCode = batchesExist ? restockBatchSelect.value : null;
+
+                // Find existing inventory item:
+                // - If batches exist, find by product_id + batch_code
+                // - If no batches exist, find first inventory item for this product (or create logic for no-batch items)
+                let targetItem = null;
+                if (batchesExist) {
+                    // Batches exist - require batch selection
+                    if (!selectedBatchCode) {
+                        showToast('Please select a batch code', 'error');
+                        return;
+                    }
+                    targetItem = (_managerInvItems || []).find(it => 
+                        String(it.product_id) === String(selectedProductId) && 
+                        (it.batch || '') === (selectedBatchCode || '')
+                    );
+                    if (!targetItem) {
+                        showToast('Selected batch does not exist for this product in this branch.', 'error');
+                        return;
+                    }
+                } else {
+                    // No batches exist - find any inventory item for this product
+                    // If multiple items exist for same product (different batches), take the first one
+                    // In practice, if no batches shown, there should be only one inventory item per product
+                    targetItem = (_managerInvItems || []).find(it => 
+                        String(it.product_id) === String(selectedProductId)
+                    );
+                    if (!targetItem) {
+                        showToast('No inventory item found for this product in this branch.', 'error');
+                        return;
+                    }
+                }
+
+                const payload = {
+                    product_id: targetItem.id,  // Backend expects inventory_item_id in 'product_id' field
+                    quantity: quantity,
+                    supplier: (fd.get('supplier') || '').trim() || null,
+                    note: (fd.get('note') || '').trim() || null
+                };
+
+                console.log('DEBUG: Restock payload:', payload);
+
+                const res = await fetch('/manager/api/inventory/restock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(payload)
+                });
+
+                const json = await res.json();
+                if (!res.ok || json.ok === false) throw new Error(json.error || 'Restock failed');
+
+                closeRestockModal();
+                showToast('Restock recorded successfully', 'success');
+                await loadInventoryData();
+            } catch (e) {
+                console.error('Restock error:', e);
+                showToast(e.message || 'Restock failed', 'error');
+            }
+        }
+
+        // ------- Batch code support (load existing or allow new) -------
+        const restockSelect = document.getElementById('restockProduct');
+        const restockBatchSelect = document.getElementById('restockBatchSelect');
+        const restockBatchInput  = document.getElementById('restockBatchInput');
+        const restockBatchHint   = document.getElementById('restockBatchHint');
+
+        restockSelect.addEventListener('change', async function() {
+            await loadManagerBatchCodes(this.value);
+        });
+
+        if (restockBatchSelect) {
+            restockBatchSelect.addEventListener('change', function() {
+                if (this.value === '') {
+                    restockBatchInput.style.display = 'block';
+                    restockBatchInput.required = true;
+                    restockBatchHint.textContent = 'Enter the new batch code';
+                } else {
+                    restockBatchInput.style.display = 'none';
+                    restockBatchInput.required = false;
+                    restockBatchInput.value = '';
+                    restockBatchHint.textContent = 'Selected batch code';
+                }
+            });
+        }
+
+        async function loadManagerBatchCodes(productId) {
+            if (!productId) {
+                if (restockBatchSelect && restockBatchInput && restockBatchHint) {
+                    restockBatchSelect.style.display = 'none';
+                    restockBatchInput.style.display  = 'none';
+                    restockBatchHint.textContent     = 'Select product to load batch codes';
+                }
+                return;
+            }
+
+            try {
+                // Use manager endpoint filtered by branch
+                const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch') || new URLSearchParams(window.location.search).get('branch_id');
+                const resp = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
+                const data = await resp.json();
+
+                if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
+                    restockBatchSelect.innerHTML = data.batch_codes.map(code => `<option value="${code}">${code}</option>`).join('');
+                    restockBatchSelect.style.display = 'block';
+                    restockBatchInput.style.display  = 'none';
+                    restockBatchHint.textContent     = `Select batch code for this product`;
+                } else {
+                    // Admin parity: if no batches exist, hide the field entirely
+                    restockBatchSelect.style.display = 'none';
+                    restockBatchInput.style.display  = 'none';
+                    restockBatchHint.textContent     = 'No batches for this product in this branch';
+                }
+            } catch (err) {
+                console.error('Batch code load error:', err);
+                restockBatchSelect.style.display = 'none';
+                restockBatchInput.style.display  = 'block';
+                restockBatchHint.textContent     = 'Enter batch code manually';
+            }
+        }
+
+        // Export inventory (client-side CSV of current table)
+        function exportInventory() {
+            const rows = [['Product Name','Category','Batch Code','Quantity','Price','Status']];
+            document.querySelectorAll('#inventoryTableBody tr').forEach(tr => {
+                const cols = Array.from(tr.children).slice(0,6).map(td => td.textContent.trim());
+                rows.push(cols);
+            });
+            const csv = rows.map(r => r.map(v => /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v).join(',')).join('\n');
+            const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'manager_inventory.csv';
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        // Print preview with branch name in header - shows ALL columns
+        function showManagerPrintPreview() {
+            // Derive branch name and id from template or URL
+            const branchNameParam = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name') || '';
+            const rawBranchName = branchNameParam ? decodeURIComponent(branchNameParam) : '';
+            const branchDisplay = rawBranchName || 'Branch';
+
+            // Use full inventory data (all fields available)
+            const items = _fullInventoryData || [];
+            const generatedAt = new Date().toLocaleString();
+
+            // Helper to format values
+            const formatValue = (val) => {
+                if (val === null || val === undefined || val === '') return '—';
+                if (typeof val === 'number') {
+                    if (val % 1 === 0) return val.toString();
+                    return val.toFixed(2);
+                }
+                return String(val);
+            };
+
+            const formatPrice = (val) => {
+                if (!val || val === 0) return '₱0.00';
+                return `₱${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            };
+
+            // Build printable HTML with all columns
+            let html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${branchDisplay} - Inventory Report</title>
+  <style>
+    @media print { 
+      @page { margin: 0.5cm; size: landscape; } 
+      .no-print { display:none !important; } 
+    }
+    body { font-family: Arial, sans-serif; margin: 15px; color:#1f2937; }
+    .header { border-bottom: 3px solid #1a365d; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h1 { margin: 0; color:#1a365d; font-size: 22px; }
+    .header p { margin: 4px 0; color:#4b5563; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 10px; }
+    th, td { border: 1px solid #e5e7eb; padding: 6px 4px; text-align: left; }
+    th { background: #1a365d; color: #fff; font-weight: 600; position: sticky; top: 0; }
+    tr:nth-child(even) { background: #f9fafb; }
+    td { word-wrap: break-word; max-width: 120px; }
+    .summary { margin-top: 14px; padding: 10px; background:#f3f4f6; border-radius:6px; font-size: 12px; }
+    .actions { text-align:center; margin-top: 16px; }
+    .btn { padding:10px 18px; background:#1a365d; color:#fff; border:none; border-radius:6px; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>${branchDisplay} - Complete Inventory Report</h1>
+    <p>Generated: ${generatedAt}</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Product Name</th>
+        <th>Category</th>
+        <th>Barcode</th>
+        <th>SKU</th>
+        <th>Batch Code</th>
+        <th>GRN Number</th>
+        <th>Quantity (kg)</th>
+        <th>Unit Price</th>
+        <th>Status</th>
+        <th>Warning Threshold</th>
+        <th>Auto Order Level</th>
+        <th>Selling Margin</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+`;
+            let totalQty = 0;
+            items.forEach(item => {
+                const qty = Number(item.stock || 0);
+                totalQty += qty;
+                html += `
+      <tr>
+        <td>${formatValue(item.product_name)}</td>
+        <td>${formatValue(item.category)}</td>
+        <td>${formatValue(item.barcode)}</td>
+        <td>${formatValue(item.sku)}</td>
+        <td>${formatValue(item.batch_code || item.batch)}</td>
+        <td>${formatValue(item.grn_number || item.grn)}</td>
+        <td>${formatValue(qty)}</td>
+        <td>${formatPrice(item.price || item.unit_price)}</td>
+        <td>${formatValue(item.status)}</td>
+        <td>${formatValue(item.warn || item.warn_level)}</td>
+        <td>${formatValue(item.auto || item.auto_level)}</td>
+        <td>${formatValue(item.margin)}</td>
+        <td>${formatValue(item.desc || item.description)}</td>
+      </tr>`;
+            });
+            html += `
+    </tbody>
+  </table>
+  <div class="summary">
+    <strong>Total Items:</strong> ${items.length} &nbsp; | &nbsp;
+    <strong>Total Quantity (kg):</strong> ${totalQty.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  </div>
+  <div class="actions no-print">
+    <button class="btn" onclick="window.print()">Print</button>
+  </div>
+</body>
+</html>`;
+
+            const w = window.open('', '_blank', 'width=1400,height=800');
+            if (w) {
+                w.document.write(html);
+                w.document.close();
+                w.focus();
+            } else {
+                alert('Please allow popups to use the print feature.');
+            }
+        }
+
+        // Update title and header based on branch selection
+        function updateBranchTitle() {
+            const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
+            const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
+            
+            if (branchName) {
+                const decodedBranchName = decodeURIComponent(branchName);
+                document.getElementById('pageTitle').textContent = `Inventory - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+                document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+                
+                // Update all navigation links to preserve branch parameters
+                updateNavigationLinks(branchId, branchName);
+            }
+        }
+
+        // Update navigation links to include branch parameters
+        function updateNavigationLinks(branchId, branchName) {
+            const navLinks = document.querySelectorAll('.nav-main a[href]');
+            navLinks.forEach(link => {
+                const currentHref = link.getAttribute('href');
+                if (currentHref && !currentHref.includes('branch=')) {
+                    const separator = currentHref.includes('?') ? '&' : '?';
+                    link.href = `${currentHref}${separator}branch=${branchId}&branch_name=${encodeURIComponent(branchName)}`;
+                }
+            });
+        }
+
+        // Call the function when page loads
+        document.addEventListener('DOMContentLoaded', updateBranchTitle);
+        // Bind print button
+        document.addEventListener('DOMContentLoaded', function () {
+            const btn = document.getElementById('printBtn');
+            if (btn) btn.addEventListener('click', showManagerPrintPreview);
+        });
+    </script>
+     <script src="{{ url_for('manager.static', filename='js/main.js') }}"></script>
+</body>
+</html>

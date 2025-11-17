@@ -1,0 +1,204 @@
+/* Sales Module Styles */
+
+.sales-module {
+  /* Main content area for Sales Module */
+}
+
+.sales-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.sales-header h2 {
+  margin: 0;
+  color: #2e7d32;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.sales-filters {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.sales-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.sales-filters select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.875rem;
+  min-width: 150px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sales-filters select:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.sales-indicators-row {
+  display: flex;
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.sales-indicator-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.sales-indicator-card .indicator-title {
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.sales-indicator-card .indicator-value {
+  font-size: 2rem;
+  margin: 0.5rem 0;
+}
+
+.sales-indicator-card .indicator-change.positive {
+  color: #2e7d32;
+}
+
+.sales-indicator-card .indicator-change.negative {
+  color: #d32f2f;
+}
+
+.sales-widgets-row {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.sales-widget {
+  flex: 1;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1.5rem;
+}
+
+.sales-trend-widget .chart-container {
+  height: 220px;
+}
+
+.product-performance-widget .performance-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.performance-table th, .performance-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.sales-log-section {
+  margin-top: 2rem;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 1.5rem;
+}
+
+.sales-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.export-buttons button {
+  margin-left: 0.5rem;
+  background: #2e7d32;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.export-buttons button:hover {
+  background: #27642a;
+}
+
+.sales-log-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sales-log-table th, .sales-log-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .sales-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+  
+  .sales-filters {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .sales-filters select {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .sales-widgets-row {
+    flex-direction: column;
+  }
+  
+  .sales-indicators-row {
+    flex-direction: column;
+  }
+}
+
+/* Hover effects for better UX */
+.sales-indicator-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sales-widget:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.sales-log-section:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  transition: box-shadow 0.2s;
+}

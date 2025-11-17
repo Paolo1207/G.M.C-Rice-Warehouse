@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G.M.C Rice Warehouse - Manager Access</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-wrapper {
+            display: flex;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            max-width: 1200px;
+            width: 100%;
+            min-height: 600px;
+            position: relative;
+        }
+
+        .left-panel {
+            flex: 0 0 48%;
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+            padding: 3.5rem 2.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .left-panel-content {
+            width: 100%;
+            max-width: 100%;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .wavy-separator {
+            position: absolute;
+            right: -50px;
+            top: 0;
+            bottom: 0;
+            width: 100px;
+            background: white;
+        }
+
+        .wavy-separator svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .left-panel h2 {
+            font-size: 1.3rem;
+            font-weight: 400;
+            margin-bottom: 0.8rem;
+            opacity: 0.95;
+            white-space: nowrap;
+        }
+
+        .logo {
+            width: 90px;
+            height: 90px;
+            margin: 0.8rem auto 1.2rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .left-panel h1 {
+            font-size: 1.8rem;
+            margin-bottom: 1.2rem;
+            font-weight: 700;
+            line-height: 1.3;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            padding: 0 0.5rem;
+        }
+
+        .left-panel p {
+            font-size: 1rem;
+            line-height: 1.8;
+            opacity: 0.9;
+            max-width: 100%;
+            margin-bottom: 1.5rem;
+            padding: 0 1.5rem;
+            text-align: center;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .left-footer {
+            margin-top: auto;
+            font-size: 0.85rem;
+            opacity: 0.85;
+            text-align: center;
+            padding: 0 1rem;
+            line-height: 1.6;
+            white-space: nowrap;
+        }
+
+        .right-panel {
+            flex: 1;
+            padding: 4rem 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: white;
+        }
+
+        .right-panel h2 {
+            color: #1565C0;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .right-panel .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        .manager-badge {
+            display: inline-block;
+            background: #2196F3;
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #1565C0;
+            font-weight: 600;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #E3F2FD;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #FFFFFF;
+        }
+
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+        }
+
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 1.2rem;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.3s ease;
+            z-index: 10;
+        }
+
+        .password-toggle:hover {
+            color: #2196F3;
+        }
+
+        .password-wrapper input {
+            padding-right: 3rem;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .back-btn {
+            color: #2196F3;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            text-align: center;
+            display: block;
+            margin-top: 1rem;
+        }
+
+        .back-btn:hover {
+            color: #1565C0;
+        }
+
+        .error-message {
+            background: #FFEBEE;
+            color: #C62828;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #F44336;
+            display: none;
+        }
+
+        .success-message {
+            background: #E8F5E9;
+            color: #2E7D32;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #4CAF50;
+            display: none;
+        }
+
+        .branch-info {
+            background: #E3F2FD;
+            padding: 1.2rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #2196F3;
+            text-align: left;
+        }
+
+        .branch-info h3 {
+            color: #1565C0;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .branch-info p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Forgot Password Modal */
+        .forgot-password-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .forgot-password-modal.active {
+            display: flex;
+        }
+
+        .forgot-password-content {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .forgot-password-content h2 {
+            color: #1565C0;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+        }
+
+        .forgot-password-content p {
+            color: #666;
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+        }
+
+        .forgot-password-content .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .forgot-password-content .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 1rem;
+        }
+
+        .forgot-password-content .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(33, 150, 243, 0.3);
+        }
+
+        .forgot-password-content .close-btn {
+            background: transparent;
+            color: #666;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-decoration: underline;
+        }
+
+        .forgot-password-content .close-btn:hover {
+            color: #1565C0;
+        }
+
+        #forgotPasswordLink {
+            color: #2196F3;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        #forgotPasswordLink:hover {
+            color: #1565C0 !important;
+            text-decoration: underline !important;
+        }
+
+        /* Responsive Design for Desktop, Laptop, and iPad */
+        @media (max-width: 1366px) {
+            .login-wrapper {
+                max-width: 1100px;
+            }
+
+            .left-panel {
+                padding: 3rem 2rem;
+            }
+
+            .right-panel {
+                padding: 3.5rem 2.5rem;
+            }
+        }
+
+        @media (max-width: 1280px) {
+            .login-wrapper {
+                max-width: 1000px;
+            }
+
+            .left-panel {
+                flex: 0 0 46%;
+                padding: 3rem 2.2rem;
+            }
+
+            .right-panel {
+                padding: 3rem 2.5rem;
+            }
+
+            .left-panel h1 {
+                font-size: 1.7rem;
+            }
+
+            .left-panel p {
+                padding: 0 1.2rem;
+            }
+
+            .right-panel h2 {
+                font-size: 1.8rem;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .login-wrapper {
+                max-width: 900px;
+                min-height: 550px;
+            }
+
+            .left-panel {
+                flex: 0 0 45%;
+                padding: 3rem 2rem;
+            }
+
+            .right-panel {
+                padding: 3rem 2rem;
+            }
+
+            .left-panel h1 {
+                font-size: 1.6rem;
+            }
+
+            .left-panel p {
+                font-size: 0.95rem;
+                padding: 0 1rem;
+            }
+
+            .right-panel h2 {
+                font-size: 1.7rem;
+            }
+        }
+
+        @media (max-width: 968px) {
+            .login-wrapper {
+                max-width: 800px;
+                flex-direction: row;
+            }
+
+            .left-panel {
+                flex: 0 0 44%;
+                padding: 2.8rem 1.8rem;
+            }
+
+            .right-panel {
+                padding: 2.5rem 2rem;
+            }
+
+            .left-panel h1 {
+                font-size: 1.5rem;
+            }
+
+            .left-panel p {
+                font-size: 0.9rem;
+                padding: 0 1rem;
+            }
+
+            .right-panel h2 {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="left-panel">
+            <div class="wavy-separator">
+                <svg viewBox="0 0 100 600" preserveAspectRatio="none">
+                    <path d="M0,0 Q25,50 0,100 T0,200 Q25,250 0,300 T0,400 Q25,450 0,500 T0,600 L100,600 L100,0 Z" fill="white"/>
+                </svg>
+            </div>
+            <div class="left-panel-content">
+                <h2>Welcome to</h2>
+                <div class="logo">🏢</div>
+                <h1>Manager Login</h1>
+                <p>Access your branch inventory management. Monitor stock levels, manage orders, and generate reports for your assigned branch.</p>
+                <div class="left-footer">
+                    <span>Branch Manager Access</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="manager-badge">Branch Manager Access</div>
+            <h2>Manager Login</h2>
+            <p class="subtitle">Enter your credentials to access your branch</p>
+            
+            <div class="branch-info">
+                <h3>Branch Selection Required</h3>
+                <p>Please select your assigned branch to access your inventory management dashboard.</p>
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+            
+            <form id="managerLoginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label for="password" style="margin-bottom: 0;">Password</label>
+                        <a href="#" id="forgotPasswordLink">Forgot Password?</a>
+                    </div>
+                    <div class="password-wrapper">
+                        <input type="password" id="password" name="password" required>
+                        <button type="button" class="password-toggle" id="togglePassword" aria-label="Toggle password visibility">
+                            <span id="eyeIcon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                                    <circle cx="12" cy="12" r="1" fill="white"></circle>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="branch">Select Your Branch</label>
+                    <select id="branch" name="branch" required>
+                        <option value="">Choose your branch...</option>
+                        <option value="1">Marawoy</option>
+                        <option value="2">Lipa</option>
+                        <option value="3">Malvar</option>
+                        <option value="4">Bulacnin</option>
+                        <option value="5">Boac</option>
+                        <option value="6">Sta. Cruz</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="login-btn">Login as Branch Manager</button>
+            </form>
+            
+            <a href="/login" class="back-btn">← Back to Role Selection</a>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div class="forgot-password-modal" id="forgotPasswordModal">
+        <div class="forgot-password-content">
+            <h2>🔐 Forgot Password</h2>
+            <p>Enter your email address and we'll send you a link to reset your password.</p>
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="resetEmail">Email Address</label>
+                    <input type="email" id="resetEmail" name="resetEmail" required style="width: 100%; padding: 1rem; border: 2px solid #E3F2FD; border-radius: 10px; font-size: 1rem;">
+                </div>
+                <button type="submit" class="submit-btn">Send Reset Link</button>
+                <button type="button" class="close-btn" onclick="closeForgotPasswordModal()">Cancel</button>
+            </form>
+            <div id="forgotPasswordMessage" style="margin-top: 1rem;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Toggle password visibility
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                        <circle cx="12" cy="12" r="1" fill="white"></circle>
+                        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" stroke-width="2.5"></line>
+                    </svg>
+                `;
+                eyeIcon.setAttribute('aria-label', 'Hide password');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                        <circle cx="12" cy="12" r="1" fill="white"></circle>
+                    </svg>
+                `;
+                eyeIcon.setAttribute('aria-label', 'Show password');
+            }
+        });
+
+        document.getElementById('managerLoginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const branch = document.getElementById('branch').value;
+            const errorDiv = document.getElementById('errorMessage');
+            
+            // Basic validation
+            if (!email || !password || !branch) {
+                errorDiv.textContent = 'Please fill in all fields';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                // Call the backend login endpoint
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    // Check if user's branch matches selected branch
+                    const selectedBranchId = parseInt(branch);
+                    if (data.user.branch_id !== selectedBranchId) {
+                        errorDiv.textContent = 'You are not authorized for this branch';
+                        errorDiv.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Redirect to manager dashboard with branch info
+                    const branchName = document.getElementById('branch').selectedOptions[0].text;
+                    window.location.href = `/manager/dashboard?branch=${branch}&branch_name=${encodeURIComponent(branchName)}`;
+                } else {
+                    errorDiv.textContent = data.error || 'Invalid email or password';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Login failed. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        // Update branch info when selection changes
+        document.getElementById('branch').addEventListener('change', function() {
+            const branchInfo = document.querySelector('.branch-info');
+            const selectedBranch = this.selectedOptions[0];
+            
+            if (selectedBranch.value) {
+                branchInfo.innerHTML = `
+                    <h3>Selected Branch: ${selectedBranch.text}</h3>
+                    <p>You will access the inventory management for this branch.</p>
+                `;
+            } else {
+                branchInfo.innerHTML = `
+                    <h3>Branch Selection Required</h3>
+                    <p>Please select your assigned branch to access your inventory management dashboard.</p>
+                `;
+            }
+        });
+
+        // Forgot Password functionality
+        document.getElementById('forgotPasswordLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('forgotPasswordModal').classList.add('active');
+        });
+
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').classList.remove('active');
+            document.getElementById('forgotPasswordForm').reset();
+            document.getElementById('forgotPasswordMessage').innerHTML = '';
+        }
+
+        document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('resetEmail').value;
+            const messageDiv = document.getElementById('forgotPasswordMessage');
+            const submitBtn = e.target.querySelector('.submit-btn');
+            
+            if (!email) {
+                messageDiv.innerHTML = '<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px;">Please enter your email address</div>';
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            messageDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/manager/api/auth/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    messageDiv.innerHTML = '<div style="color: #2E7D32; padding: 0.5rem; background: #E8F5E9; border-radius: 5px; margin-top: 1rem;">✓ Please check your email for the password reset link.</div>';
+                    submitBtn.textContent = 'Link Sent!';
+                    
+                    // Close modal after 3 seconds
+                    setTimeout(() => {
+                        closeForgotPasswordModal();
+                        document.getElementById('successMessage').textContent = 'Password reset link sent! Please check your email.';
+                        document.getElementById('successMessage').style.display = 'block';
+                    }, 3000);
+                } else {
+                    messageDiv.innerHTML = `<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">${data.error || 'Error sending reset link. Please try again.'}</div>`;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Send Reset Link';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = '<div style="color: #C62828; padding: 0.5rem; background: #FFEBEE; border-radius: 5px; margin-top: 1rem;">Failed to send reset link. Please try again.</div>';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Reset Link';
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('forgotPasswordModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeForgotPasswordModal();
+            }
+        });
+    </script>
+</body>
+</html>

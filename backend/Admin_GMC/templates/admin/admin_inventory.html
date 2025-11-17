@@ -1,0 +1,2267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management - G.M.C Rice Warehouse</title>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Sidebar.css') }}">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='css/Inventory.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar directly embedded -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">
+        <img src="{{ url_for('admin.static', filename='image/logo_of_gmc.png') }}" alt="GMC Logo" class="sidebar-logo-img">
+
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="#2e7d32" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-menu" id="sidebarMenu">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <ul>
+             <li title="Dashboard">
+  <a href="{{ url_for('admin.admin_dashboard') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="13" width="7" height="8" rx="2"/>
+        <rect x="14" y="3" width="7" height="18" rx="2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Dashboard</span>
+  </a>
+</li>
+           <li  title="Analytics">
+  <a href="{{ url_for('admin.analytics') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Analytics</span>
+  </a>
+</li>
+           <li title="Forecast">
+  <a href="{{ url_for('admin.forecast') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Forecast</span>
+  </a>
+</li>
+
+          <li title="Regional Insights">
+  <a href="{{ url_for('admin.regional') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Regional Insights</span>
+  </a>
+</li>
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Operations</div>
+          <ul>
+            <li class="active" title="Inventory">
+  <a href="{{ url_for('admin.inventory') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Inventory</span>
+  </a>
+</li>
+           <li title="Sales">
+  <a href="{{ url_for('admin.sales') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 17l6-6 4 4 8-8"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Sales</span>
+  </a>
+</li>
+
+         
+          </ul>
+        </div>
+        <div class="sidebar-section-divider"></div>
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <ul>
+
+           <li title="User Management">
+  <a href="{{ url_for('admin.user') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">User Management</span>
+  </a>
+</li>
+           <li title="Notifications">
+  <a href="{{ url_for('admin.notifications') }}">
+    <span class="sidebar-icon">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </span>
+    <span class="sidebar-label">Notifications</span>
+  </a>
+</li>
+          </ul>
+        </div>
+      </nav>
+      <div class="sidebar-profile" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+        <div class="sidebar-profile-info" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+          <div class="sidebar-profile-name" style="margin: 0 auto;">Admin</div>
+        </div>
+      </div>
+      <div class="sidebar-bottom">
+        <ul>
+          
+             <li title="Settings" style="display: flex; align-items: center; justify-content: center; height: 25px;">
+  <a href="{{ url_for('admin.settings') }}" style="text-align: center; width: 100%; display: flex; align-items: center; justify-content: center;">
+    <span class="sidebar-label" style="margin: 0 auto;">Settings</span>
+  </a>
+</li>
+        </ul>
+      </div>
+    </aside>
+    <script>
+      // Sidebar collapse/expand logic
+      const sidebar = document.getElementById('sidebar');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      toggleBtn.onclick = () => {
+        sidebar.classList.toggle('collapsed');
+        document.body.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+      };
+    </script>
+    <!-- End Sidebar -->
+    <div class="main-content">
+        <div class="inventory-header glass-card">
+            <div class="inventory-title-section">
+                <h2>📦 Inventory Management</h2>
+                <p>Comprehensive, real-time view of all rice stocks across warehouse branches.</p>
+            </div>
+        </div>
+
+        <div class="inventory-panel glass-card">
+            <div class="panel-header">
+                <h3>Warehouse Branches</h3>
+                <div class="panel-actions">
+                    <button class="action-btn export-all-btn">Export All</button>
+                </div>
+            </div>
+            <table class="branch-table">
+                <thead>
+                    <tr>
+                        <th>Branch Name</th>
+                        <th>Location</th>
+                        <th>Total Stock (kg)</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="branches-tbody">
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.7;">
+                            Loading branches...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Branch Inventory Modal -->
+   <!-- Branch Inventory Modal (replicates your screenshot) -->
+<div id="branch-inventory-modal" class="modal" aria-hidden="true">
+  <div class="modal-content glass-card">
+    <button class="close-btn" id="invModalClose" aria-label="Close">&times;</button>
+
+    <div class="modal-header" style="gap: 10px;">
+      <h3 id="invModalTitle">Branch - Inventory</h3>
+
+      <!-- Tabs -->
+      <div class="modal-tabs" role="tablist" aria-label="Inventory Tabs">
+    <button class="tab-switch active" id="tab-inv" aria-selected="true" role="tab" data-tab="inventory">Inventory</button>
+    <button class="tab-switch" id="tab-log" aria-selected="false" role="tab" data-tab="restock">Restock Log</button>
+  </div>
+
+      <!-- Filters / Actions (Inventory tab toolbar) -->
+      <div class="toolbar" id="inventoryToolbar" style="display:flex; gap:12px; width:100%; flex-wrap:wrap; margin-top:8px;">
+        <input id="variantFilter" type="text" placeholder="Filter by variant..." style="flex:1 1 320px; min-width:240px;">
+        <select id="statusFilter" style="width:180px; min-width:160px;">
+          <option value="all">All Status</option>
+          <option value="available">Available</option>
+          <option value="low">Low Stock</option>
+          <option value="out">Out of Stock</option>
+        </select>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button class="action-btn add-stock-btn" id="addStockBtn">Add Stock</button>
+          <button class="action-btn export-btn" id="exportInvBtn">Export</button>
+          <button class="action-btn print-btn" id="printInvBtn" title="Print with preview">
+            <i class="fas fa-print"></i> Print
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY TAB -->
+    <div id="inventoryTab" class="tab-pane active">
+      <div class="table-container">
+        <table class="inventory-table">
+          <thead>
+            <tr>
+              <th>Rice Variant</th>
+              <th>Stock (kg)</th>
+              <th>Price/Unit</th>
+              <th>Status</th>
+              <th>Batch Code</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="invTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RESTOCK LOG TAB -->
+    <div id="restockTab" class="tab-pane" style="display:none;">
+      <div class="table-container">
+        <table class="inventory-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Variant</th>
+              <th>Batch Code</th>
+              <th>Qty (kg)</th>
+              <th>By</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="addProductModal" class="modal" aria-hidden="true">
+  <div class="modal-content glass-card" style="max-width:980px">
+    <button class="close-btn" data-close="#addProductModal" aria-label="Close">&times;</button>
+    <h2 style="margin-top:0;color:#2e7d32">Add new product</h2>
+
+    <form id="addProductForm" class="grid-2col gap-16">
+      <div class="form-group">
+        <label>Product Name <span class="required">*</span></label>
+        <input name="variant" placeholder="Product Name" required 
+               pattern="[A-Za-z0-9\s\-_]+" 
+               title="Product name can only contain letters, numbers, spaces, hyphens, and underscores">
+      </div>
+      <div class="form-group">
+        <label>Warning Threshold Stock Level <span class="required">*</span></label>
+        <input name="warn" type="number" min="0" step="0.01" placeholder="Ex: 100" required>
+      </div>
+      <div class="form-group">
+        <label>Auto Order Stock Level <span class="required">*</span></label>
+        <input name="auto" type="number" min="0" step="0.01" placeholder="Ex: 50" required>
+      </div>
+      <div class="form-group">
+        <label>Category <span class="required">*</span></label>
+        <input name="category" placeholder="Category" required>
+      </div>
+      <div class="form-group">
+        <label>Barcode Number <span class="required">*</span></label>
+        <input name="barcode" type="text" placeholder="Barcode Number" required
+               pattern="[0-9]+" 
+               title="Barcode must contain only numbers">
+      </div>
+      <div class="form-group">
+        <label>GRN Number (Optional)</label>
+        <input name="grn" placeholder="GRN Number (Optional)">
+      </div>
+      <div class="form-group">
+        <label>Recorded Stock Level <span class="required">*</span></label>
+        <input name="stock" type="number" min="0" step="0.01" placeholder="Ex: 2000" required>
+      </div>
+      <div class="form-group">
+        <label>Purchasing Price <span class="required">*</span></label>
+        <input name="price" type="number" min="0" step="0.01" placeholder="Ex: 100" required>
+      </div>
+      <div class="form-group">
+        <label>Selling Price Margin <span class="required">*</span></label>
+        <input name="margin" type="number" min="0" max="100" step="0.01" placeholder="Ex: 20" required>
+      </div>
+      <div class="form-group">
+        <label>SKU Code <span class="required">*</span></label>
+        <input name="sku" placeholder="SKU Code" required
+               pattern="[A-Za-z0-9\-_]+" 
+               title="SKU code can contain letters, numbers, hyphens, and underscores">
+      </div>
+      <div class="form-group">
+        <label>Batch Code <span class="required">*</span></label>
+        <input name="batch" placeholder="Batch Code" required
+               pattern="[A-Za-z0-9\-_]+" 
+               title="Batch code can contain letters, numbers, hyphens, and underscores">
+      </div>
+      <div class="form-group col-span-2">
+        <label>Product Description</label>
+        <textarea name="desc" placeholder="Ex: Type something about product here"></textarea>
+      </div>
+
+      <div class="col-span-2">
+        <button type="submit" class="action-btn" style="width:100%;height:56px;font-size:22px">Add Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== EDIT PRODUCT MODAL ========== -->
+<div id="editProductModal" class="modal" aria-hidden="true">
+  <div class="modal-content glass-card" style="max-width:980px">
+    <button class="close-btn" data-close="#editProductModal" aria-label="Close">&times;</button>
+    <h2 style="margin-top:0;color:#2e7d32">Edit Product</h2>
+
+    <form id="editProductForm" class="grid-2col gap-16">
+      <!-- keep-empty placeholders -->
+      <div class="form-group">
+        <label>Product Name <small>(optional)</small></label>
+        <input name="variant" placeholder="Leave empty to keep current name"
+               pattern="[A-Za-z0-9\s\-_]+" 
+               title="Product name can only contain letters, numbers, spaces, hyphens, and underscores">
+      </div>
+      <div class="form-group">
+        <label>Warning Threshold Stock Level <small>(optional)</small></label>
+        <input name="warn" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>Auto Order Stock Level <small>(optional)</small></label>
+        <input name="auto" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>Category <small>(optional)</small></label>
+        <input name="category" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>Barcode Number <small>(optional)</small></label>
+        <input name="barcode" placeholder="Leave empty to keep current"
+               pattern="[0-9]+" 
+               title="Barcode must contain only numbers">
+      </div>
+      <div class="form-group">
+        <label>GRN Number <small>(optional)</small></label>
+        <input name="grn" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>Recorded Stock Level <small>(optional)</small></label>
+        <input name="stock" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>Purchasing Price <small>(optional)</small></label>
+        <input name="price" type="number" min="0" step="0.01" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>Selling Price Margin <small>(optional)</small></label>
+        <input name="margin" type="number" min="0" max="100" step="0.01" placeholder="Leave empty to keep current">
+      </div>
+      <div class="form-group">
+        <label>SKU Code <small>(optional)</small></label>
+        <input name="sku" placeholder="Leave empty to keep current"
+               pattern="[A-Za-z0-9\-_]+" 
+               title="SKU code can contain letters, numbers, hyphens, and underscores">
+      </div>
+      <div class="form-group">
+        <label>Batch Code <small>(optional)</small></label>
+        <input name="batch" placeholder="Leave empty to keep current"
+               pattern="[A-Za-z0-9\-_]+" 
+               title="Batch code can contain letters, numbers, hyphens, and underscores">
+      </div>
+      <div class="form-group col-span-2">
+        <label>Product Description <small>(optional)</small></label>
+        <textarea name="desc" placeholder="Leave empty to keep current"></textarea>
+      </div>
+
+      <input type="hidden" name="__idx">
+      <div class="col-span-2">
+        <button type="submit" class="action-btn" style="width:100%;height:56px;font-size:22px">Update Product</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== VIEW PRODUCT MODAL ========== -->
+<div id="viewProductModal" class="modal" aria-hidden="true">
+  <div class="modal-content glass-card" style="max-width:1100px">
+    <button class="close-btn" data-close="#viewProductModal" aria-label="Close" style="position:absolute;right:8px;top:8px;width:36px;height:36px;line-height:36px;font-size:22px;border-radius:6px;z-index:2">&times;</button>
+    <h2 style="margin-top:0;color:#2e7d32">Product Details</h2>
+
+    <div class="view-modal-container">
+      <div class="grid-3col gap-16" id="viewFields">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Restock Product Modal -->
+<div id="restockProductModal" class="modal" aria-hidden="true">
+  <div class="modal-content glass-card" style="max-width:600px">
+    <button class="close-btn" data-close="#restockProductModal" aria-label="Close" style="position:absolute;right:8px;top:8px;width:36px;height:36px;line-height:36px;font-size:22px;border-radius:6px;z-index:2">&times;</button>
+    <h2 style="margin-top:0;color:#2e7d32">Restock Product</h2>
+
+    <form id="restockForm" class="grid-2col gap-16">
+      <div class="form-group">
+        <label>Product</label>
+        <select name="product" required>
+          <option value="">Select a product...</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Quantity Added</label>
+        <input name="quantity" type="number" placeholder="Enter quantity" required>
+      </div>
+
+      <div class="form-group" id="restock-batch-group" style="display:none;">
+        <label>Batch Code</label>
+        <select name="batch_code" style="display: none;">
+          <option value="">Loading batch codes...</option>
+        </select>
+        <input name="batch_code_input" placeholder="Enter new batch code (e.g., BATCH-001)" style="display: none;">
+        <small style="display: block; margin-top: 5px; color: #666; font-size: 0.85em;" id="batch-code-hint">Select product to load batch codes</small>
+      </div>
+
+      <div class="form-group">
+        <label>Supplier</label>
+        <input name="supplier" placeholder="Supplier (optional)">
+      </div>
+
+      <div class="form-group">
+        <label>Restock Date</label>
+        <input name="date" type="date">
+      </div>
+
+      <div class="form-group col-span-2">
+        <label>Notes</label>
+        <input name="notes" placeholder="Notes (optional)">
+      </div>
+
+      <div class="col-span-2" style="display:flex;justify-content:space-between;gap:12px;margin-top:20px">
+        <button type="button" class="action-btn cancel-btn" data-close="#restockProductModal"
+          style="background:#e53935;color:white;flex:1;height:48px;font-size:16px;border-radius:8px">Cancel</button>
+        <button type="submit" class="action-btn" style="background:#43a047;color:white;flex:1;height:48px;font-size:16px;border-radius:8px">Restock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="modal">
+        <div class="modal-content glass-card delete-modal-content">
+            <span class="close-confirm-btn" id="close-delete-modal">&times;</span>
+            <h4>Confirm Deletion</h4>
+            <p>Are you sure you want to delete this item? This action cannot be undone and will permanently remove the record from the system.</p>
+            <div class="confirm-actions">
+                <button id="confirm-delete-btn" class="action-btn delete-btn">Yes, Delete</button>
+                <button id="cancel-delete-btn" class="action-btn cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+<script>
+/* =========================================================
+   BRANCH STATE (fallback mock kept but will be overwritten by API)
+========================================================= */
+const BRANCH_DATA = {
+  "Marawoy": {
+    items: [
+      { variant:"Jasmine",stock:490,price:50,status:"available",batch:"", sku:"", desc:"None" },
+      { variant:"Angelica",stock:500,price:90,status:"available",batch:"", sku:"" },
+      { variant:"Milagrosa",stock:1600,price:10,status:"available",batch:"" },
+      { variant:"Puso Rice",stock:500,price:90,status:"available",batch:"16161" },
+      { variant:"Mestizo",stock:500,price:90,status:"available",batch:"16161" },
+      { variant:"Tubigan",stock:500,price:90,status:"available",batch:"17171" },
+    ],
+    logs: [
+      { date:"2024-03-12", variant:"Jasmine",  qty:200, by:"System", note:"Initial load" },
+      { date:"2024-03-13", variant:"Angelica", qty:100, by:"Admin",  note:"Restock" },
+    ]
+  },
+  "Bulacnin": {
+    items: [
+      { variant:"Jasmine",stock:300,price:50,status:"available",batch:"" },
+      { variant:"Sinandomeng",stock:120,price:42,status:"low",batch:"" },
+      { variant:"Jasmine Gold",stock:0,price:48,status:"out",batch:"" },
+    ],
+    logs: [{ date:"2024-03-10", variant:"Sinandomeng", qty:80, by:"Admin", note:"Restock" }]
+  },
+  "Malvar": {
+    items: [
+      { variant:"Crystal Dinorado", stock:1500, price:45, status:"available", batch:"RTY1234455" },
+      { variant:"Sinandomeng",      stock:800,  price:42, status:"low",       batch:"RTY1234456" },
+      { variant:"Jasmine",          stock:0,    price:48, status:"out",       batch:"RTY1234457" },
+    ],
+    logs: [{ date:"2024-03-08", variant:"Crystal Dinorado", qty:300, by:"System", note:"Initial load" }]
+  },
+  "Sta. Cruz": {
+    items: [
+      { variant:"Dinorado", stock:900, price:47, status:"available", batch:"" },
+      { variant:"Brown Rice", stock:120, price:55, status:"low", batch:"" },
+    ],
+    logs: []
+  }
+};
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+const invModal        = document.getElementById("branch-inventory-modal");
+const invModalTitle   = document.getElementById("invModalTitle");
+const invTableBody    = document.getElementById("invTableBody");
+const logTableBody    = document.getElementById("logTableBody");
+const variantFilterEl = document.getElementById("variantFilter");
+const statusFilterEl  = document.getElementById("statusFilter");
+
+const tabInvBtn    = document.getElementById("tab-inv");
+const tabLogBtn    = document.getElementById("tab-log");
+const inventoryTab = document.getElementById("inventoryTab");
+const restockTab   = document.getElementById("restockTab");
+const invToolbar   = document.getElementById("inventoryToolbar");
+
+const addProductModal  = document.getElementById("addProductModal");
+const editProductModal = document.getElementById("editProductModal");
+const viewProductModal = document.getElementById("viewProductModal");
+
+/* Restock modal */
+const restockProductModal   = document.getElementById("restockProductModal");
+const restockForm           = document.getElementById("restockForm");
+const restockSelect         = restockForm.querySelector('select[name="product"]');
+const restockQty            = restockForm.querySelector('input[name="quantity"]');
+const restockBatchGroup     = document.getElementById('restock-batch-group');
+const restockBatchCode      = restockForm.querySelector('select[name="batch_code"]');
+const restockBatchCodeInput = restockForm.querySelector('input[name="batch_code_input"]');
+const batchCodeHint         = document.getElementById("batch-code-hint");
+const restockSupplier     = restockForm.querySelector('input[name="supplier"]');
+const restockDate         = restockForm.querySelector('input[name="date"]');
+const restockNotes        = restockForm.querySelector('input[name="notes"]');
+
+/* Modal helpers */
+document.querySelectorAll(".close-btn[data-close]").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const sel = btn.getAttribute("data-close");
+    const m = document.querySelector(sel);
+    if (m) { m.style.display="none"; m.setAttribute("aria-hidden","true"); }
+  });
+});
+document.getElementById("invModalClose")?.addEventListener("click", ()=>closeModal(invModal));
+
+// Close delete modal handler
+document.getElementById("close-delete-modal")?.addEventListener("click", ()=>{
+  const deleteModal = document.getElementById('delete-confirm-modal');
+  if (deleteModal) {
+    deleteModal.style.display = 'none';
+    deleteModal.setAttribute('aria-hidden', 'true');
+  }
+});
+
+function showModal(el){ if(!el) return; el.style.display="block"; el.setAttribute("aria-hidden","false"); }
+function closeModal(el){ if(!el) return; el.style.display="none";  el.setAttribute("aria-hidden","true"); }
+
+/* =========================================================
+   TABS
+========================================================= */
+[tabInvBtn, tabLogBtn].forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const isInv = b.dataset.tab === "inventory";
+    tabInvBtn.classList.toggle("active", isInv);
+    tabLogBtn.classList.toggle("active", !isInv);
+    inventoryTab.style.display = isInv ? "block" : "none";
+    restockTab.style.display   = isInv ? "none"  : "block";
+    invToolbar.style.display   = isInv ? "flex"  : "none";
+
+    if (!isInv) renderLog(); // logs are hydrated when opening modal
+  });
+});
+
+/* =========================================================
+   STATE
+========================================================= */
+let currentBranch = null;
+let currentFilter = { variant:"", status:"all" };
+
+/* =========================================================
+   HELPERS
+========================================================= */
+const statusClass = s => (s==="available" ? "status-ok" : (s==="low" ? "status-warning" : "status-danger"));
+const money = n => "₱" + Number(n || 0).toFixed(2);
+
+/* Map server item -> client row */
+function mapServerItemToClient(it){
+  const stock = Number(it.stock ?? it.stock_kg ?? 0);
+  const warn  = it.warn ?? it.warn_level ?? null;
+
+  const derivedStatus =
+    stock <= 0 ? "out" :
+    (warn != null && stock < Number(warn)) ? "low" :
+    "available";
+
+  return {
+    id:         it.id ?? it.inventory_id ?? null,   // inventory_items.id
+    branch_id:  it.branch_id ?? null,
+    product_id: it.product_id ?? null,
+
+    variant:    it.product_name ?? it.variant ?? "",
+    category:   it.category ?? "",
+
+    barcode:    it.barcode ?? "",
+    sku:        it.sku ?? "",
+
+    stock,
+    price:      Number(it.price ?? it.unit_price ?? 0),
+
+    warn,
+    auto:       it.auto ?? it.auto_level ?? null,
+    margin:     it.margin ?? "",
+
+    batch:      it.batch ?? it.batch_code ?? "",
+    grn:        it.grn ?? it.grn_number ?? "",
+
+    desc:       it.desc ?? it.description ?? "",
+    status:     it.status ?? derivedStatus,
+  };
+}
+
+/* =========================================================
+   OPEN INVENTORY MODAL
+========================================================= */
+document.querySelectorAll(".branch-table .view-btn").forEach(btn=>{
+  btn.addEventListener("click",(e)=>{
+    const branchName = e.currentTarget.closest("tr")?.children?.[0]?.textContent?.trim();
+    if (!branchName) return alert("Unknown branch row");
+    openInventoryModal(branchName);
+  });
+});
+
+async function openInventoryModal(branch){
+  currentBranch = branch;
+  invModalTitle.textContent = `${branch} - Inventory`;
+  currentFilter = { variant:"", status:"all" };
+  variantFilterEl.value = "";
+  statusFilterEl.value  = "all";
+
+  // Get inventory items, then logs (server). If either fails, keep what we have.
+  await hydrateFromServer(branch).catch(() => {});
+  await hydrateLogsForBranch(branch).catch(() => {});
+
+  renderInventory();
+  renderLog();
+
+  tabInvBtn.click();     // default tab
+  showModal(invModal);
+  
+  // Force refresh logs when modal opens to ensure latest data
+  console.log("DEBUG: Modal opened, refreshing logs for latest data");
+  await hydrateLogsForBranch(branch).catch(() => {});
+  renderLog();
+}
+
+/* Pull items from your Flask API into BRANCH_DATA */
+async function hydrateFromServer(branch_name){
+  console.log(`DEBUG: hydrateFromServer called for branch '${branch_name}'`);
+  const res = await fetch(`/admin/api/products/branch?branch_name=${encodeURIComponent(branch_name)}`, {
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    console.error(`DEBUG: hydrateFromServer failed: ${res.status} ${res.statusText}`);
+    throw new Error("fetch failed");
+  }
+  const data = await res.json();
+  if (!data.ok) {
+    console.error(`DEBUG: hydrateFromServer API returned error:`, data);
+    return;
+  }
+  console.log(`DEBUG: hydrateFromServer received ${data.items?.length || 0} items from API`);
+  const items = (data.items || []).map(mapServerItemToClient);
+  console.log(`DEBUG: hydrateFromServer mapped to ${items.length} client items`);
+
+  BRANCH_DATA[branch_name] = BRANCH_DATA[branch_name] || { items: [], logs: [] };
+  BRANCH_DATA[branch_name].items = items;
+  console.log(`DEBUG: hydrateFromServer stored ${items.length} items in BRANCH_DATA['${branch_name}']`);
+}
+
+/* Pull restock logs for every item in a branch and merge them */
+async function hydrateLogsForBranch(branch_name){
+  const br = BRANCH_DATA[branch_name];
+  if (!br || !br.items || br.items.length === 0) return;
+
+  const promises = br.items
+    .filter(it => !!it.id)
+    .map(async (it) => {
+      const r = await fetch(`/admin/api/inventory/${encodeURIComponent(it.id)}/logs`, {
+        credentials: 'include'
+      });
+      if (!r.ok) return [];
+      const j = await r.json().catch(()=>({ ok:false }));
+      if (!j.ok) return [];
+      return (j.logs || []).map(l => ({
+        date: l.date,
+        datetime: l.datetime || l.date,  // Use full timestamp for sorting
+        qty: Number(l.qty_kg ?? l.qty ?? 0),
+        supplier: l.supplier || "N/A",  // Keep supplier separate
+        created_by: l.created_by || l.by || "Admin",  // Use created_by for "By" column
+        note: l.note || "Restock",
+        variant: it.variant,
+        batch_code: l.batch_code || it.batch || "",  // Include batch code from log or inventory item
+      }));
+    });
+
+  const logsByItem = await Promise.all(promises);
+  const merged = logsByItem.flat();
+  
+  // Sort by datetime (newest first) - proper datetime comparison
+  console.log("DEBUG: Before sorting, merged logs:", merged.length);
+  merged.forEach((log, i) => {
+    console.log(`  ${i+1}. ${log.datetime || log.date} - ${log.created_by} - ${log.variant}`);
+  });
+  
+  merged.sort((a,b) => {
+    // Get the datetime string (prefer datetime, fallback to date)
+    const dateStrA = a.datetime || a.date;
+    const dateStrB = b.datetime || b.date;
+    
+    // Convert to Date objects
+    const dateA = new Date(dateStrA);
+    const dateB = new Date(dateStrB);
+    
+    // Debug the comparison
+    console.log(`Comparing: ${dateStrA} (${dateA.getTime()}) vs ${dateStrB} (${dateB.getTime()})`);
+    
+    // Return newest first (dateB - dateA)
+    return dateB.getTime() - dateA.getTime();
+  });
+  
+  console.log("DEBUG: After sorting, merged logs:");
+  merged.forEach((log, i) => {
+    console.log(`  ${i+1}. ${log.datetime || log.date} - ${log.created_by} - ${log.variant}`);
+  });
+
+  BRANCH_DATA[branch_name].logs = merged;
+}
+
+/* =========================================================
+   RENDER INVENTORY TABLE
+========================================================= */
+function renderInventory(){
+  const branch = BRANCH_DATA[currentBranch];
+  if (!branch) return;
+
+  const q = currentFilter.variant.trim().toLowerCase();
+  const s = currentFilter.status;
+
+  invTableBody.innerHTML = "";
+  branch.items
+    .filter(it => (!q || it.variant.toLowerCase().includes(q)) && (s === "all" || s === it.status))
+    .forEach((it, idx) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${it.variant}${it.batch ? ` (Batch ${it.batch})` : ''}</td>
+        <td>${(it.stock ?? 0).toLocaleString()}</td>
+        <td>${money(it.price)}</td>
+        <td class="${statusClass(it.status)}">${it.status==="available"?"Available":it.status==="low"?"Low Stock":"Out of Stock"}</td>
+        <td>${it.batch || ""}</td>
+        <td>
+          <div class="action-buttons-container">
+            <button class="table-action-btn view-details" data-idx="${idx}">View</button>
+            <button class="table-action-btn edit-item" data-idx="${idx}">Edit</button>
+            <button class="table-action-btn delete-item" data-idx="${idx}">Delete</button>
+            <button class="table-action-btn restock-item" data-idx="${idx}">Restock</button>
+          </div>
+        </td>`;
+      invTableBody.appendChild(tr);
+    });
+
+  invTableBody.querySelectorAll(".view-details") .forEach(b=>b.addEventListener("click", onViewItem));
+  invTableBody.querySelectorAll(".edit-item")   .forEach(b=>b.addEventListener("click", onEditItem));
+  invTableBody.querySelectorAll(".delete-item") .forEach(b=>b.addEventListener("click", onDeleteItem));
+  invTableBody.querySelectorAll(".restock-item").forEach(b=>b.addEventListener("click", onRestockItem));
+}
+
+/* =========================================================
+   RENDER RESTOCK LOG
+========================================================= */
+function renderLog(onlyVariant=null){
+  const br = BRANCH_DATA[currentBranch];
+  if (!br) return;
+
+  const rows = onlyVariant ? br.logs.filter(l => l.variant === onlyVariant) : br.logs;
+  
+  console.log("DEBUG: renderLog - rows to render:", rows.length);
+  rows.forEach((log, i) => {
+    console.log(`  ${i+1}. ${log.datetime || log.date} - ${log.created_by} - ${log.variant}`);
+  });
+
+  logTableBody.innerHTML = rows.length
+    ? ""
+    : `<tr><td colspan="6" style="text-align:center;opacity:.7;">No log entries yet.</td></tr>`;
+
+  // Format date helper for display
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  rows.forEach(l=>{
+    const tr = document.createElement("tr");
+    const displayDate = formatDateForDisplay(l.date || l.datetime);
+    tr.innerHTML = `
+      <td>${displayDate}</td>
+      <td>${l.variant}</td>
+      <td>${l.batch_code || l.batch || ""}</td>
+      <td>${Number(l.qty).toLocaleString()}</td>
+      <td>${l.created_by || "Admin"}</td>
+      <td>${l.note || "Restock"}</td>`;
+    logTableBody.appendChild(tr);
+  });
+}
+
+/* =========================================================
+   FILTERS / TOOLBAR
+========================================================= */
+variantFilterEl.addEventListener("input",  ()=>{ currentFilter.variant = variantFilterEl.value; renderInventory(); });
+statusFilterEl .addEventListener("change", ()=>{ currentFilter.status  = statusFilterEl.value;  renderInventory(); });
+
+document.getElementById("addStockBtn").addEventListener("click", ()=>{
+  if (!currentBranch) return;
+  document.getElementById("addProductForm").reset();
+  showModal(addProductModal);
+});
+document.getElementById("exportInvBtn").addEventListener("click", exportCSV);
+document.getElementById("printInvBtn").addEventListener("click", showPrintPreview);
+
+/* =========================================================
+   CREATE -> POST to Flask, then refresh
+========================================================= */
+document.getElementById("addProductForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+
+  const title = document.getElementById("invModalTitle")?.textContent || "";
+  const branch_name = title.split("-")[0].trim();
+
+  const fd = new FormData(e.target);
+  const payload = {
+    branch_name,
+    product_name: (fd.get("variant") || "").trim(),
+    category:     (fd.get("category") || "").trim(),
+    barcode:      (fd.get("barcode")  || "").trim(),
+    sku:          (fd.get("sku")      || "").trim(),
+    desc:         (fd.get("desc")     || "").trim(),
+    warn:         fd.get("warn") === "" ? null : Number(fd.get("warn")),
+    auto:         fd.get("auto") === "" ? null : Number(fd.get("auto")),
+    margin:       (fd.get("margin")   || "").trim(),
+    stock_kg:     fd.get("stock") === "" ? 0 : Number(fd.get("stock")),
+    unit_price:   fd.get("price") === "" ? 0 : Number(fd.get("price")),
+    grn:          (fd.get("grn") || "").trim(),
+    batch:        (fd.get("batch") || "").trim()
+  };
+
+  if (!payload.product_name) { alert("Product name is required."); return; }
+  if (!payload.batch) { alert("Batch code is required."); return; }
+
+  try {
+    console.log('Creating product with payload:', payload);
+    const res  = await fetch("/admin/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(()=>({}));
+    
+    if (!res.ok || data.ok === false) {
+      console.error('Create product error:', data);
+      throw new Error(data.error || res.statusText || 'Failed to create product');
+    }
+
+    console.log('Product created successfully:', data);
+    
+    // Reset form and close modal
+    e.target.reset();
+    document.querySelector('#addProductModal .close-btn[data-close="#addProductModal"]')?.click();
+    
+    // Refresh inventory from server
+    await refreshInventoryFromAPI(branch_name);
+    
+    // Show success message
+    alert('Product added successfully!');
+  } catch (err) {
+    console.error("API add failed. Error:", err);
+    alert("Failed to add product: " + err.message);
+    const qty = Number(payload.stock_kg || 0);
+    const item = {
+      variant: payload.product_name,
+      stock:   qty,
+      price:   Number(payload.unit_price || 0),
+      status:  qty === 0 ? "out" : (qty < 200 ? "low" : "available"),
+      batch:   payload.batch || "",
+      sku:     payload.sku || "",
+      desc:    payload.desc || ""
+    };
+    BRANCH_DATA[branch_name] = BRANCH_DATA[branch_name] || { items: [], logs: [] };
+    BRANCH_DATA[branch_name].items.unshift(item);
+    BRANCH_DATA[branch_name].logs.unshift({
+      date: new Date().toISOString().slice(0,10),
+      variant: item.variant,
+      qty: item.stock,
+      by: "Admin",
+      note: "Added new variant (local)"
+    });
+    renderInventory();
+    document.querySelector('#addProductModal .close-btn[data-close="#addProductModal"]')?.click();
+  }
+});
+
+/* GET items from server and re-render */
+async function refreshInventoryFromAPI(branch_name){
+  try {
+    const res = await fetch(`/admin/api/products/branch?branch_name=${encodeURIComponent(branch_name)}`);
+    const data = await res.json();
+    if (!res.ok || data.ok === false) throw new Error(data.error || "fetch failed");
+
+    const items = (data.items || []).map(mapServerItemToClient);
+    BRANCH_DATA[branch_name] = BRANCH_DATA[branch_name] || { items: [], logs: BRANCH_DATA[branch_name]?.logs || [] };
+    BRANCH_DATA[branch_name].items = items;
+
+    renderInventory();
+    
+    // Also refresh the logs to show the latest restock entries
+    await hydrateLogsForBranch(branch_name);
+    renderLog();
+  } catch (e) {
+    console.warn("refreshInventoryFromAPI failed:", e);
+  }
+}
+
+/* =========================================================
+   VIEW / EDIT / DELETE / RESTOCK
+========================================================= */
+function onViewItem(e){
+  const idx = +e.currentTarget.dataset.idx;
+  const it  = BRANCH_DATA[currentBranch].items[idx];
+  const V = (label, value) => `
+    <div class="form-group">
+      <label>${label}</label>
+      <input value="${String(value ?? "")}" readonly>
+    </div>`;
+  document.getElementById("viewFields").innerHTML = [
+    V("Product Name", it.variant),
+    V("Warning Threshold Stock Level", it.warn ?? ""),
+    V("Auto Order Stock Level", it.auto ?? ""),
+    V("Category", it.category ?? ""),
+    V("Barcode Number", it.barcode ?? ""),
+    V("GRN Number (Optional)", it.grn ?? ""),
+    V("Recorded Stock Level", it.stock ?? 0),
+    V("Purchasing Price", it.price ?? 0),
+    V("Selling Price Margin", it.margin ?? ""),
+    V("SKU Code", it.sku ?? ""),
+    `<div class="form-group col-span-3">
+       <label>Product Description</label>
+       <input value="${it.desc ?? ""}" readonly>
+     </div>`,
+    V("Batch Code", it.batch ?? ""),
+    V("Status", it.status),
+    V("Price/Unit", it.price ?? 0),
+  ].join("");
+  showModal(viewProductModal);
+}
+
+function onEditItem(e){
+  const idx  = +e.currentTarget.dataset.idx;
+  const it   = BRANCH_DATA[currentBranch].items[idx];
+
+  const form = document.getElementById("editProductForm");
+  form.reset();
+
+  form.querySelector('input[name="variant"]').placeholder = it.variant || "";
+  form.querySelector('input[name="warn"]').placeholder    = it.warn ?? "";
+  form.querySelector('input[name="auto"]').placeholder    = it.auto ?? "";
+  form.querySelector('input[name="category"]').placeholder= it.category || "";
+  form.querySelector('input[name="barcode"]').placeholder = it.barcode || "";
+  form.querySelector('input[name="grn"]').placeholder     = it.grn || "";
+  form.querySelector('input[name="batch"]').placeholder   = it.batch || "";
+  form.querySelector('input[name="stock"]').placeholder   = it.stock ?? 0;
+  form.querySelector('input[name="price"]').placeholder   = it.price ?? 0;
+  form.querySelector('input[name="margin"]').placeholder  = it.margin || "";
+  form.querySelector('input[name="sku"]').placeholder     = it.sku || "";
+  form.querySelector('textarea[name="desc"]').placeholder = it.desc || "";
+
+  form.__idx.value = idx;
+  if (!form.querySelector('input[name="__inv_id"]')) {
+    const hid = document.createElement('input');
+    hid.type = 'hidden';
+    hid.name = '__inv_id';
+    form.appendChild(hid);
+  }
+  form.__inv_id.value = it.id;
+
+  showModal(editProductModal);
+}
+
+/* EDIT SUBMIT -> PATCH to backend */
+document.getElementById("editProductForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const form = e.target;
+
+  const invId = form.__inv_id.value;
+
+  const fd = new FormData(form);
+  const onlyIfFilled = (name, conv = (v)=>v) => {
+    const v = fd.get(name);
+    return (v !== null && v !== "") ? conv(v) : undefined;
+  };
+
+  const payload = {
+    product_name: onlyIfFilled("variant", v=>v.trim()),
+    category:     onlyIfFilled("category", v=>v.trim()),
+    barcode:      onlyIfFilled("barcode", v=>v.trim()),
+    sku:          onlyIfFilled("sku", v=>v.trim()),
+    desc:         onlyIfFilled("desc", v=>v.trim()),
+    stock_kg:     onlyIfFilled("stock", Number),
+    unit_price:   onlyIfFilled("price", Number),
+    batch:        onlyIfFilled("batch", v=>v.trim()),
+    grn:          onlyIfFilled("grn", v=>v.trim()),
+    warn:         onlyIfFilled("warn", Number),
+    auto:         onlyIfFilled("auto", Number),
+    margin:       onlyIfFilled("margin", v=>v.trim()),
+  };
+
+  Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+  if (Object.keys(payload).length === 0) { closeModal(editProductModal); return; }
+
+  try {
+    const res = await fetch(`/admin/api/products/${encodeURIComponent(invId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
+
+    await refreshInventoryFromAPI(currentBranch);
+    closeModal(editProductModal);
+  } catch (err) {
+    console.error("Edit failed:", err);
+    alert("Update failed: " + err.message);
+  }
+});
+
+function onDeleteItem(e){
+  const idx = +e.currentTarget.dataset.idx;
+  const it  = BRANCH_DATA[currentBranch].items[idx];
+
+  if (!it?.id) { 
+    alert("Missing inventory id for this row."); 
+    return; 
+  }
+  
+  // Use the existing delete confirmation modal
+  const deleteModal = document.getElementById('delete-confirm-modal');
+  const confirmBtn = document.getElementById('confirm-delete-btn');
+  const cancelBtn = document.getElementById('cancel-delete-btn');
+  
+  if (!deleteModal || !confirmBtn || !cancelBtn) {
+    // Fallback to simple confirm if modal doesn't exist
+    if (!confirm(`Delete "${it.variant}" from ${currentBranch}? This cannot be undone.`)) return;
+    performDelete(it.id);
+    return;
+  }
+  
+  // Show the confirmation modal
+  deleteModal.style.display = 'block';
+  deleteModal.setAttribute('aria-hidden', 'false');
+  
+  // Set up one-time event listeners
+  const handleConfirm = () => {
+    performDelete(it.id);
+    deleteModal.style.display = 'none';
+    deleteModal.setAttribute('aria-hidden', 'true');
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+  
+  const handleCancel = () => {
+    deleteModal.style.display = 'none';
+    deleteModal.setAttribute('aria-hidden', 'true');
+    confirmBtn.removeEventListener('click', handleConfirm);
+    cancelBtn.removeEventListener('click', handleCancel);
+  };
+  
+  confirmBtn.addEventListener('click', handleConfirm);
+  cancelBtn.addEventListener('click', handleCancel);
+}
+
+async function performDelete(inventoryId) {
+  try {
+    const res = await fetch(`/admin/api/products/${encodeURIComponent(inventoryId)}`, { 
+      method: "DELETE",
+      credentials: 'include'
+    });
+    
+    const data = await res.json();
+    
+    if (!res.ok || data.ok === false) {
+      throw new Error(data?.error || "Delete failed");
+    }
+    
+    // Refresh the inventory data
+    await refreshInventoryFromAPI(currentBranch);
+    await hydrateLogsForBranch(currentBranch);
+    renderLog();
+    
+    // Show success message
+    alert("Product deleted successfully!");
+    
+  } catch (err) {
+    console.error("Delete failed:", err);
+    alert("Delete failed: " + err.message);
+  }
+}
+
+/* ---------- RESTOCK (server-backed) ---------- */
+function onRestockItem(e){
+  const idx = +e.currentTarget.dataset.idx;
+  openRestockModal(idx);
+}
+
+function openRestockModal(preselectIdx = null){
+  if (!currentBranch) return;
+  const items = BRANCH_DATA[currentBranch].items;
+
+  // Build unique product list (product_id -> name)
+  const prodMap = new Map();
+  items.forEach((it)=>{ if (it.product_id && !prodMap.has(it.product_id)) prodMap.set(it.product_id, it.variant); });
+  restockSelect.innerHTML = '<option value="">Select a product...</option>' +
+    Array.from(prodMap.entries()).map(([pid,name])=>`<option value="${pid}">${name}</option>`).join('');
+
+  // Default selection
+  restockSelect.value = restockSelect.querySelector('option[value]')?.value || "";
+
+  restockQty.value      = "";
+  restockBatchCode.value = "";
+  restockBatchCodeInput.value = "";
+  restockSupplier.value = "";
+  restockDate.value     = new Date().toISOString().slice(0,10);
+  restockNotes.value    = "";
+  
+  // Load batch codes for the initial product_id
+  if (restockSelect.value) loadBatchCodesForProduct(restockSelect.value);
+  
+  showModal(restockProductModal);
+}
+
+// Load batch codes when product changes
+restockSelect.addEventListener("change", function() {
+  loadBatchCodesForProduct(this.value);
+});
+
+// Function to load batch codes for a product (filtered by current branch)
+async function loadBatchCodesForProduct(productId) {
+  if (!productId) {
+    restockBatchGroup.style.display = 'none';
+    restockBatchCode.style.display = 'none';
+    restockBatchCodeInput.style.display = 'none';
+    batchCodeHint.textContent = 'Select product to load batch codes';
+    return;
+  }
+  
+  // Get current branch name from modal title
+  const branchName = currentBranch || '';
+  if (!branchName) {
+    console.error('No current branch set');
+    restockBatchGroup.style.display = 'none';
+    return;
+  }
+  
+  try {
+    // Pass branch_name as query parameter to filter batch codes by branch
+    const response = await fetch(`/admin/api/products/${productId}/batch-codes?branch_name=${encodeURIComponent(branchName)}`, {
+      credentials: 'include'
+    });
+    const data = await response.json();
+    
+    if (data.ok && data.batch_codes && data.batch_codes.length > 0) {
+      // Populate dropdown with existing batch codes
+      restockBatchCode.innerHTML = '';
+      restockBatchCode.innerHTML += data.batch_codes.map(code => `<option value="${code}">${code}</option>`).join('');
+      restockBatchGroup.style.display = 'block';
+      restockBatchCode.style.display = 'block';
+      restockBatchCodeInput.style.display = 'none';
+      batchCodeHint.textContent = `Select existing batch code`;
+      restockBatchCodeInput.value = '';
+    } else {
+      // No batch codes exist for this product -> hide the field entirely
+      restockBatchGroup.style.display = 'none';
+      restockBatchCode.style.display = 'none';
+      restockBatchCodeInput.style.display = 'none';
+      batchCodeHint.textContent = 'No batch codes for this product';
+    }
+  } catch (error) {
+    console.error('Error loading batch codes:', error);
+    restockBatchGroup.style.display = 'none';
+    restockBatchCode.style.display = 'none';
+    restockBatchCodeInput.style.display = 'none';
+    batchCodeHint.textContent = 'Batch code unavailable';
+  }
+}
+
+// Handle dropdown change to show input when "Create New Batch" is selected
+// No need to toggle create-new; admin restock uses existing batch codes only. If none exist, field stays hidden.
+
+restockForm.addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  if (!currentBranch) return;
+
+  const selectedProductId = Number(restockSelect.value);
+  const quantity   = Number(restockQty.value);
+  // Batch code only when shown
+  const batchCode  = (restockBatchGroup.style.display !== 'none' ? (restockBatchCode.value || '').trim() : '');
+  const supplier   = restockSupplier.value.trim();
+  const date        = restockDate.value;
+  const notes      = restockNotes.value.trim();
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    alert("Please enter a valid positive quantity.");
+    return;
+  }
+
+  // Find correct inventory item by product + batch (or first matching product if no batches)
+  const items = BRANCH_DATA[currentBranch]?.items || [];
+  let invId = null;
+  if (batchCode) {
+    const match = items.find(it => Number(it.product_id) === selectedProductId && (it.batch || '') === batchCode);
+    if (match) invId = match.id;
+  } else {
+    const match = items.find(it => Number(it.product_id) === selectedProductId && (!it.batch || it.batch === ''));
+    if (match) invId = match.id;
+    else {
+      // fallback to any item of this product
+      const any = items.find(it => Number(it.product_id) === selectedProductId);
+      if (any) invId = any.id;
+    }
+  }
+  if (!invId) { alert('Could not resolve inventory item for this product/batch.'); return; }
+
+  try {
+    const res = await fetch(`/admin/api/inventory/${encodeURIComponent(invId)}/restock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: 'include',
+      body: JSON.stringify({
+        quantity,
+        batch_code: batchCode || null,
+        supplier: supplier || "Admin",
+        date: date || null,
+        notes: notes || "Restock"
+      })
+    });
+
+    const data = await res.json().catch(()=>({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || res.statusText);
+
+    // Snappy UI: update the row + push a log locally
+    const updated = data.item || {};
+    const items = BRANCH_DATA[currentBranch]?.items || [];
+    const row = items.find(x => String(x.id) === String(invId));
+    if (row) {
+      row.stock  = Number(updated.stock ?? updated.stock_kg ?? (Number(row.stock || 0) + quantity));
+      row.status = updated.status ?? row.status;
+    }
+    BRANCH_DATA[currentBranch].logs = BRANCH_DATA[currentBranch].logs || [];
+    BRANCH_DATA[currentBranch].logs.unshift({
+      date: (data.log && data.log.date) || (date || new Date().toISOString().slice(0,10)),
+      variant: row?.variant || (updated.product_name ?? ""),
+      qty: quantity,
+      supplier: supplier || "Admin",
+      note: notes || "Restock"
+    });
+
+    renderInventory();
+    renderLog(row?.variant || null);
+
+    // Full refresh from server to guarantee parity (items + logs)
+    await refreshInventoryFromAPI(currentBranch);
+    await hydrateLogsForBranch(currentBranch);
+    renderLog();
+
+    closeModal(restockProductModal);
+  } catch (err) {
+    console.error("Restock failed:", err);
+    alert("Restock failed: " + err.message);
+  }
+});
+
+/* =========================================================
+   EXPORT CSV (with proper date formatting)
+========================================================= */
+function exportCSV(){
+  if (!currentBranch) return;
+  const br = BRANCH_DATA[currentBranch];
+  const q  = currentFilter.variant.trim().toLowerCase();
+  const s  = currentFilter.status;
+
+  // Format date helper - ensures YYYY-MM-DD format
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr; // Return as-is if invalid
+      return d.toISOString().split('T')[0]; // YYYY-MM-DD
+    } catch (e) {
+      return dateStr; // Return as-is if error
+    }
+  };
+
+  // Export inventory items
+  const rows = [["Variant","Stock(kg)","Price","Status","Batch Code","Last Updated"]];
+  br.items.forEach(it=>{
+    const ok = (!q || it.variant.toLowerCase().includes(q)) && (s === "all" || s === it.status);
+    if (!ok) return;
+    const lastUpdated = it.lastUpdated ? formatDate(it.lastUpdated) : "";
+    rows.push([it.variant, it.stock, it.price, it.status, it.batch || "", lastUpdated]);
+  });
+
+  // Add restock logs section if available
+  if (br.logs && br.logs.length > 0) {
+    rows.push([]); // Empty row separator
+    rows.push(["Restock Log"]);
+    rows.push(["Date","Variant","Batch Code","Quantity(kg)","By","Note"]);
+    br.logs.forEach(log => {
+      const logDate = formatDate(log.date || log.datetime);
+      rows.push([
+        logDate,
+        log.variant || "",
+        log.batch_code || "",
+        log.qty || 0,
+        log.created_by || log.by || "Admin",
+        log.note || "Restock"
+      ]);
+    });
+  }
+
+  const csv = rows.map(r => r.map(v => {
+    const str = String(v ?? "");
+    return /[",\n]/.test(str) ? `"${str.replace(/"/g,'""')}"` : str;
+  }).join(",")).join("\n");
+
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url;
+  a.download = `${currentBranch.replace(/\s+/g,'_').toLowerCase()}_inventory_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* =========================================================
+   PRINT PREVIEW & PRINT
+========================================================= */
+function showPrintPreview(){
+  if (!currentBranch) return;
+  const br = BRANCH_DATA[currentBranch];
+  const q  = currentFilter.variant.trim().toLowerCase();
+  const s  = currentFilter.status;
+
+  // Format date helper
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // Filter items
+  const filteredItems = br.items.filter(it => {
+    const matchVariant = !q || it.variant.toLowerCase().includes(q);
+    const matchStatus = s === "all" || s === it.status;
+    return matchVariant && matchStatus;
+  });
+
+  // Build print HTML
+  const printDate = new Date().toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  let printHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${currentBranch} - Inventory Report</title>
+      <style>
+        @media print {
+          @page { margin: 1cm; }
+          body { margin: 0; }
+          .no-print { display: none !important; }
+        }
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          color: #333;
+        }
+        .header {
+          border-bottom: 3px solid #2e7d32;
+          padding-bottom: 15px;
+          margin-bottom: 20px;
+        }
+        .header h1 {
+          color: #2e7d32;
+          margin: 0 0 5px 0;
+          font-size: 24px;
+        }
+        .header p {
+          margin: 5px 0;
+          color: #666;
+          font-size: 14px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+          font-size: 12px;
+        }
+        th {
+          background: #2e7d32;
+          color: white;
+          padding: 10px 8px;
+          text-align: left;
+          font-weight: 600;
+          border: 1px solid #1b5e20;
+        }
+        td {
+          padding: 8px;
+          border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+          background: #f9f9f9;
+        }
+        .status-available { color: #4caf50; font-weight: 600; }
+        .status-low { color: #ff9800; font-weight: 600; }
+        .status-out { color: #f44336; font-weight: 600; }
+        .summary {
+          margin-top: 20px;
+          padding: 15px;
+          background: #f5f5f5;
+          border-radius: 5px;
+        }
+        .summary h3 {
+          margin-top: 0;
+          color: #2e7d32;
+        }
+        .print-actions {
+          margin: 20px 0;
+          text-align: center;
+        }
+        .print-actions button {
+          padding: 12px 24px;
+          margin: 0 10px;
+          font-size: 16px;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+        .btn-print {
+          background: #2e7d32;
+          color: white;
+        }
+        .btn-print:hover {
+          background: #1b5e20;
+        }
+        .btn-cancel {
+          background: #757575;
+          color: white;
+        }
+        .btn-cancel:hover {
+          background: #616161;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${currentBranch} - Inventory Report</h1>
+        <p>Generated: ${printDate}</p>
+        <p>Branch: ${currentBranch}</p>
+      </div>
+
+      <h2>Inventory Items</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Variant</th>
+            <th>Stock (kg)</th>
+            <th>Price/Unit</th>
+            <th>Status</th>
+            <th>Batch Code</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  // Add inventory items
+  let totalStock = 0;
+  filteredItems.forEach(it => {
+    totalStock += Number(it.stock || 0);
+    const statusClass = it.status === "available" ? "status-available" : 
+                       it.status === "low" ? "status-low" : "status-out";
+    const statusText = it.status === "available" ? "Available" :
+                      it.status === "low" ? "Low Stock" : "Out of Stock";
+    const lastUpdated = it.lastUpdated ? formatDate(it.lastUpdated) : "N/A";
+    
+    printHTML += `
+      <tr>
+        <td>${it.variant || "N/A"}</td>
+        <td>${Number(it.stock || 0).toLocaleString()}</td>
+        <td>₱${Number(it.price || 0).toFixed(2)}</td>
+        <td class="${statusClass}">${statusText}</td>
+        <td>${it.batch || "N/A"}</td>
+        <td>${lastUpdated}</td>
+      </tr>
+    `;
+  });
+
+  printHTML += `
+        </tbody>
+      </table>
+
+      <div class="summary">
+        <h3>Summary</h3>
+        <p><strong>Total Items:</strong> ${filteredItems.length}</p>
+        <p><strong>Total Stock:</strong> ${totalStock.toLocaleString()} kg</p>
+        <p><strong>Filter Applied:</strong> ${q ? `Variant: "${q}"` : "None"} ${s !== "all" ? `| Status: ${s}` : ""}</p>
+      </div>
+  `;
+
+  // Add restock logs if available
+  if (br.logs && br.logs.length > 0) {
+    printHTML += `
+      <h2 style="margin-top: 30px;">Recent Restock Logs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Variant</th>
+            <th>Batch Code</th>
+            <th>Quantity (kg)</th>
+            <th>By</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    // Show last 20 logs
+    const recentLogs = br.logs.slice(0, 20);
+    recentLogs.forEach(log => {
+      const logDate = formatDate(log.date || log.datetime);
+      printHTML += `
+        <tr>
+          <td>${logDate}</td>
+          <td>${log.variant || "N/A"}</td>
+          <td>${log.batch_code || "N/A"}</td>
+          <td>${Number(log.qty || 0).toLocaleString()}</td>
+          <td>${log.created_by || log.by || "Admin"}</td>
+          <td>${log.note || "Restock"}</td>
+        </tr>
+      `;
+    });
+
+    printHTML += `
+        </tbody>
+      </table>
+    `;
+  }
+
+  printHTML += `
+      <div class="print-actions no-print">
+        <button class="btn-print" onclick="window.print()">Print</button>
+        <button class="btn-cancel" onclick="window.close()">Close</button>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Open print preview in new window
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(printHTML);
+    printWindow.document.close();
+    // Auto-focus on print window
+    printWindow.focus();
+  } else {
+    alert('Please allow popups to use the print preview feature.');
+  }
+}
+
+/* =========================================================
+   LOAD BRANCHES DYNAMICALLY
+========================================================= */
+async function loadBranches() {
+  try {
+    const response = await fetch('/admin/api/branches', {
+      credentials: 'include'
+    });
+    const data = await response.json();
+    
+    if (data.ok && data.branches) {
+      renderBranchesTable(data.branches);
+    } else {
+      console.error('Failed to load branches:', data);
+      showBranchesError('Failed to load branches');
+    }
+  } catch (error) {
+    console.error('Error loading branches:', error);
+    showBranchesError('Error loading branches');
+  }
+}
+
+function renderBranchesTable(branches) {
+  const tbody = document.getElementById('branches-tbody');
+  if (!tbody) return;
+  
+  if (branches.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.7;">
+          No branches found
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  
+  tbody.innerHTML = branches.map(branch => {
+    const statusClass = branch.status === 'operational' ? 'status-ok' : 
+                       branch.status === 'maintenance' ? 'status-warning' : 'status-error';
+    const statusText = branch.status === 'operational' ? 'Operational' :
+                      branch.status === 'maintenance' ? 'Maintenance' : 'Closed';
+    
+    return `
+      <tr>
+        <td>${branch.name}</td>
+        <td>${branch.location || 'N/A'}</td>
+        <td>${branch.total_stock_kg ? branch.total_stock_kg.toLocaleString() : '0'}</td>
+        <td class="${statusClass}">${statusText}</td>
+        <td>
+          <button class="table-action-btn view-btn" data-branch="${branch.name}">View</button>
+          <button class="table-action-btn edit-btn" data-branch="${branch.name}">Edit</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Re-attach event listeners for the new buttons
+  attachBranchEventListeners();
+}
+
+function showBranchesError(message) {
+  const tbody = document.getElementById('branches-tbody');
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.7; color: #e74c3c;">
+          ${message}
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function attachBranchEventListeners() {
+  // View button listeners
+  document.querySelectorAll('.branch-table .view-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const branchName = e.currentTarget.getAttribute('data-branch');
+      if (!branchName) return alert("Unknown branch");
+      openInventoryModal(branchName);
+    });
+  });
+  
+  // Edit button listeners (placeholder for now)
+  document.querySelectorAll('.branch-table .edit-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const branchName = e.currentTarget.getAttribute('data-branch');
+      if (!branchName) return alert("Unknown branch");
+      alert(`Edit functionality for ${branchName} branch will be implemented soon.`);
+    });
+  });
+}
+
+// Load branches when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  loadBranches();
+  
+  // Attach Export All button listener
+  document.querySelector('.export-all-btn')?.addEventListener('click', async () => {
+    await exportAllBranches();
+  });
+});
+
+/* =========================================================
+   EXPORT ALL BRANCHES TO CSV
+========================================================= */
+async function exportAllBranches() {
+  const exportBtn = document.querySelector('.export-all-btn');
+  const originalText = exportBtn?.textContent;
+  
+  try {
+    console.log('Exporting all branches inventory...');
+    
+    // Show loading state
+    if (exportBtn) {
+      exportBtn.disabled = true;
+      exportBtn.textContent = 'Exporting...';
+    }
+    
+    // Fetch all branches and their inventory
+    const branchesRes = await fetch('/admin/api/branches', {
+      credentials: 'include'
+    });
+    const branchesData = await branchesRes.json();
+    
+    if (!branchesData.ok) {
+      throw new Error('Failed to fetch branches');
+    }
+    
+    const branches = branchesData.branches;
+    
+    // Build CSV content with branch sections
+    let csvLines = [];
+    
+    // Add header with date
+    const exportDate = new Date().toISOString().split('T')[0];
+    csvLines.push(`All Branches Inventory Report`);
+    csvLines.push(`Export Date: ${exportDate}`);
+    csvLines.push(`Generated by: G.M.C Rice Warehouse System`);
+    csvLines.push('');
+    csvLines.push('='.repeat(80));
+    csvLines.push('');
+    
+    // Fetch all inventories in parallel for speed
+    const invPromises = branches.map(branch => 
+      fetch(`/admin/api/branches/${branch.id}/inventory?page_size=1000`, {
+        credentials: 'include'
+      })
+        .then(res => res.json())
+        .catch(err => ({ ok: false, error: err.message }))
+    );
+    
+    const invResults = await Promise.all(invPromises);
+    
+    for (let i = 0; i < branches.length; i++) {
+      const branch = branches[i];
+      const invData = invResults[i];
+      
+      // Add branch header
+      csvLines.push(''); // Empty line for spacing
+      csvLines.push(`BRANCH: ${branch.name}`);
+      csvLines.push(`Location: ${branch.location || 'N/A'}`);
+      csvLines.push(`Total Stock: ${branch.total_stock_kg ? branch.total_stock_kg.toLocaleString() : '0'} kg`);
+      csvLines.push(`Status: ${branch.status || 'operational'}`);
+      csvLines.push(''); // Empty line
+      
+        // Format date helper - ensures YYYY-MM-DD format
+        const formatDate = (dateStr) => {
+          if (!dateStr) return "";
+          try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toISOString().split('T')[0]; // YYYY-MM-DD
+          } catch (e) {
+            return dateStr;
+          }
+        };
+
+        // Add inventory items
+        if (invData.ok && invData.items && invData.items.length > 0) {
+          // Add inventory table headers
+          csvLines.push('Product,Stock (kg),Price/Unit,Status,Batch Code,GRN Number,Warn Level,Auto Level,Last Updated');
+          
+          // Add inventory items
+          invData.items.forEach(item => {
+            const escapeCSV = (str) => {
+              if (str === null || str === undefined) return '';
+              const s = String(str);
+              if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                return `"${s.replace(/"/g, '""')}"`;
+              }
+              return s;
+            };
+            
+            const lastUpdated = item.last_updated || item.updated_at || item.created_at || "";
+            const formattedDate = lastUpdated ? formatDate(lastUpdated) : "";
+            
+            const row = [
+              escapeCSV(item.variant || item.product_name || 'N/A'),
+              escapeCSV(item.stock || item.stock_kg || 0),
+              escapeCSV(item.price || item.unit_price || 0),
+              escapeCSV(item.status || 'available'),
+              escapeCSV(item.batch || item.batch_code || ''),
+              escapeCSV(item.grn || item.grn_number || ''),
+              escapeCSV(item.warn || item.warn_level || ''),
+              escapeCSV(item.auto || item.auto_level || ''),
+              escapeCSV(formattedDate)
+            ];
+            csvLines.push(row.join(','));
+          });
+        } else {
+          csvLines.push('No inventory items found');
+        }
+      
+      csvLines.push(''); // Empty line for spacing
+      csvLines.push('='.repeat(80)); // Separator line
+    }
+    
+    // Create and download CSV
+    const csvContent = csvLines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `all_branches_inventory_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    console.log('Export completed successfully');
+    
+    // Show success message briefly
+    if (exportBtn) {
+      exportBtn.textContent = '✓ Exported!';
+      setTimeout(() => {
+        if (exportBtn) {
+          exportBtn.textContent = originalText;
+          exportBtn.disabled = false;
+        }
+      }, 1500);
+    }
+  } catch (error) {
+    console.error('Error exporting branches:', error);
+    alert('Failed to export branches: ' + error.message);
+    
+    // Reset button state
+    if (exportBtn) {
+      exportBtn.textContent = originalText;
+      exportBtn.disabled = false;
+    }
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+    <style>
+        /* Delete Modal Styling */
+        .delete-modal-content {
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        .delete-modal-content h4 {
+            color: #d32f2f;
+            margin-bottom: 16px;
+        }
+        
+        .delete-modal-content p {
+            margin-bottom: 24px;
+            color: #666;
+        }
+        
+        .confirm-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        
+        .confirm-actions .delete-btn {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .confirm-actions .delete-btn:hover {
+            background-color: #b71c1c;
+        }
+        
+        .confirm-actions .cancel-btn {
+            background-color: #757575;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .confirm-actions .cancel-btn:hover {
+            background-color: #616161;
+        }
+        
+        .close-confirm-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .close-confirm-btn:hover {
+            color: #333;
+        }
+
+        /* Restock Modal Styling to match Add Product Modal */
+        #restockProductModal .modal-content {
+            max-width: 980px !important;
+            padding: 24px;
+        }
+        
+        #restockProductModal .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        #restockProductModal .col-span-2 {
+            grid-column: span 2;
+        }
+        
+        #restockProductModal .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        #restockProductModal .form-group label {
+            font-weight: 600;
+            color: #2e7d32;
+            font-size: 14px;
+        }
+        
+        #restockProductModal .form-group input,
+        #restockProductModal .form-group select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+            background: white;
+        }
+        
+        #restockProductModal .form-group input:focus,
+        #restockProductModal .form-group select:focus {
+            outline: none;
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+        }
+        
+        #restockProductModal .form-group input::placeholder {
+            color: #999;
+        }
+        
+        #restockProductModal .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: none;
+        }
+        
+        #restockProductModal .action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        #restockProductModal .cancel-btn {
+            background: #e53935;
+            color: white;
+        }
+        
+        #restockProductModal .cancel-btn:hover {
+            background: #c62828;
+        }
+        
+        #restockProductModal .action-btn[type="submit"] {
+            background: #43a047;
+            color: white;
+        }
+        
+        #restockProductModal .action-btn[type="submit"]:hover {
+            background: #388e3c;
+        }
+
+        /* Print Button Styling */
+        .print-btn {
+            background: #1976d2;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .print-btn:hover {
+            background: #1565c0;
+        }
+        
+        .print-btn i {
+            font-size: 14px;
+        }
+
+        /* Scrollable Table Container */
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .table-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Ensure table headers stay visible */
+        .table-container table {
+            margin: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table-container thead th {
+            position: sticky;
+            top: 0;
+            background: #2e7d32;
+            color: white;
+            z-index: 10;
+            border-bottom: 2px solid #1b5e20;
+        }
+
+        /* Style for table rows */
+        .table-container tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .table-container tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        /* Responsive design for smaller screens */
+        @media (max-width: 768px) {
+            .table-container {
+                max-height: 300px;
+            }
+        }
+
+        /* View Product Modal Scrollable Container */
+        .view-modal-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .view-modal-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .view-modal-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .view-modal-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        .view-modal-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Style for form fields in view modal */
+        .view-modal-container .form-group {
+            margin-bottom: 16px;
+        }
+
+        .view-modal-container .form-group label {
+            font-weight: 600;
+            color: #2e7d32;
+            font-size: 14px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .view-modal-container .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            font-size: 14px;
+        }
+
+        .view-modal-container .form-group input:focus {
+            outline: none;
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.1);
+        }
+
+        /* Responsive for view modal */
+        @media (max-width: 768px) {
+            .view-modal-container {
+                max-height: 400px;
+            }
+        }
+
+        /* Form Validation Styles */
+        .required {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        /* Input validation states */
+        input:invalid {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.1);
+        }
+
+        input:valid {
+            border-color: #4caf50;
+        }
+
+        input:focus:invalid {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.2);
+        }
+
+        input:focus:valid {
+            border-color: #4caf50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+        }
+
+        /* Error message styling */
+        .error-message {
+            color: #d32f2f;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group.error input {
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 2px rgba(211, 47, 47, 0.1);
+        }
+
+        .form-group.error .error-message {
+            display: block;
+        }
+
+        /* Success message styling */
+        .success-message {
+            color: #4caf50;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
+        .form-group.success input {
+            border-color: #4caf50;
+            box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+        }
+
+        .form-group.success .success-message {
+            display: block;
+        }
+
+        /* Form field improvements */
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Pattern validation feedback */
+        input:not(:placeholder-shown):invalid {
+            border-color: #d32f2f;
+        }
+
+        input:not(:placeholder-shown):valid {
+            border-color: #4caf50;
+        }
+    </style>
+    <!-- Removed broken external JS include; all logic is in this file -->
+</body>
+</html>

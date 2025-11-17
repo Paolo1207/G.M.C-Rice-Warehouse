@@ -1,0 +1,23 @@
+# Email Configuration for GMC System
+# Copy this to .env and fill in your email settings
+
+# Database
+DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/gmcdb
+
+# Flask Secret Key
+SECRET_KEY=your-secret-key-here
+
+# Email Settings (for email verification)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SENDER_EMAIL=your-email@gmail.com
+SENDER_PASSWORD=your-app-password
+
+# Base URL for verification links
+BASE_URL=http://localhost:5000
+
+# Gmail App Password Setup:
+# 1. Enable 2-Factor Authentication on your Google account
+# 2. Go to Google Account Settings > Security > App passwords
+# 3. Generate an app password for "Mail"
+# 4. Use that password as SENDER_PASSWORD

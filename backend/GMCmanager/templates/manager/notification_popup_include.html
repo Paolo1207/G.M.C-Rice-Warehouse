@@ -1,0 +1,102 @@
+<!-- Manager Notification Popup System Include -->
+<!-- Add this to any manager page to enable real-time notifications -->
+
+<link rel="stylesheet" href="{{ url_for('manager.static', filename='css/notification-popup.css') }}">
+<script src="{{ url_for('manager.static', filename='js/notification-popup.js') }}" defer></script>
+
+<!-- Optional: Add notification bell icon to navigation -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add notification bell to navigation if it doesn't exist
+    const navMain = document.querySelector('.nav-main');
+    if (navMain && !document.querySelector('.notification-bell')) {
+        const bellContainer = document.createElement('div');
+        bellContainer.className = 'notification-bell';
+        bellContainer.innerHTML = `
+            <a href="{{ url_for('manager.notifications') }}" class="bell-link" title="Notifications">
+                <i class="fas fa-bell"></i>
+                <span class="notification-badge" id="notificationBadge" style="display: none;">0</span>
+            </a>
+        `;
+        
+        // Add styles for the bell
+        const style = document.createElement('style');
+        style.textContent = `
+            .notification-bell {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 1000;
+            }
+            .bell-link {
+                position: relative;
+                display: inline-block;
+                background: #3b82f6;
+                color: white;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-decoration: none;
+                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                transition: all 0.3s ease;
+            }
+            .bell-link:hover {
+                background: #2563eb;
+                transform: scale(1.05);
+                box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+            }
+            .notification-badge {
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                background: #ef4444;
+                color: white;
+                border-radius: 50%;
+                width: 20px;
+                height: 20px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: pulse 2s infinite;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(bellContainer);
+        
+        // Update badge count
+        updateNotificationBadge();
+    }
+});
+
+async function updateNotificationBadge() {
+    try {
+        const response = await fetch('/manager/api/notifications/unread-count');
+        const data = await response.json();
+        
+        const badge = document.getElementById('notificationBadge');
+        if (badge && data.ok) {
+            if (data.unread_count > 0) {
+                badge.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error updating notification badge:', error);
+    }
+}
+
+// Update badge every 30 seconds
+setInterval(updateNotificationBadge, 30000);
+</script>
