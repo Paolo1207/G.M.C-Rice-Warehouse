@@ -159,7 +159,6 @@
                     <tr>
                         <th>Name</th>
                         <th>Warehouse ID</th>
-                        <th>Location</th>
                         <th>Role</th>
                         <th>Actions</th>
                     </tr>
@@ -291,7 +290,6 @@
           row.innerHTML = `
             <td>${user.name}</td>
             <td>${user.warehouse_id}</td>
-            <td>${user.location}</td>
             <td><span class="role-badge ${user.role.toLowerCase()}">${user.role}</span></td>
             <td>
               <button class="view-btn" onclick="viewUser(${user.id})">View</button>
