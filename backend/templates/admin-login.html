@@ -604,19 +604,40 @@
                     body: JSON.stringify({
                         email: email,
                         password: password
-                    })
+                    }),
+                    credentials: 'include'
                 });
                 
-                const data = await response.json();
+                // Check if response is JSON
+                let data;
+                const contentType = response.headers.get('content-type');
                 
-                if (data.ok) {
-                    // Redirect to admin dashboard
-                    window.location.href = '/admin/dashboard';
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                } else {
+                    // If not JSON, read as text to see what we got
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 200));
+                    errorDiv.textContent = 'Invalid email or password';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+                
+                if (response.ok && data.ok) {
+                    // Check if user is admin before redirecting
+                    if (data.user && data.user.role === 'admin') {
+                        // Redirect to admin dashboard
+                        window.location.href = '/admin/dashboard';
+                    } else {
+                        errorDiv.textContent = 'Access denied. Admin credentials required.';
+                        errorDiv.style.display = 'block';
+                    }
                 } else {
                     errorDiv.textContent = data.error || 'Invalid email or password';
                     errorDiv.style.display = 'block';
                 }
             } catch (error) {
+                console.error('Login error:', error);
                 errorDiv.textContent = 'Login failed. Please try again.';
                 errorDiv.style.display = 'block';
             }
