@@ -228,6 +228,7 @@
                 <div class="export-buttons">
                     <button id="expCsv">Export CSV</button>
                     <button id="expPdf">Export PDF</button>
+                    <button id="expPrint">Print</button>
                 </div>
             </div>
             <table class="sales-log-table">
@@ -708,6 +709,80 @@
         };
         document.getElementById('expCsv')?.addEventListener('click', ()=>go('csv'));
         document.getElementById('expPdf')?.addEventListener('click', ()=>go('pdf'));
+        document.getElementById('expPrint')?.addEventListener('click', printSalesLog);
+      }
+
+      async function printSalesLog() {
+        // Fetch current table data based on selected filters
+        try {
+          const j = await fetch('/admin/api/sales?'+params()).then(r=>r.json());
+          if (!j.ok) { alert('No data to print.'); return; }
+          const rows = j.rows || [];
+          const totalQty = rows.reduce((s,r)=>s + Number(r.qty||0), 0);
+          const totalAmt = rows.reduce((s,r)=>s + Number(r.amount||0), 0);
+
+          const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="UTF-8">
+              <title>Sales Log</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h2 { margin: 0 0 10px 0; color: #2e7d32; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th, td { border: 1px solid #ddd; padding: 8px; }
+                th { background: #2e7d32; color: #fff; text-align: left; }
+                tfoot td { font-weight: bold; border-top: 2px solid #2e7d32; background: #f5f5f5; }
+                .right { text-align: right; }
+              </style>
+            </head>
+            <body>
+              <h2>Sales Log</h2>
+              <div>Generated: ${new Date().toLocaleString()}</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Rice Variant</th>
+                    <th>Quantity Sold</th>
+                    <th>Branch</th>
+                    <th>Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map(r=>`
+                    <tr>
+                      <td>${r.date||''}</td>
+                      <td>${r.product_name||''}</td>
+                      <td class="right">${Number(r.qty||0).toLocaleString()}</td>
+                      <td>${r.branch_name||''}</td>
+                      <td class="right">₱${Number(r.amount||0).toLocaleString()}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="2" class="right">TOTAL</td>
+                    <td class="right">${totalQty.toLocaleString()}</td>
+                    <td></td>
+                    <td class="right">₱${totalAmt.toLocaleString()}</td>
+                  </tr>
+                </tfoot>
+              </table>
+              <script>window.onload = () => window.print();</script>
+            </body>
+            </html>
+          `;
+          const w = window.open('', '_blank');
+          if (!w) { alert('Please allow pop-ups to print.'); return; }
+          w.document.open();
+          w.document.write(html);
+          w.document.close();
+        } catch (e) {
+          console.error('Print error:', e);
+          alert('Failed to print sales log.');
+        }
       }
 
       function getDateRangeForExport() {

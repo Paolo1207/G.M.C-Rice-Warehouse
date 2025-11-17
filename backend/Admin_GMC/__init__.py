@@ -1564,6 +1564,13 @@ def api_sales_export():
     if fmt == 'pdf':
         # Generate PDF using HTML
         from flask import render_template_string
+        # Compute totals
+        try:
+            total_qty = sum(float(r.get('qty', 0) or 0) for r in rows)
+            total_amt = sum(float(r.get('amount', 0) or 0) for r in rows)
+        except Exception:
+            total_qty = sum([r.get('qty', 0) or 0 for r in rows])
+            total_amt = sum([r.get('amount', 0) or 0 for r in rows])
         html_content = f"""
         <!DOCTYPE html>
         <html>
@@ -1577,6 +1584,8 @@ def api_sales_export():
                 th {{ background-color: #2e7d32; color: white; padding: 10px; text-align: left; }}
                 td {{ padding: 8px; border-bottom: 1px solid #ddd; }}
                 tr:nth-child(even) {{ background-color: #f2f2f2; }}
+                tfoot td {{ border-top: 2px solid #2e7d32; font-weight: bold; background-color: #f5f5f5; }}
+                .right {{ text-align: right; }}
             </style>
         </head>
         <body>
@@ -1604,8 +1613,15 @@ def api_sales_export():
                         <td>₱{r.get('amount', 0):,.2f}</td>
                     </tr>
             """
-        html_content += """
+        html_content += f"""
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="right">TOTAL</td>
+                        <td>{total_qty:,.0f}</td>
+                        <td>₱{total_amt:,.2f}</td>
+                    </tr>
+                </tfoot>
             </table>
         </body>
         </html>
