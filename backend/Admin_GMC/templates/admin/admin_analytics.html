@@ -307,42 +307,6 @@
             </div>
         </div>
 
-        <!-- Demand/Supply Gaps -->
-        <div class="analytics-widgets-row">
-            <div class="analytics-widget demand-supply-widget" style="width: 100%;">
-                <div class="widget-header">
-                    <h3>⚖️ Demand/Supply Gaps</h3>
-                    <span class="alert-count">3</span>
-                </div>
-                <div class="demand-supply-list">
-                    <div class="gap-item critical">
-                        <div class="gap-icon">⚠️</div>
-                        <div class="gap-content">
-                            <div class="gap-title">Marawoy - Jasmine Rice</div>
-                            <div class="gap-desc">Supply: 500kg | Demand: 800kg | Gap: -300kg</div>
-                        </div>
-                        <div class="gap-status">Critical</div>
-                    </div>
-                    <div class="gap-item warning">
-                        <div class="gap-icon">📉</div>
-                        <div class="gap-content">
-                            <div class="gap-title">Lima - Basmati Rice</div>
-                            <div class="gap-desc">Supply: 1200kg | Demand: 1000kg | Gap: +200kg</div>
-                        </div>
-                        <div class="gap-status">Overstock</div>
-                    </div>
-                    <div class="gap-item info">
-                        <div class="gap-icon">📊</div>
-                        <div class="gap-content">
-                            <div class="gap-title">Malvar - Brown Rice</div>
-                            <div class="gap-desc">Supply: 750kg | Demand: 750kg | Gap: 0kg</div>
-                        </div>
-                        <div class="gap-status">Balanced</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Top-Selling Rice per Branch -->
         <div class="analytics-widgets-row">
             <div class="analytics-widget top-products-widget">
@@ -395,12 +359,6 @@
                         <div class="loading-text">Loading top products...</div>
                         </div>
                 </div>
-            </div>
-            <div class="analytics-widget turnover-widget">
-                <div class="widget-header">
-                    <h3>🔄 Inventory Turnover Rate</h3>
-                </div>
-                <div class="turnover-list" id="turnoverList"></div>
             </div>
         </div>
 
@@ -570,8 +528,6 @@
                     populateBranchSelect(a);
                     updateStockPerBranchChart(a.stock_per_branch || []);
                     updateSalesTrendsByBranch(a.sales_trends_by_branch || { labels: [], series: [] });
-                    updateDemandSupplyList(a.demand_supply_gaps || []);
-                    updateTurnoverList(a.inventory_turnover_by_branch || []);
                     // initialize top products for the first branch if present
                     const firstBranchId = (a.stock_per_branch && a.stock_per_branch[0] && a.stock_per_branch[0].branch_id)
                         || (Object.keys(BRANCH_NAME_BY_ID)[0] ? Number(Object.keys(BRANCH_NAME_BY_ID)[0]) : null);
@@ -627,8 +583,6 @@
                     populateBranchSelect(a);
                     updateStockPerBranchChart(a.stock_per_branch || []);
                     updateSalesTrendsByBranch(a.sales_trends_by_branch || { labels: [], series: [] });
-                    updateDemandSupplyList(a.demand_supply_gaps || []);
-                    updateTurnoverList(a.inventory_turnover_by_branch || []);
                     // initialize top products for the first branch if present
                     const firstBranchId = (a.stock_per_branch && a.stock_per_branch[0] && a.stock_per_branch[0].branch_id)
                         || (Object.keys(BRANCH_NAME_BY_ID)[0] ? Number(Object.keys(BRANCH_NAME_BY_ID)[0]) : null);
@@ -1157,20 +1111,6 @@
             const avgOrderValue = document.getElementById('avg-order-value')?.textContent || '₱0';
             const totalOrders = document.getElementById('total-orders')?.textContent || '0';
 
-            // Get demand/supply gaps
-            const gapsContainer = document.querySelector('.demand-supply-list');
-            let gapsHTML = '';
-            if (gapsContainer) {
-                gapsHTML = gapsContainer.innerHTML;
-            }
-
-            // Get turnover list
-            const turnoverContainer = document.getElementById('turnoverList');
-            let turnoverHTML = '';
-            if (turnoverContainer) {
-                turnoverHTML = turnoverContainer.innerHTML;
-            }
-
             // Get top products
             const topProductsContainer = document.getElementById('topProductsList');
             let topProductsHTML = '';
@@ -1248,10 +1188,10 @@
             border: 1px solid #e5e7eb;
             border-radius: 6px;
         }
-        .gaps-list, .turnover-list, .top-products-list {
+        .top-products-list {
             margin-top: 10px;
         }
-        .gap-item, .turnover-item, .product-item {
+        .product-item {
             padding: 8px;
             margin-bottom: 6px;
             border-radius: 4px;
@@ -1308,20 +1248,6 @@
     </div>
 
     <div class="section">
-        <h3>⚖️ Demand/Supply Gaps</h3>
-        <div class="gaps-list">
-            ${gapsHTML || '<p>No gap data available</p>'}
-        </div>
-    </div>
-
-    <div class="section">
-        <h3>🔄 Inventory Turnover Rate</h3>
-        <div class="turnover-list">
-            ${turnoverHTML || '<p>No turnover data available</p>'}
-        </div>
-    </div>
-
-    <div class="section">
         <h3>🏆 Top-Selling Products</h3>
         <div class="top-products-list">
             ${topProductsHTML || '<p>No products data available</p>'}
@@ -1340,55 +1266,6 @@
             setTimeout(() => { printWindow.print(); }, 500);
         }
 
-        // Demand/Supply gaps list (from overview API)
-        function updateDemandSupplyList(rows) {
-            const listEl = document.querySelector('.demand-supply-list');
-            if (!listEl) return;
-            listEl.innerHTML = '';
-            rows.forEach(r => {
-                const item = document.createElement('div');
-                item.className = `gap-item ${r.severity === 'critical' ? 'critical' : 'warning'}`;
-                item.innerHTML = `
-                    <div class="gap-icon">${r.severity === 'critical' ? '⚠️' : '📉'}</div>
-                    <div class="gap-content">
-                        <div class="gap-title">${r.branch_name} - ${r.product_name}</div>
-                        <div class="gap-desc">Supply: ${Number(r.stock_kg||0).toLocaleString()}kg | Demand (7d): ${Number(r.predicted_7d||0).toLocaleString()}kg | Gap: ${Number(r.gap_kg||0).toLocaleString()}kg</div>
-                    </div>
-                    <div class="gap-status">${r.severity === 'critical' ? 'Critical' : 'Warning'}</div>
-                `;
-                listEl.appendChild(item);
-            });
-            const countEl = document.querySelector('.demand-supply-widget .alert-count');
-            if (countEl) countEl.textContent = (rows.length || 0);
-        }
-
-        // Inventory turnover list (live)
-        function updateTurnoverList(rows) {
-            try {
-                const list = document.getElementById('turnoverList');
-                if (!list) return;
-                list.innerHTML = '';
-                rows.forEach(r => {
-                    const ratio = Number(r.turnover_ratio || 0);
-                    let status = 'Average';
-                    if (ratio >= 4) status = 'Excellent';
-                    else if (ratio >= 3) status = 'Good';
-                    const pct = Math.min(100, Math.round(ratio * 20));
-                    const item = document.createElement('div');
-                    item.className = 'turnover-item';
-                    item.innerHTML = `
-                      <div class="turnover-info">
-                        <div class="turnover-branch">${r.branch_name}</div>
-                        <div class="turnover-ratio">${ratio.toFixed(2)}x</div>
-                      </div>
-                      <div class="turnover-progress">
-                        <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%"></div></div>
-                        <div class="turnover-status">${status}</div>
-                      </div>`;
-                    list.appendChild(item);
-                });
-            } catch (e) { console.error('updateTurnoverList failed', e); }
-        }
 
         // Load top products for selected branch
         async function loadTopProducts(branchId, startDate = null, endDate = null) {
