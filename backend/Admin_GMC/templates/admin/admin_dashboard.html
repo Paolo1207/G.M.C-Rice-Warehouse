@@ -82,16 +82,6 @@
         <div class="sidebar-section">
           <div class="sidebar-section-title">Management</div>
           <ul>
-          <li title="Reports">
-  <a href="{{ url_for('admin.reports') }}">
-    <span class="sidebar-icon">
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>
-      </svg>
-    </span>
-    <span class="sidebar-label">Reports</span>
-  </a>
-</li>
           <li title="User Management">
   <a href="{{ url_for('admin.user') }}">
     <span class="sidebar-icon">
@@ -369,23 +359,6 @@
                         <div class="quick-action-content">
                             <div class="quick-action-title">Add New Product</div>
                             <div class="quick-action-desc">Create new inventory item</div>
-                        </div>
-                        <div class="quick-action-arrow">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </button>
-                    <button class="quick-action-btn" onclick="window.location.href='{{ url_for('admin.reports') }}'">
-                        <div class="quick-action-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                                <path d="M3 9h18M9 21V9"/>
-                            </svg>
-                        </div>
-                        <div class="quick-action-content">
-                            <div class="quick-action-title">Generate Report</div>
-                            <div class="quick-action-desc">Export data analytics</div>
                         </div>
                         <div class="quick-action-arrow">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
