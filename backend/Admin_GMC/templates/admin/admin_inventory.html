@@ -650,14 +650,6 @@ function mapServerItemToClient(it){
 /* =========================================================
    OPEN INVENTORY MODAL
 ========================================================= */
-document.querySelectorAll(".branch-table .view-btn").forEach(btn=>{
-  btn.addEventListener("click",(e)=>{
-    const branchName = e.currentTarget.closest("tr")?.children?.[0]?.textContent?.trim();
-    if (!branchName) return alert("Unknown branch row");
-    openInventoryModal(branchName);
-  });
-});
-
 async function openInventoryModal(branch){
   currentBranch = branch;
   invModalTitle.textContent = `${branch} - Inventory`;
@@ -1635,6 +1627,28 @@ function showPrintPreview(){
 }
 
 /* =========================================================
+   BRANCH LOCATION MAPPING
+========================================================= */
+const BRANCH_LOCATIONS = {
+  'Marawoy': 'Marawoy, Lipa City',
+  'Lipa': 'Lipa, Batangas',
+  'Malvar': 'Malvar, Batangas',
+  'Bulacnin': 'Bulacnin, Lipa City',
+  'Bulacnin Main': 'Bulacnin, Lipa City',
+  'Boac': 'Boac, Marinduque',
+  'Sta. Cruz': 'Sta. Cruz, Laguna'
+};
+
+function getBranchLocation(branchName, apiLocation) {
+  // Use API location if available and not 'N/A', otherwise use mapping
+  if (apiLocation && apiLocation !== 'N/A' && apiLocation.trim() !== '') {
+    return apiLocation;
+  }
+  // Fall back to mapped location
+  return BRANCH_LOCATIONS[branchName] || 'N/A';
+}
+
+/* =========================================================
    LOAD BRANCHES DYNAMICALLY
 ========================================================= */
 async function loadBranches() {
@@ -1677,15 +1691,17 @@ function renderBranchesTable(branches) {
     const statusText = branch.status === 'operational' ? 'Operational' :
                       branch.status === 'maintenance' ? 'Maintenance' : 'Closed';
     
+    // Get location using mapping if API location is missing
+    const displayLocation = getBranchLocation(branch.name, branch.location);
+    
     return `
       <tr>
         <td>${branch.name}</td>
-        <td>${branch.location || 'N/A'}</td>
+        <td>${displayLocation}</td>
         <td>${branch.total_stock_kg ? branch.total_stock_kg.toLocaleString() : '0'}</td>
         <td class="${statusClass}">${statusText}</td>
         <td>
           <button class="table-action-btn view-btn" data-branch="${branch.name}">View</button>
-          <button class="table-action-btn edit-btn" data-branch="${branch.name}">Edit</button>
         </td>
       </tr>
     `;
@@ -1715,15 +1731,6 @@ function attachBranchEventListeners() {
       const branchName = e.currentTarget.getAttribute('data-branch');
       if (!branchName) return alert("Unknown branch");
       openInventoryModal(branchName);
-    });
-  });
-  
-  // Edit button listeners (placeholder for now)
-  document.querySelectorAll('.branch-table .edit-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const branchName = e.currentTarget.getAttribute('data-branch');
-      if (!branchName) return alert("Unknown branch");
-      alert(`Edit functionality for ${branchName} branch will be implemented soon.`);
     });
   });
 }
@@ -1796,7 +1803,7 @@ async function exportAllBranches() {
       // Add branch header
       csvLines.push(''); // Empty line for spacing
       csvLines.push(`BRANCH: ${branch.name}`);
-      csvLines.push(`Location: ${branch.location || 'N/A'}`);
+      csvLines.push(`Location: ${getBranchLocation(branch.name, branch.location)}`);
       csvLines.push(`Total Stock: ${branch.total_stock_kg ? branch.total_stock_kg.toLocaleString() : '0'} kg`);
       csvLines.push(`Status: ${branch.status || 'operational'}`);
       csvLines.push(''); // Empty line
