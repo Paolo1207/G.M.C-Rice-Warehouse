@@ -543,6 +543,81 @@
                         ` : ''}
                     </div>
                     
+                    <!-- ETL Process Information Box -->
+                    ${forecast.etl_process ? `
+                    <div style="background: #f0f9ff; 
+                                border: 2px solid #3b82f6; 
+                                border-radius: 12px; 
+                                padding: 16px; 
+                                margin: 20px 0;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h5 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
+                            🔄 ETL Pipeline Process
+                        </h5>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <!-- EXTRACT Step -->
+                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                                <strong style="color: #3b82f6; font-size: 0.95rem; display: block; margin-bottom: 8px;">
+                                    1️⃣ EXTRACT
+                                </strong>
+                                <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
+                                    <div><strong>Raw Transactions:</strong> ${(forecast.etl_process.extract?.raw_transactions || 0).toLocaleString()}</div>
+                                    <div><strong>Total Quantity:</strong> ${(forecast.etl_process.extract?.raw_total_quantity || 0).toFixed(2)} kg</div>
+                                    ${forecast.etl_process.extract?.date_range ? `
+                                    <div><strong>Date Range:</strong> ${forecast.etl_process.extract.date_range.earliest} to ${forecast.etl_process.extract.date_range.latest}</div>
+                                    ` : ''}
+                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
+                                        Loaded raw historical sales data from database
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- TRANSFORM Step -->
+                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #10b981;">
+                                <strong style="color: #10b981; font-size: 0.95rem; display: block; margin-bottom: 8px;">
+                                    2️⃣ TRANSFORM
+                                </strong>
+                                <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
+                                    <div><strong>Daily Aggregated Days:</strong> ${(forecast.etl_process.transform?.daily_aggregated_days || 0).toLocaleString()}</div>
+                                    <div><strong>Mean Daily Quantity:</strong> ${(forecast.etl_process.transform?.mean_daily_quantity || 0).toFixed(2)} kg</div>
+                                    <div><strong>Std Dev:</strong> ${(forecast.etl_process.transform?.std_daily_quantity || 0).toFixed(2)} kg</div>
+                                    ${(forecast.etl_process.transform?.outliers_removed || 0) > 0 ? `
+                                    <div style="color: #f59e0b;"><strong>Outliers Removed:</strong> ${forecast.etl_process.transform.outliers_removed}</div>
+                                    ` : ''}
+                                    ${(forecast.etl_process.transform?.negative_values_clipped || 0) > 0 ? `
+                                    <div style="color: #ef4444;"><strong>Negative Values Clipped:</strong> ${forecast.etl_process.transform.negative_values_clipped}</div>
+                                    ` : ''}
+                                    ${(forecast.etl_process.transform?.missing_values_filled || 0) > 0 ? `
+                                    <div style="color: #6366f1;"><strong>Missing Values Filled:</strong> ${forecast.etl_process.transform.missing_values_filled}</div>
+                                    ` : ''}
+                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
+                                        Cleaned, aggregated by day, removed outliers, filled missing values
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- LOAD Step -->
+                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                                <strong style="color: #8b5cf6; font-size: 0.95rem; display: block; margin-bottom: 8px;">
+                                    3️⃣ LOAD
+                                </strong>
+                                <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
+                                    <div><strong>Final Data Points:</strong> ${(forecast.etl_process.load?.final_data_points || 0).toLocaleString()}</div>
+                                    ${forecast.etl_process.load?.padded ? `
+                                    <div style="color: #f59e0b;"><strong>⚠️ Padded:</strong> ${forecast.etl_process.load.padding_count} days (data was too short)</div>
+                                    <div style="font-size: 0.8rem; color: #64748b;">Original: ${forecast.etl_process.load.original_length} days</div>
+                                    ` : `
+                                    <div style="color: #10b981;">✅ No padding needed</div>
+                                    `}
+                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
+                                        Validated and prepared data for modeling
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
+                    
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                             <strong>Model Type:</strong><br>${forecast.model_type}

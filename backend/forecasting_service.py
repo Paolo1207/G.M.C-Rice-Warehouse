@@ -27,16 +27,42 @@ class ETLPipeline:
     def __init__(self):
         self.raw_data = None
         self.processed_data = None
+        self.process_info = {
+            'extract': {},
+            'transform': {},
+            'load': {}
+        }
         
     def extract(self, historical_data: List[Dict]) -> pd.DataFrame:
         """
         Extract: Load raw historical sales data
         """
         if not historical_data:
+            self.process_info['extract'] = {
+                'raw_transactions': 0,
+                'raw_total_quantity': 0,
+                'date_range': None
+            }
             return pd.DataFrame()
         
         df = pd.DataFrame(historical_data)
         self.raw_data = df.copy()
+        
+        # Track extract process info
+        raw_total_quantity = df['quantity_sold'].sum() if 'quantity_sold' in df.columns else 0
+        date_range = None
+        if 'transaction_date' in df.columns:
+            dates = pd.to_datetime(df['transaction_date'])
+            date_range = {
+                'earliest': dates.min().strftime('%Y-%m-%d'),
+                'latest': dates.max().strftime('%Y-%m-%d')
+            }
+        
+        self.process_info['extract'] = {
+            'raw_transactions': len(df),
+            'raw_total_quantity': float(raw_total_quantity),
+            'date_range': date_range
+        }
         return df
     
     def transform(self, df: pd.DataFrame) -> pd.Series:
@@ -75,20 +101,41 @@ class ETLPipeline:
                 else:
                     return pd.Series(dtype=float)
         
+        # Track transform process info
+        before_outliers = len(daily_data)
+        outliers_removed = 0
+        
         # Remove outliers (values beyond 3 standard deviations)
         if len(daily_data) > 10:
             mean = daily_data.mean()
             std = daily_data.std()
             if std > 0:
+                before_outliers = len(daily_data)
                 daily_data = daily_data[(daily_data >= mean - 3*std) & (daily_data <= mean + 3*std)]
+                outliers_removed = before_outliers - len(daily_data)
         
         # Ensure no negative values
+        negative_count = (daily_data < 0).sum() if len(daily_data) > 0 else 0
         daily_data = daily_data.clip(lower=0)
         
         # Fill any remaining NaN values with forward fill then backward fill
+        nan_count_before = daily_data.isna().sum()
         daily_data = daily_data.ffill().bfill().fillna(0)
+        nan_count_after = daily_data.isna().sum()
         
         self.processed_data = daily_data.copy()
+        
+        # Track transform process info
+        self.process_info['transform'] = {
+            'daily_aggregated_days': len(daily_data),
+            'total_daily_quantity': float(daily_data.sum()),
+            'outliers_removed': int(outliers_removed),
+            'negative_values_clipped': int(negative_count),
+            'missing_values_filled': int(nan_count_before - nan_count_after),
+            'mean_daily_quantity': float(daily_data.mean()) if len(daily_data) > 0 else 0,
+            'std_daily_quantity': float(daily_data.std()) if len(daily_data) > 0 else 0
+        }
+        
         return daily_data
     
     def load(self, data: pd.Series) -> pd.Series:
@@ -96,16 +143,39 @@ class ETLPipeline:
         Load: Final data preparation and validation
         """
         if data.empty:
+            self.process_info['load'] = {
+                'final_data_points': 0,
+                'padded': False,
+                'padding_count': 0
+            }
             return pd.Series(dtype=float)
+        
+        original_length = len(data)
+        padded = False
+        padding_count = 0
         
         # Ensure minimum data points
         if len(data) < 7:
             # Pad with mean if too short
             mean_val = data.mean() if not data.empty else 20.0
-            padding = pd.Series([mean_val] * (7 - len(data)))
+            padding_count = 7 - len(data)
+            padding = pd.Series([mean_val] * padding_count)
             data = pd.concat([data, padding]).reset_index(drop=True)
+            padded = True
+        
+        # Track load process info
+        self.process_info['load'] = {
+            'final_data_points': len(data),
+            'padded': padded,
+            'padding_count': padding_count,
+            'original_length': original_length
+        }
         
         return data
+    
+    def get_process_info(self) -> Dict:
+        """Get ETL process information"""
+        return self.process_info.copy()
 
 
 class ForecastingService:
@@ -294,6 +364,9 @@ class ForecastingService:
             # LOAD: Final data preparation and validation
             # - Ensures minimum data points (pads if needed)
             final_data = self.etl.load(processed_data)
+            
+            # Get ETL process information
+            etl_info = self.etl.get_process_info()
             
             # ============================================================
             # STEP 2: TRAIN/TEST SPLIT
@@ -504,7 +577,8 @@ class ForecastingService:
                 "accuracy_score": accuracy_score,
                 "metrics": metrics,
                 "train_size": len(train_data),
-                "test_size": len(test_data)
+                "test_size": len(test_data),
+                "etl_process": etl_info
             }
             
         except Exception as e:
