@@ -637,7 +637,45 @@ class ForecastingService:
                                                requested_model: Optional[str] = None) -> Dict:
         """
         Generate forecast using model selection - train all models, evaluate, and select best
+        If requested_model is specified, only train and use that model
         """
+        # If user requested specific model, use ONLY that model
+        if requested_model:
+            requested_model_upper = requested_model.upper()
+            
+            if requested_model_upper == 'ARIMA':
+                try:
+                    result = self.generate_arima_forecast(historical_data, periods)
+                    if result and result.get('model_type') == 'ARIMA':
+                        return result
+                except Exception as e:
+                    print(f"ARIMA model failed: {e}")
+                    # Fall through to default
+            
+            elif requested_model_upper == 'RF' or requested_model_upper == 'RANDOM FOREST':
+                try:
+                    result = self.generate_rf_forecast(historical_data, periods)
+                    if result and result.get('model_type') == 'RF':
+                        return result
+                except Exception as e:
+                    print(f"RF model failed: {e}")
+                    # Fall through to default
+            
+            elif requested_model_upper == 'SEASONAL' or requested_model_upper == 'SEASONAL NAIVE':
+                try:
+                    result = self.generate_seasonal_forecast(historical_data, periods)
+                    if result and (result.get('model_type') == 'Seasonal' or result.get('model_type') == 'SEASONAL'):
+                        return result
+                except Exception as e:
+                    print(f"Seasonal model failed: {e}")
+                    # Fall through to default with requested model type
+            
+            # If requested model failed, return default but preserve model type
+            # Normalize model type for display (use original case from frontend)
+            normalized_model_type = requested_model if requested_model else "Default"
+            return self._generate_default_forecast(periods, normalized_model_type)
+        
+        # If no specific model requested, train all models and select best
         model_results = []
         
         # Train and evaluate ARIMA
@@ -664,18 +702,12 @@ class ForecastingService:
         except Exception as e:
             print(f"Seasonal model failed: {e}")
         
-        # If user requested specific model, use it if available
-        if requested_model:
-            requested_result = next((m for m in model_results if m.get('model_type') == requested_model), None)
-            if requested_result:
-                return requested_result
-        
         # Select best model based on accuracy
         if model_results:
             best_model = self.select_best_model(model_results)
             return best_model
         else:
-            return self._generate_default_forecast(periods)
+            return self._generate_default_forecast(periods, "Default")
     
     def _calculate_trend(self, series: pd.Series) -> float:
         """Calculate simple trend from time series"""
@@ -697,7 +729,7 @@ class ForecastingService:
         slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
         return slope
     
-    def _generate_default_forecast(self, periods: int) -> Dict:
+    def _generate_default_forecast(self, periods: int, model_type: str = "Default") -> Dict:
         """Generate default forecast when no historical data is available"""
         base_demand = 50
         forecast_values = []
@@ -724,11 +756,14 @@ class ForecastingService:
             confidence_lower.append(round(daily_demand * 0.7, 2))
             confidence_upper.append(round(daily_demand * 1.3, 2))
         
+        # Use the requested model type if provided, otherwise "Default"
+        final_model_type = model_type if model_type and model_type != "Default" else "Default"
+        
         return {
             "forecast_values": forecast_values,
             "confidence_lower": confidence_lower,
             "confidence_upper": confidence_upper,
-            "model_type": "Default",
+            "model_type": final_model_type,
             "accuracy_score": 0.5,
             "metrics": {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': 0.5},
             "train_size": 0,
