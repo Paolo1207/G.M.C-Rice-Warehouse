@@ -1069,11 +1069,12 @@ class ForecastingService:
                 # Add realistic variation (like ARIMA would produce)
                 # Use a sine wave pattern with some randomness to create wavy effect
                 import math
-                # Create a cyclical pattern (weekly + longer cycle) with stronger amplitude
-                cycle1 = math.sin(2 * math.pi * i / 7) * 0.15  # Weekly cycle (increased from 0.1)
-                cycle2 = math.sin(2 * math.pi * i / 14) * 0.08  # Bi-weekly cycle (increased from 0.05)
-                cycle3 = math.sin(2 * math.pi * i / 21) * 0.05  # 3-week cycle for more variation
-                variation = (cycle1 + cycle2 + cycle3) * std_dev if std_dev > 0 else (cycle1 + cycle2 + cycle3) * mean_value * 0.15
+                # Create a cyclical pattern (weekly + longer cycle) with stronger amplitude for wavy pattern
+                cycle1 = math.sin(2 * math.pi * i / 7) * 0.25  # Weekly cycle (increased for more wavy)
+                cycle2 = math.sin(2 * math.pi * i / 14) * 0.15  # Bi-weekly cycle (increased)
+                cycle3 = math.sin(2 * math.pi * i / 21) * 0.1  # 3-week cycle (increased)
+                # Use larger multiplier for more pronounced waves like in reference image
+                variation = (cycle1 + cycle2 + cycle3) * std_dev * 1.3 if std_dev > 0 else (cycle1 + cycle2 + cycle3) * mean_value * 0.25
                 forecast_val += variation
                 
                 # Ensure forecast doesn't drop below 50% of mean (maintains reasonable demand)
@@ -1143,11 +1144,12 @@ class ForecastingService:
             for i in range(len(forecast_values)):
                 base_val = forecast_values[i]
                 
-                # Add cyclical variation (weekly + bi-weekly + 3-week cycles)
-                cycle1 = math.sin(2 * math.pi * i / 7) * 0.2  # Weekly cycle
-                cycle2 = math.sin(2 * math.pi * i / 14) * 0.12  # Bi-weekly cycle
-                cycle3 = math.sin(2 * math.pi * i / 21) * 0.08  # 3-week cycle
-                variation = (cycle1 + cycle2 + cycle3) * std_dev if std_dev > 0 else (cycle1 + cycle2 + cycle3) * base_mean * 0.2
+                # Add cyclical variation (weekly + bi-weekly + 3-week cycles) with stronger amplitude
+                cycle1 = math.sin(2 * math.pi * i / 7) * 0.3  # Weekly cycle (increased for more wavy pattern)
+                cycle2 = math.sin(2 * math.pi * i / 14) * 0.2  # Bi-weekly cycle (increased)
+                cycle3 = math.sin(2 * math.pi * i / 21) * 0.15  # 3-week cycle (increased)
+                # Use larger multiplier for more pronounced waves
+                variation = (cycle1 + cycle2 + cycle3) * std_dev * 1.5 if std_dev > 0 else (cycle1 + cycle2 + cycle3) * base_mean * 0.3
                 
                 # Apply variation to forecast
                 enhanced_val = base_val + variation

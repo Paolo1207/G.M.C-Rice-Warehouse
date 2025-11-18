@@ -930,38 +930,9 @@
             // Build datasets based on model type
             const datasets = [];
             
-            // Only add confidence intervals for ARIMA model (as filled area)
+            // Only add confidence intervals for ARIMA model (just lines, no fill)
             if (forecast.model_type === 'ARIMA' && forecast.confidence_lower && forecast.confidence_upper) {
-                // Create confidence interval as filled area (upper bound fills to lower bound)
-                // This dataset is hidden from legend but creates the fill
-                datasets.push({
-                    label: '', // Hidden from legend
-                    data: forecast.confidence_upper,
-                    borderColor: 'rgba(255, 152, 0, 0.3)',
-                    backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                    borderWidth: 0,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    order: 1
-                });
-                
-                // Lower bound for fill (also hidden)
-                datasets.push({
-                    label: '', // Hidden from legend
-                    data: forecast.confidence_lower,
-                    borderColor: 'rgba(255, 152, 0, 0.3)',
-                    backgroundColor: 'rgba(255, 152, 0, 0.15)',
-                    borderWidth: 0,
-                    fill: '-1', // Fill to previous dataset
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 0,
-                    order: 1
-                });
-                
-                // Add confidence upper line (dashed) - visible in legend
+                // Add confidence upper line (dashed orange) - no fill area
                 datasets.push({
                     label: 'Confidence Upper',
                     data: forecast.confidence_upper,
@@ -971,12 +942,12 @@
                     borderDash: [5, 5],
                     fill: false,
                     tension: 0.4,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
-                    order: 2
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    order: 1
                 });
                 
-                // Add confidence lower line (dashed) - visible in legend
+                // Add confidence lower line (dashed orange) - no fill area
                 datasets.push({
                     label: 'Confidence Lower',
                     data: forecast.confidence_lower,
@@ -986,9 +957,9 @@
                     borderDash: [5, 5],
                     fill: false,
                     tension: 0.4,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
-                    order: 2
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    order: 1
                 });
             }
             
@@ -997,13 +968,14 @@
                 label: 'Predicted Demand',
                 data: forecast.forecast_values,
                 borderColor: '#2e7d32',
-                backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                backgroundColor: 'transparent',
                 borderWidth: 3,
                 fill: false,
                 tension: 0.4,
                 pointRadius: 4,
                 pointHoverRadius: 6,
-                order: 3
+                pointStyle: 'circle',
+                order: 2
             });
             
             // Set chart title based on model type
