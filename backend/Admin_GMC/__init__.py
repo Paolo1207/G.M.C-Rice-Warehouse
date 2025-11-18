@@ -4289,6 +4289,269 @@ def api_dashboard_alerts():
         "total_count": len(alerts)
     })
 
+@admin_bp.get("/api/dashboard/rice-stock")
+def api_dashboard_rice_stock():
+    """Get current rice stock data for dashboard chart"""
+    try:
+        from sqlalchemy import func
+        from models import InventoryItem, Product, Branch
+        
+        # Get query parameters
+        branch_id = request.args.get('branch_id', type=int)
+        
+        # Base query - get inventory items with product and branch info
+        query = db.session.query(
+            InventoryItem.product_id,
+            Product.name.label('product_name'),
+            InventoryItem.branch_id,
+            Branch.name.label('branch_name'),
+            func.sum(InventoryItem.stock_kg).label('stock_kg')
+        ).join(
+            Product, InventoryItem.product_id == Product.id
+        ).join(
+            Branch, InventoryItem.branch_id == Branch.id
+        ).filter(
+            InventoryItem.stock_kg > 0  # Only show items with stock
+        )
+        
+        # Apply branch filter if provided
+        if branch_id:
+            query = query.filter(InventoryItem.branch_id == branch_id)
+        
+        # Group by product and branch (to aggregate multiple batches)
+        if branch_id:
+            # Single branch - group by product only
+            query = query.group_by(
+                InventoryItem.product_id,
+                Product.name
+            )
+        else:
+            # All branches - group by product and branch
+            query = query.group_by(
+                InventoryItem.product_id,
+                Product.name,
+                InventoryItem.branch_id,
+                Branch.name
+            )
+        
+        results = query.all()
+        
+        # Format response
+        stock_data = []
+        branch_name_map = {}
+        if branch_id:
+            branch = Branch.query.get(branch_id)
+            if branch:
+                branch_name_map[branch_id] = branch.name
+        
+        for row in results:
+            row_branch_id = row.branch_id if hasattr(row, 'branch_id') else branch_id
+            row_branch_name = row.branch_name if hasattr(row, 'branch_name') else (branch_name_map.get(branch_id) if branch_id else None)
+            
+            stock_data.append({
+                'product_id': row.product_id,
+                'product_name': row.product_name,
+                'stock_kg': float(row.stock_kg or 0),
+                'branch_id': row_branch_id,
+                'branch_name': row_branch_name
+            })
+        
+        # Sort by stock quantity (descending)
+        stock_data.sort(key=lambda x: x['stock_kg'], reverse=True)
+        
+        return jsonify({
+            "ok": True,
+            "stock_data": stock_data
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in api_dashboard_rice_stock: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to load rice stock data: {str(e)}",
+            "stock_data": []
+        }), 500
+
+@admin_bp.get("/api/dashboard/predictive-demand")
+def api_dashboard_predictive_demand():
+    """Get predictive demand forecast data for dashboard chart"""
+    try:
+        from datetime import datetime, date, timedelta
+        from sqlalchemy import func
+        from models import Branch, Product, SalesTransaction
+        from forecasting_service import ForecastingService
+        
+        # Get query parameters
+        branch_id = request.args.get('branch_id', type=int)
+        periods = request.args.get('periods', '30', type=int)
+        
+        # Validate periods
+        if periods not in [7, 30, 90]:
+            periods = 30
+        
+        # Initialize forecasting service
+        forecasting_service = ForecastingService()
+        
+        # Get all branches if no branch filter, otherwise just the selected branch
+        if branch_id:
+            branches = Branch.query.filter_by(id=branch_id).all()
+        else:
+            branches = Branch.query.all()
+        
+        # Get all products
+        products = Product.query.all()
+        
+        # If no branches or products, return empty data
+        if not branches or not products:
+            return jsonify({
+                "ok": True,
+                "forecast_data": []
+            })
+        
+        forecast_data = []
+        
+        # If viewing all branches, return aggregated forecast by branch
+        if not branch_id:
+            # All branches - generate forecast for each branch (aggregate all products)
+            for branch in branches:
+                # Get historical sales for this branch (all products combined)
+                today_utc = datetime.utcnow()
+                date_threshold = today_utc - timedelta(days=912)  # 2.5 years
+                
+                # Get all sales transactions for this branch
+                sales_data = (
+                    SalesTransaction.query
+                    .filter_by(branch_id=branch.id)
+                    .filter(SalesTransaction.transaction_date >= date_threshold)
+                    .filter(SalesTransaction.transaction_date <= today_utc)
+                    .order_by(SalesTransaction.transaction_date.desc())
+                    .all()
+                )
+                
+                if not sales_data:
+                    continue
+                
+                # Aggregate sales by date (sum all products for this branch)
+                sales_by_date = {}
+                for sale in sales_data:
+                    sale_date = sale.transaction_date.date() if hasattr(sale.transaction_date, 'date') else sale.transaction_date
+                    if sale_date not in sales_by_date:
+                        sales_by_date[sale_date] = 0
+                    sales_by_date[sale_date] += float(sale.quantity_sold or 0)
+                
+                # Convert to list format for forecasting service
+                historical_data = [
+                    {
+                        'transaction_date': date_key,
+                        'quantity_sold': qty,
+                        'branch_id': branch.id,
+                        'product_id': 0  # Aggregated across all products
+                    }
+                    for date_key, qty in sales_by_date.items()
+                ]
+                
+                # Generate forecast using ARIMA
+                try:
+                    forecast_result = forecasting_service.generate_arima_forecast(historical_data, periods)
+                    
+                    if forecast_result and forecast_result.get('forecast_values'):
+                        # Generate dates for forecast
+                        start_date = date.today()
+                        forecast_dates = [
+                            (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
+                            for i in range(periods)
+                        ]
+                        
+                        forecast_data.append({
+                            'branch_id': branch.id,
+                            'branch_name': branch.name,
+                            'forecast_data': [
+                                {
+                                    'date': forecast_dates[i],
+                                    'forecast': forecast_result['forecast_values'][i],
+                                    'confidence_lower': forecast_result.get('confidence_lower', [])[i] if forecast_result.get('confidence_lower') else None,
+                                    'confidence_upper': forecast_result.get('confidence_upper', [])[i] if forecast_result.get('confidence_upper') else None
+                                }
+                                for i in range(min(len(forecast_result['forecast_values']), len(forecast_dates)))
+                            ]
+                        })
+                except Exception as e:
+                    print(f"Error generating forecast for branch {branch.id}: {e}")
+                    continue
+        else:
+            # Single branch - aggregate all products or show per product
+            # For simplicity, aggregate all products for the selected branch
+            branch = branches[0]
+            
+            today_utc = datetime.utcnow()
+            date_threshold = today_utc - timedelta(days=912)
+            
+            sales_data = (
+                SalesTransaction.query
+                .filter_by(branch_id=branch.id)
+                .filter(SalesTransaction.transaction_date >= date_threshold)
+                .filter(SalesTransaction.transaction_date <= today_utc)
+                .order_by(SalesTransaction.transaction_date.desc())
+                .all()
+            )
+            
+            if sales_data:
+                # Aggregate sales by date
+                sales_by_date = {}
+                for sale in sales_data:
+                    sale_date = sale.transaction_date.date() if hasattr(sale.transaction_date, 'date') else sale.transaction_date
+                    if sale_date not in sales_by_date:
+                        sales_by_date[sale_date] = 0
+                    sales_by_date[sale_date] += float(sale.quantity_sold or 0)
+                
+                historical_data = [
+                    {
+                        'transaction_date': date_key,
+                        'quantity_sold': qty,
+                        'branch_id': branch.id,
+                        'product_id': 0
+                    }
+                    for date_key, qty in sales_by_date.items()
+                ]
+                
+                try:
+                    forecast_result = forecasting_service.generate_arima_forecast(historical_data, periods)
+                    
+                    if forecast_result and forecast_result.get('forecast_values'):
+                        start_date = date.today()
+                        forecast_dates = [
+                            (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
+                            for i in range(periods)
+                        ]
+                        
+                        forecast_data = [
+                            {
+                                'date': forecast_dates[i],
+                                'forecast': forecast_result['forecast_values'][i],
+                                'confidence_lower': forecast_result.get('confidence_lower', [])[i] if forecast_result.get('confidence_lower') else None,
+                                'confidence_upper': forecast_result.get('confidence_upper', [])[i] if forecast_result.get('confidence_upper') else None
+                            }
+                            for i in range(min(len(forecast_result['forecast_values']), len(forecast_dates)))
+                        ]
+                except Exception as e:
+                    print(f"Error generating forecast for branch {branch.id}: {e}")
+                    forecast_data = []
+        
+        return jsonify({
+            "ok": True,
+            "forecast_data": forecast_data
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in api_dashboard_predictive_demand: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to load predictive demand data: {str(e)}",
+            "forecast_data": []
+        }), 500
+
 def get_time_ago(dt):
     """Helper function to get human-readable time ago"""
     now = datetime.now()
