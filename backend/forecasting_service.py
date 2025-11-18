@@ -245,16 +245,35 @@ class ForecastingService:
     def generate_arima_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
         """
         Generate ARIMA forecast with proper ETL, train/test split, and training
+        Uses ONLY historical sales data - no estimated data
         """
         try:
+            # Validate that we have actual historical sales data
+            if not historical_data or len(historical_data) == 0:
+                print("ARIMA: No historical sales data provided - cannot generate forecast")
+                return self._generate_default_forecast(periods, "ARIMA")
+            
+            # Check if data has actual sales values
+            total_quantity = sum(float(d.get('quantity_sold', 0)) for d in historical_data)
+            if total_quantity <= 0:
+                print("ARIMA: Historical data has no sales quantity - cannot generate forecast")
+                return self._generate_default_forecast(periods, "ARIMA")
+            
+            print(f"ARIMA: Using {len(historical_data)} historical sales records with total quantity {total_quantity:.2f} kg")
+            
             # ETL Pipeline
             raw_df = self.etl.extract(historical_data)
             if raw_df.empty:
-                return self._generate_default_forecast(periods)
+                print("ARIMA: ETL Extract returned empty dataframe")
+                return self._generate_default_forecast(periods, "ARIMA")
             
             processed_data = self.etl.transform(raw_df)
             if processed_data.empty:
-                return self._generate_default_forecast(periods)
+                print("ARIMA: ETL Transform returned empty series")
+                return self._generate_default_forecast(periods, "ARIMA")
+            
+            # Ensure processed data has no negative values
+            processed_data = processed_data.clip(lower=0)
             
             final_data = self.etl.load(processed_data)
             
@@ -320,8 +339,33 @@ class ForecastingService:
                     conf_int = model.get_forecast(steps=periods).conf_int()
                     
                     forecast_values = forecast_result.tolist()
-                    confidence_lower = conf_int.iloc[:, 0].tolist()
-                    confidence_upper = conf_int.iloc[:, 1].tolist()
+                    confidence_lower_raw = conf_int.iloc[:, 0].tolist()
+                    confidence_upper_raw = conf_int.iloc[:, 1].tolist()
+                    
+                    # Ensure no negative values - sales/demand cannot be negative
+                    forecast_values = [max(0, float(v)) for v in forecast_values]
+                    confidence_lower = [max(0, float(v)) for v in confidence_lower_raw]  # Clamp to 0
+                    confidence_upper = [max(0, float(v)) for v in confidence_upper_raw]  # Ensure upper >= lower
+                    
+                    # Ensure confidence intervals are valid (upper >= lower >= 0)
+                    for i in range(len(forecast_values)):
+                        forecast_val = forecast_values[i]
+                        conf_low = confidence_lower[i]
+                        conf_up = confidence_upper[i]
+                        
+                        # If confidence lower is negative or greater than forecast, adjust it
+                        if conf_low < 0:
+                            conf_low = max(0, forecast_val * 0.5)  # At least 50% of forecast
+                        if conf_low > forecast_val:
+                            conf_low = forecast_val * 0.8  # 80% of forecast
+                        
+                        # Ensure upper is at least as high as forecast
+                        if conf_up < forecast_val:
+                            conf_up = forecast_val * 1.2  # 120% of forecast
+                        
+                        confidence_lower[i] = round(conf_low, 2)
+                        confidence_upper[i] = round(conf_up, 2)
+                        forecast_values[i] = round(forecast_val, 2)
                     
                     # Check if forecast is constant (flat line) - this indicates a problem
                     if len(forecast_values) > 1:
@@ -338,20 +382,28 @@ class ForecastingService:
                                 forecast_val = last_value + (trend * (i + 1))
                                 # Add small random variation to avoid flat line
                                 variation = np.random.normal(0, std_dev * 0.1) if std_dev > 0 else 0
-                                forecast_val = max(0, forecast_val + variation)
-                                forecast_values[i] = round(forecast_val, 2)
+                                forecast_val = max(0, forecast_val + variation)  # Ensure non-negative
                                 
-                                ci_margin = max(forecast_val * 0.15, std_dev * 1.5)
-                                confidence_lower[i] = round(max(0, forecast_val - ci_margin), 2)
-                                confidence_upper[i] = round(forecast_val + ci_margin, 2)
+                                # Calculate confidence intervals ensuring no negative values
+                                ci_margin = max(forecast_val * 0.15, std_dev * 1.5) if std_dev > 0 else forecast_val * 0.2
+                                conf_low = max(0, forecast_val - ci_margin)  # Clamp to 0
+                                conf_up = forecast_val + ci_margin
+                                
+                                # Ensure confidence lower is reasonable (at least 50% of forecast)
+                                if conf_low > forecast_val * 0.9:
+                                    conf_low = forecast_val * 0.5
+                                
+                                forecast_values[i] = round(forecast_val, 2)
+                                confidence_lower[i] = round(conf_low, 2)
+                                confidence_upper[i] = round(conf_up, 2)
                 except Exception as e:
                     print(f"ARIMA forecast generation error: {e}")
                     import traceback
                     traceback.print_exc()
                     # Improved fallback with trend instead of flat line
                     trend = self._calculate_trend(train_data)
-                    last_value = float(train_data.iloc[-1])
-                    std_dev = max(data_variance, data_mean * 0.1) if data_variance > 0 else data_mean * 0.2
+                    last_value = max(0, float(train_data.iloc[-1]))  # Ensure non-negative
+                    std_dev = max(data_variance, data_mean * 0.1) if data_variance > 0 else max(data_mean * 0.2, 1.0)
                     
                     for i in range(periods):
                         # Apply trend
@@ -359,30 +411,46 @@ class ForecastingService:
                         # Add small variation to avoid completely flat line
                         if std_dev > 0:
                             variation = np.random.normal(0, std_dev * 0.1)
-                            forecast_val = max(0, forecast_val + variation)
+                            forecast_val = max(0, forecast_val + variation)  # Ensure non-negative
                         else:
                             forecast_val = max(0, forecast_val)
                         
-                        forecast_values.append(round(forecast_val, 2))
+                        # Calculate confidence intervals ensuring no negative values
                         ci_margin = max(forecast_val * 0.15, std_dev * 1.5) if std_dev > 0 else forecast_val * 0.2
-                        confidence_lower.append(round(max(0, forecast_val - ci_margin), 2))
-                        confidence_upper.append(round(forecast_val + ci_margin, 2))
+                        conf_low = max(0, forecast_val - ci_margin)  # Clamp to 0
+                        conf_up = forecast_val + ci_margin  # Upper bound
+                        
+                        # Ensure confidence lower is reasonable (at least 50% of forecast)
+                        if conf_low > forecast_val * 0.9:
+                            conf_low = forecast_val * 0.5
+                        
+                        forecast_values.append(round(forecast_val, 2))
+                        confidence_lower.append(round(conf_low, 2))
+                        confidence_upper.append(round(conf_up, 2))
             else:
                 # Simplified ARIMA (moving average based)
                 window_size = min(7, len(train_data) // 2)
                 ma = train_data.rolling(window=window_size).mean()
-                last_ma = float(ma.iloc[-1]) if not ma.empty else float(train_data.mean())
+                last_ma = max(0, float(ma.iloc[-1])) if not ma.empty else max(0, float(train_data.mean()))
                 trend = self._calculate_trend(train_data)
-                std_dev = float(train_data.std()) if not train_data.empty else last_ma * 0.2
+                std_dev = max(float(train_data.std()), last_ma * 0.1) if not train_data.empty else max(last_ma * 0.2, 1.0)
                 
                 for i in range(periods):
                     forecast_val = last_ma + (trend * (i + 1))
-                    forecast_val = max(0, forecast_val)
-                    forecast_values.append(round(forecast_val, 2))
+                    forecast_val = max(0, forecast_val)  # Ensure non-negative
                     
+                    # Calculate confidence intervals ensuring no negative values
                     ci_margin = max(forecast_val * 0.2, min(std_dev * 1.96, forecast_val * 0.5))
-                    confidence_lower.append(round(max(0, forecast_val - ci_margin), 2))
-                    confidence_upper.append(round(forecast_val + ci_margin, 2))
+                    conf_low = max(0, forecast_val - ci_margin)  # Clamp to 0
+                    conf_up = forecast_val + ci_margin
+                    
+                    # Ensure confidence lower is reasonable (at least 50% of forecast)
+                    if conf_low > forecast_val * 0.9:
+                        conf_low = forecast_val * 0.5
+                    
+                    forecast_values.append(round(forecast_val, 2))
+                    confidence_lower.append(round(conf_low, 2))
+                    confidence_upper.append(round(conf_up, 2))
             
             return {
                 "forecast_values": forecast_values,
