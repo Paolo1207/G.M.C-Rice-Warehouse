@@ -244,18 +244,13 @@
             </div>
         </div>
 
-        <!-- Forecast vs Actual Chart -->
+        <!-- Current Rice Stock Chart -->
         <div class="dashboard-widgets-row">
             <div class="dashboard-widget-wide chart-widget">
                 <div class="widget-header">
-                    <h3>🔮 Forecast vs Actual</h3>
+                    <h3>📦 Current Rice Stock</h3>
                     <div class="chart-controls">
-                        <select class="chart-period" id="forecastPeriod">
-                            <option value="7">Last 7 days</option>
-                            <option value="30" selected>Last 30 days</option>
-                            <option value="90">Last 90 days</option>
-                        </select>
-                        <select class="branch-filter" id="forecastBranch">
+                        <select class="branch-filter" id="riceStockBranch">
                             <option value="">All Branches</option>
                             <option value="1">Marawoy</option>
                             <option value="2">Lipa</option>
@@ -267,19 +262,23 @@
                     </div>
                 </div>
                 <div class="chart-container">
-                    <canvas id="forecastVsActualChart" width="400" height="200"></canvas>
+                    <canvas id="riceStockChart" width="400" height="200"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Top Products Chart -->
+        <!-- Predictive Demand Graph -->
         <div class="dashboard-widgets-row">
-            <div class="dashboard-widget chart-widget">
+            <div class="dashboard-widget-wide chart-widget">
                 <div class="widget-header">
-                    <h3>🏆 Top Products</h3>
+                    <h3>🔮 Predictive Demand Graph</h3>
                     <div class="chart-controls">
-                        <span class="chart-subtitle">Manager Sales</span>
-                        <select class="branch-filter" id="topProductsBranch">
+                        <select class="chart-period" id="predictiveDemandPeriod">
+                            <option value="7">Next 7 days</option>
+                            <option value="30" selected>Next 30 days</option>
+                            <option value="90">Next 90 days</option>
+                        </select>
+                        <select class="branch-filter" id="predictiveDemandBranch">
                             <option value="">All Branches</option>
                             <option value="1">Marawoy</option>
                             <option value="2">Lipa</option>
@@ -291,7 +290,7 @@
                     </div>
                 </div>
                 <div class="chart-container">
-                    <canvas id="topProductsChart" width="400" height="200"></canvas>
+                    <canvas id="predictiveDemandChart" width="400" height="200"></canvas>
                 </div>
             </div>
         </div>
@@ -592,8 +591,8 @@
         async function loadChartData() {
             await Promise.all([
                 loadSalesTrendData(),
-                loadForecastData(),
-                loadTopProductsData()
+                loadRiceStockData(),
+                loadPredictiveDemandData()
             ]);
         }
 
@@ -621,49 +620,55 @@
             }
         }
 
-        // Load Forecast data with its own filters
-        async function loadForecastData() {
+        // Load Current Rice Stock data
+        async function loadRiceStockData() {
             try {
-                const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
-                const forecastBranch = document.getElementById('forecastBranch')?.value || '';
+                const riceStockBranch = document.getElementById('riceStockBranch')?.value || '';
 
                 const params = new URLSearchParams();
-                if (forecastBranch) params.append('branch_id', forecastBranch);
-                if (forecastPeriod) params.append('days', forecastPeriod);
+                if (riceStockBranch) params.append('branch_id', riceStockBranch);
 
-                console.log('Loading Forecast with filters:', { forecastPeriod, forecastBranch });
+                console.log('Loading Rice Stock with filters:', { riceStockBranch });
 
-                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+                const response = await fetch(`/admin/api/dashboard/rice-stock?${params.toString()}`);
                 const data = await response.json();
                 
                 if (data.ok) {
-                    updateForecastVsActualChart(data.charts.forecast_vs_actual);
-                    updateForecastFilterDisplay();
+                    updateRiceStockChart(data.stock_data);
+                } else {
+                    console.error('Error loading rice stock:', data.error);
+                    updateRiceStockChart([]);
                 }
             } catch (error) {
-                console.error('Error loading forecast data:', error);
+                console.error('Error loading rice stock data:', error);
+                updateRiceStockChart([]);
             }
         }
 
-        // Load Top Products data with its own filters
-        async function loadTopProductsData() {
+        // Load Predictive Demand data
+        async function loadPredictiveDemandData() {
             try {
-                const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
+                const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod')?.value || '30';
+                const predictiveDemandBranch = document.getElementById('predictiveDemandBranch')?.value || '';
 
                 const params = new URLSearchParams();
-                if (topProductsBranch) params.append('branch_id', topProductsBranch);
+                if (predictiveDemandBranch) params.append('branch_id', predictiveDemandBranch);
+                if (predictiveDemandPeriod) params.append('periods', predictiveDemandPeriod);
 
-                console.log('Loading Top Products with filters:', { topProductsBranch });
+                console.log('Loading Predictive Demand with filters:', { predictiveDemandPeriod, predictiveDemandBranch });
 
-                const response = await fetch(`/admin/api/dashboard/charts?${params.toString()}`);
+                const response = await fetch(`/admin/api/dashboard/predictive-demand?${params.toString()}`);
                 const data = await response.json();
                 
                 if (data.ok) {
-                    updateTopProductsChart(data.charts.top_products);
-                    updateTopProductsFilterDisplay();
+                    updatePredictiveDemandChart(data.forecast_data);
+                } else {
+                    console.error('Error loading predictive demand:', data.error);
+                    updatePredictiveDemandChart([]);
                 }
             } catch (error) {
-                console.error('Error loading top products data:', error);
+                console.error('Error loading predictive demand data:', error);
+                updatePredictiveDemandChart([]);
             }
         }
 
@@ -701,28 +706,6 @@
             }
         }
 
-        // Update filter display for Forecast
-        function updateForecastFilterDisplay() {
-            const forecastBranch = document.getElementById('forecastBranch')?.value || '';
-            const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
-
-            const forecastTitle = document.querySelector('#forecastVsActualChart').closest('.chart-widget')?.querySelector('.chart-subtitle');
-            if (forecastTitle) {
-                const branchText = forecastBranch ? ` - Branch ${forecastBranch}` : ' - All Branches';
-                forecastTitle.textContent = `Forecast vs Actual (Last ${forecastPeriod} days${branchText})`;
-            }
-        }
-
-        // Update filter display for Top Products
-        function updateTopProductsFilterDisplay() {
-            const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
-
-            const topProductsTitle = document.querySelector('#topProductsChart').closest('.chart-widget')?.querySelector('.chart-subtitle');
-            if (topProductsTitle) {
-                const branchText = topProductsBranch ? ` - Branch ${topProductsBranch}` : ' - All Branches';
-                topProductsTitle.textContent = `Manager Sales${branchText}`;
-            }
-        }
 
         // Branch color palette
         const branchColors = [
@@ -905,255 +888,22 @@
             });
         }
 
-        // Update Forecast vs Actual Chart
-        function updateForecastVsActualChart(data) {
-            const ctx = document.getElementById('forecastVsActualChart');
+        // Update Current Rice Stock Chart
+        function updateRiceStockChart(data) {
+            const ctx = document.getElementById('riceStockChart');
             if (!ctx) return;
 
-            if (window.forecastVsActualChart && typeof window.forecastVsActualChart.destroy === 'function') {
-                window.forecastVsActualChart.destroy();
-            }
-
-            // Check if data is branch-specific (array of branch objects) or aggregated (array of date objects)
-            const isBranchSpecific = data && data.length > 0 && data[0].hasOwnProperty('branch_id');
-            const forecastBranch = document.getElementById('forecastBranch')?.value || '';
-
-            let labels = [];
-            let datasets = [];
-
-            if (isBranchSpecific && !forecastBranch) {
-                // All branches - multiple lines for actual and forecast
-                if (data.length === 0) {
-                    labels = ['No Data'];
-                    datasets = [
-                        {
-                            label: 'Actual Sales (kg)',
-                            data: [0],
-                            borderColor: '#1976d2',
-                            borderWidth: 2,
-                            fill: false
-                        },
-                        {
-                            label: 'Forecast (kg)',
-                            data: [0],
-                            borderColor: '#ff9800',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            fill: false
-                        }
-                    ];
-                } else {
-                    // Get all unique dates from all branches
-                    const allDates = new Set();
-                    data.forEach(branch => {
-                        branch.data.forEach(item => allDates.add(item.date));
-                    });
-                    labels = Array.from(allDates).sort();
-
-                    // Create datasets for each branch (actual and forecast)
-                    data.forEach((branch, index) => {
-                        const colorIndex = (branch.branch_id - 1) % branchColors.length;
-                        const colors = branchColors[colorIndex];
-                        
-                        // Map branch data to labels
-                        const actualData = labels.map(date => {
-                            const item = branch.data.find(d => d.date === date);
-                            return item ? item.actual : 0;
-                        });
-
-                        const forecastData = labels.map(date => {
-                            const item = branch.data.find(d => d.date === date);
-                            return item ? item.forecast : 0;
-                        });
-
-                        // Actual line (solid)
-                        datasets.push({
-                            label: `${branch.branch_name} - Actual`,
-                            data: actualData,
-                            borderColor: colors.border,
-                            backgroundColor: colors.fill,
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0.4,
-                            pointBackgroundColor: colors.border,
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        });
-
-                        // Forecast line (dashed, slightly lighter) - use same color but with opacity
-                        datasets.push({
-                            label: `${branch.branch_name} - Forecast`,
-                            data: forecastData,
-                            borderColor: colors.border + '80', // Add 50% opacity (hex 80 = 128/255)
-                            backgroundColor: colors.fill,
-                            borderWidth: 3,
-                            borderDash: [5, 5],
-                            fill: false,
-                            tension: 0.4,
-                            pointBackgroundColor: colors.border + '80',
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        });
-                    });
-                }
-            } else {
-                // Single branch or aggregated - two lines (actual and forecast)
-                if (!data || data.length === 0) {
-                    labels = ['No Data'];
-                    datasets = [
-                        {
-                            label: 'Actual Sales (kg)',
-                            data: [0],
-                            borderColor: '#1976d2',
-                            borderWidth: 2,
-                            fill: false
-                        },
-                        {
-                            label: 'Forecast (kg)',
-                            data: [0],
-                            borderColor: '#ff9800',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            fill: false
-                        }
-                    ];
-                } else {
-                    labels = data.map(item => item.date);
-                    const actualData = data.map(item => item.actual);
-                    const forecastData = data.map(item => item.forecast);
-                    
-                    datasets = [
-                        {
-                            label: 'Actual Sales (kg)',
-                            data: actualData,
-                            borderColor: '#1976d2',
-                            backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0.4,
-                            pointBackgroundColor: '#1976d2',
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        },
-                        {
-                            label: 'Forecast (kg)',
-                            data: forecastData,
-                            borderColor: '#ff9800',
-                            backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                            borderWidth: 3,
-                            borderDash: [5, 5],
-                            fill: false,
-                            tension: 0.4,
-                            pointBackgroundColor: '#ff9800',
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            pointHoverRadius: 6
-                        }
-                    ];
-                }
-            }
-
-            window.forecastVsActualChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top',
-                        labels: {
-                            boxWidth: 12,
-                            padding: 8,
-                            font: {
-                                size: 11
-                            },
-                            usePointStyle: true
-                        }
-                    },
-                    title: { 
-                        display: true, 
-                        text: 'Forecast vs Actual Sales',
-                        font: { size: 14, weight: 'bold' }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: '#2e7d32',
-                        borderWidth: 1,
-                        cornerRadius: 8,
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
-                                }
-                            }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)',
-                            drawBorder: false
-                        },
-                            title: { 
-                                display: true, 
-                                text: 'Quantity (kg)',
-                                font: { size: 12, weight: 'bold' }
-                        },
-                        ticks: {
-                            callback: function(value) {
-                                    return value.toLocaleString() + ' kg';
-                            },
-                                font: { size: 11 }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)',
-                            drawBorder: false
-                        },
-                        ticks: {
-                                font: { size: 11 }
-                        }
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                    }
-                }
-            });
-        }
-
-        // Update Top Products Chart
-        function updateTopProductsChart(data) {
-            const ctx = document.getElementById('topProductsChart');
-            if (!ctx) return;
-
-            if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
-                window.topProductsChart.destroy();
+            if (window.riceStockChart && typeof window.riceStockChart.destroy === 'function') {
+                window.riceStockChart.destroy();
             }
 
             // Handle empty data
             if (!data || data.length === 0) {
-                data = [{ name: 'No Data', quantity: 0 }];
+                data = [{ product_name: 'No Data', stock_kg: 0 }];
             }
 
-            const topProductsBranch = document.getElementById('topProductsBranch')?.value || '';
-            const isAllBranches = !topProductsBranch;
+            const riceStockBranch = document.getElementById('riceStockBranch')?.value || '';
+            const isAllBranches = !riceStockBranch;
             
             // Check if data has branch information
             const hasBranchInfo = data.length > 0 && (data[0].branch_name || data[0].branch_id);
@@ -1161,33 +911,30 @@
             // Create labels with branch information when viewing all branches
             const labels = data.map(item => {
                 if (isAllBranches && hasBranchInfo && item.branch_name) {
-                    return `${item.name} - ${item.branch_name}`;
+                    return `${item.product_name} - ${item.branch_name}`;
                 }
-                return item.name;
+                return item.product_name || item.name || 'Unknown';
             });
-            const quantities = data.map(item => item.quantity);
+            const stockQuantities = data.map(item => item.stock_kg || item.quantity || 0);
 
-            window.topProductsChart = new Chart(ctx, {
+            window.riceStockChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: 'Quantity Sold (kg)',
-                        data: quantities,
-                        backgroundColor: [
-                            'rgba(46, 125, 50, 0.8)',
-                            'rgba(59, 130, 246, 0.8)',
-                            'rgba(245, 158, 11, 0.8)',
-                            'rgba(139, 92, 246, 0.8)',
-                            'rgba(236, 72, 153, 0.8)'
-                        ],
-                        borderColor: [
-                            '#2e7d32',
-                            '#3b82f6',
-                            '#f59e0b',
-                            '#8b5cf6',
-                            '#ec4899'
-                        ],
+                        label: 'Current Stock (kg)',
+                        data: stockQuantities,
+                        backgroundColor: stockQuantities.map(qty => {
+                            // Color coding: green for good stock, yellow for medium, red for low
+                            if (qty > 500) return 'rgba(46, 125, 50, 0.8)'; // Green
+                            if (qty > 200) return 'rgba(245, 158, 11, 0.8)'; // Yellow/Orange
+                            return 'rgba(220, 38, 38, 0.8)'; // Red
+                        }),
+                        borderColor: stockQuantities.map(qty => {
+                            if (qty > 500) return '#2e7d32';
+                            if (qty > 200) return '#f59e0b';
+                            return '#dc2626';
+                        }),
                         borderWidth: 2,
                         borderRadius: 8,
                         borderSkipped: false
@@ -1202,7 +949,7 @@
                         },
                         title: { 
                             display: true, 
-                            text: 'Top 5 Products (Manager Sales)',
+                            text: 'Current Rice Stock by Product',
                             font: { size: 14, weight: 'bold' }
                         },
                         tooltip: {
@@ -1216,22 +963,16 @@
                                 title: function(context) {
                                     const item = data[context[0].dataIndex];
                                     if (isAllBranches && hasBranchInfo && item.branch_name) {
-                                        return `${item.name} (${item.branch_name})`;
+                                        return `${item.product_name || item.name} (${item.branch_name})`;
                                     }
-                                    return item.name;
+                                    return item.product_name || item.name || 'Unknown';
                                 },
                                 label: function(context) {
                                     const item = data[context.dataIndex];
-                                    let label = 'Quantity: ' + context.parsed.y.toLocaleString() + ' kg';
+                                    let label = 'Stock: ' + context.parsed.y.toLocaleString() + ' kg';
                                     
-                                    // Add branch info in tooltip if viewing all branches
                                     if (isAllBranches && hasBranchInfo && item.branch_name) {
                                         label += '\nBranch: ' + item.branch_name;
-                                    }
-                                    
-                                    // Add sales/revenue if available
-                                    if (item.sales) {
-                                        label += '\nRevenue: ₱' + Number(item.sales).toLocaleString();
                                     }
                                     
                                     return label;
@@ -1248,7 +989,7 @@
                             },
                             title: { 
                                 display: true, 
-                                text: 'Quantity (kg)',
+                                text: 'Stock Quantity (kg)',
                                 font: { size: 12, weight: 'bold' }
                             },
                             ticks: {
@@ -1268,10 +1009,192 @@
                                 maxRotation: isAllBranches && hasBranchInfo ? 45 : 0,
                                 minRotation: isAllBranches && hasBranchInfo ? 45 : 0
                             }
+                        }
                     }
                 }
+            });
+        }
+
+        // Update Predictive Demand Chart
+        function updatePredictiveDemandChart(data) {
+            const ctx = document.getElementById('predictiveDemandChart');
+            if (!ctx) return;
+
+            if (window.predictiveDemandChart && typeof window.predictiveDemandChart.destroy === 'function') {
+                window.predictiveDemandChart.destroy();
             }
-        });
+
+            // Handle empty data
+            if (!data || data.length === 0) {
+                data = [{ date: 'No Data', forecast: 0, confidence_lower: 0, confidence_upper: 0 }];
+            }
+
+            const predictiveDemandBranch = document.getElementById('predictiveDemandBranch')?.value || '';
+            const isAllBranches = !predictiveDemandBranch;
+
+            let labels = [];
+            let datasets = [];
+
+            // Check if data is branch-specific
+            const isBranchSpecific = data.length > 0 && data[0].hasOwnProperty('branch_id');
+
+            if (isBranchSpecific && isAllBranches) {
+                // All branches - multiple lines
+                const allDates = new Set();
+                data.forEach(branch => {
+                    if (branch.forecast_data) {
+                        branch.forecast_data.forEach(item => allDates.add(item.date));
+                    }
+                });
+                labels = Array.from(allDates).sort();
+
+                data.forEach((branch, index) => {
+                    const colorIndex = (branch.branch_id - 1) % branchColors.length;
+                    const colors = branchColors[colorIndex];
+                    
+                    if (branch.forecast_data) {
+                        const forecastData = labels.map(date => {
+                            const item = branch.forecast_data.find(d => d.date === date);
+                            return item ? item.forecast : 0;
+                        });
+
+                        datasets.push({
+                            label: `${branch.branch_name} - Forecast`,
+                            data: forecastData,
+                            borderColor: colors.border,
+                            backgroundColor: colors.fill,
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4,
+                            pointBackgroundColor: colors.border,
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            pointHoverRadius: 6
+                        });
+                    }
+                });
+            } else {
+                // Single branch or aggregated
+                labels = data.map(item => item.date || item.day);
+                const forecastData = data.map(item => item.forecast || item.predicted_demand || 0);
+                const confidenceLower = data.map(item => item.confidence_lower || item.lower_bound || 0);
+                const confidenceUpper = data.map(item => item.confidence_upper || item.upper_bound || 0);
+
+                datasets = [
+                    {
+                        label: 'Predicted Demand (kg)',
+                        data: forecastData,
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: false,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2e7d32',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Confidence Upper',
+                        data: confidenceUpper,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 3
+                    },
+                    {
+                        label: 'Confidence Lower',
+                        data: confidenceLower,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 3
+                    }
+                ];
+            }
+
+            window.predictiveDemandChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8,
+                                font: { size: 11 },
+                                usePointStyle: true
+                            }
+                        },
+                        title: { 
+                            display: true, 
+                            text: 'Predictive Demand Forecast',
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Demand (kg)',
+                                font: { size: 12, weight: 'bold' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' kg';
+                                },
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
         }
 
         // Load Alerts data
@@ -1376,31 +1299,31 @@
                 });
             }
 
-            // Forecast filters
-            const forecastPeriod = document.getElementById('forecastPeriod');
-            const forecastBranch = document.getElementById('forecastBranch');
+            // Rice Stock filter
+            const riceStockBranch = document.getElementById('riceStockBranch');
             
-            if (forecastPeriod) {
-                forecastPeriod.addEventListener('change', () => {
-                    console.log('Forecast Period changed to:', forecastPeriod.value);
-                    loadForecastData();
-                });
-            }
-            
-            if (forecastBranch) {
-                forecastBranch.addEventListener('change', () => {
-                    console.log('Forecast Branch changed to:', forecastBranch.value);
-                    loadForecastData();
+            if (riceStockBranch) {
+                riceStockBranch.addEventListener('change', () => {
+                    console.log('Rice Stock Branch changed to:', riceStockBranch.value);
+                    loadRiceStockData();
                 });
             }
 
-            // Top products filter
-            const topProductsBranch = document.getElementById('topProductsBranch');
+            // Predictive Demand filters
+            const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod');
+            const predictiveDemandBranch = document.getElementById('predictiveDemandBranch');
             
-            if (topProductsBranch) {
-                topProductsBranch.addEventListener('change', () => {
-                    console.log('Top Products Branch changed to:', topProductsBranch.value);
-                    loadTopProductsData();
+            if (predictiveDemandPeriod) {
+                predictiveDemandPeriod.addEventListener('change', () => {
+                    console.log('Predictive Demand Period changed to:', predictiveDemandPeriod.value);
+                    loadPredictiveDemandData();
+                });
+            }
+            
+            if (predictiveDemandBranch) {
+                predictiveDemandBranch.addEventListener('change', () => {
+                    console.log('Predictive Demand Branch changed to:', predictiveDemandBranch.value);
+                    loadPredictiveDemandData();
                 });
             }
         }
