@@ -812,47 +812,34 @@ function renderLog(onlyVariant=null){
     ? ""
     : `<tr><td colspan="6" style="text-align:center;opacity:.7;">No log entries yet.</td></tr>`;
 
-  // Format date and time helper for display
-  const formatDateForDisplay = (dateStr, isoStr) => {
-    // Prefer ISO format if available (has timezone info), otherwise parse the datetime string
-    let dateToParse = isoStr || dateStr;
-    if (!dateToParse) return "N/A";
+  // Format date helper for display (date only, no time)
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return "N/A";
     
     try {
-      // If it's in format "YYYY-MM-DD HH:MM:SS" (no timezone), treat it as UTC
-      if (dateStr && !isoStr && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(dateStr)) {
-        // Parse as UTC explicitly
-        const [datePart, timePart] = dateStr.split(' ');
-        const [year, month, day] = datePart.split('-').map(Number);
-        const [hour, minute, second] = timePart.split(':').map(Number);
-        const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-        if (isNaN(d.getTime())) return dateStr;
-        // Format as "MMM DD, YYYY HH:MM:SS AM/PM" in local timezone
-        return d.toLocaleString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true,
-          timeZone: 'UTC'  // Display UTC time as-is (or remove this to show in local time)
-        });
-      } else {
-        // Use ISO format or standard Date parsing
-        const d = new Date(dateToParse);
-        if (isNaN(d.getTime())) return dateStr || "N/A";
-        // Format as "MMM DD, YYYY HH:MM:SS AM/PM"
-        return d.toLocaleString('en-US', { 
-          year: 'numeric', 
-          month: 'short', 
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: true
-        });
+      // Extract just the date part (YYYY-MM-DD) from datetime strings
+      let dateOnly = dateStr;
+      if (dateStr.includes(' ')) {
+        // If it's "YYYY-MM-DD HH:MM:SS" format, extract just the date part
+        dateOnly = dateStr.split(' ')[0];
+      } else if (dateStr.includes('T')) {
+        // If it's ISO format, extract just the date part
+        dateOnly = dateStr.split('T')[0];
       }
+      
+      // Parse and format as "MMM DD, YYYY" (date only, no time)
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+      
+      const d = new Date(year, month - 1, day);
+      if (isNaN(d.getTime())) return dateStr;
+      
+      // Format as "MMM DD, YYYY" (date only)
+      return d.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric'
+      });
     } catch (e) {
       return dateStr || "N/A";
     }
@@ -860,8 +847,8 @@ function renderLog(onlyVariant=null){
 
   rows.forEach(l=>{
     const tr = document.createElement("tr");
-    // Use datetime_iso if available (has timezone), otherwise use datetime or date
-    const displayDate = formatDateForDisplay(l.date || l.datetime, l.datetime_iso);
+    // Display date only (no time) to avoid timezone/display issues
+    const displayDate = formatDateForDisplay(l.date || l.datetime);
     tr.innerHTML = `
       <td>${displayDate}</td>
       <td>${l.variant}</td>
@@ -1479,21 +1466,28 @@ function showPrintPreview(){
     }
   };
   
-  // Format date and time helper (for restock logs - includes time)
+  // Format date helper (for restock logs - date only, no time)
   const formatDateTime = (dateStr) => {
     if (!dateStr) return "N/A";
     try {
-      const d = new Date(dateStr);
+      // Extract just the date part (YYYY-MM-DD) from datetime strings
+      let dateOnly = dateStr;
+      if (dateStr.includes(' ')) {
+        dateOnly = dateStr.split(' ')[0];
+      } else if (dateStr.includes('T')) {
+        dateOnly = dateStr.split('T')[0];
+      }
+      
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+      
+      const d = new Date(year, month - 1, day);
       if (isNaN(d.getTime())) return dateStr;
-      // Format as "MMM DD, YYYY HH:MM:SS AM/PM"
-      return d.toLocaleString('en-US', { 
+      // Format as "MMM DD, YYYY" (date only, no time)
+      return d.toLocaleDateString('en-US', { 
         year: 'numeric', 
         month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
+        day: 'numeric'
       });
     } catch (e) {
       return dateStr;
