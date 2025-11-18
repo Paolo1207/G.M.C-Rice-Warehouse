@@ -441,10 +441,108 @@
             // Calculate MAE and MAPE
             const metrics = calculateForecastMetrics(forecast);
             
+            // Get data source information
+            const dataSource = forecast.data_source || {};
+            const dataSourceType = dataSource.type || 'unknown';
+            const totalTransactions = dataSource.total_transactions || 0;
+            const uniqueDays = dataSource.unique_days || 0;
+            const earliestDate = dataSource.earliest_date || 'N/A';
+            const latestDate = dataSource.latest_date || 'N/A';
+            const dateRangeDays = dataSource.date_range_days || 0;
+            const trainSize = dataSource.train_size || 0;
+            const testSize = dataSource.test_size || 0;
+            
+            // Determine data source status
+            let dataSourceStatus = 'good';
+            let dataSourceStatusText = '✅ Sufficient Data';
+            let dataSourceStatusColor = '#2e7d32';
+            if (dataSourceType === 'estimated_from_inventory') {
+                dataSourceStatus = 'warning';
+                dataSourceStatusText = '⚠️ Estimated Data (No Sales History)';
+                dataSourceStatusColor = '#f59e0b';
+            } else if (uniqueDays < 50) {
+                dataSourceStatus = 'warning';
+                dataSourceStatusText = '⚠️ Limited Data';
+                dataSourceStatusColor = '#f59e0b';
+            } else if (uniqueDays < 100) {
+                dataSourceStatus = 'info';
+                dataSourceStatusText = 'ℹ️ Minimum Data';
+                dataSourceStatusColor = '#3b82f6';
+            }
+            
             const summaryContent = document.getElementById('forecast-summary-content');
             summaryContent.innerHTML = `
                 <div style="padding: 20px;">
                     <h4>Forecast Results for ${productName} at ${branchName}</h4>
+                    
+                    <!-- Data Source Information Box -->
+                    <div style="background: ${dataSourceStatusColor === '#2e7d32' ? '#e8f5e9' : dataSourceStatusColor === '#f59e0b' ? '#fff3cd' : '#e3f2fd'}; 
+                                border: 2px solid ${dataSourceStatusColor}; 
+                                border-radius: 12px; 
+                                padding: 16px; 
+                                margin: 20px 0;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h5 style="margin: 0 0 12px 0; color: ${dataSourceStatusColor}; font-size: 1.1rem; font-weight: 700;">
+                            📊 Data Source Information
+                        </h5>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; color: #374151;">
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Data Type:</strong>
+                                <div style="font-size: 1rem; font-weight: 600; color: ${dataSourceStatusColor};">
+                                    ${dataSourceStatusText}
+                                </div>
+                                <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                                    ${dataSourceType === 'real_sales_data' ? 'Based on actual sales transactions' : 'Estimated from inventory (no sales history available)'}
+                                </div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Total Transactions:</strong>
+                                <div style="font-size: 1.1rem; font-weight: 600;">${totalTransactions.toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Unique Days with Sales:</strong>
+                                <div style="font-size: 1.1rem; font-weight: 600;">${uniqueDays.toLocaleString()} days</div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Historical Period:</strong>
+                                <div style="font-size: 1rem; font-weight: 600;">${dateRangeDays} days (${(dateRangeDays/365.25).toFixed(1)} years)</div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Earliest Data:</strong>
+                                <div style="font-size: 0.95rem; font-weight: 500;">${earliestDate}</div>
+                            </div>
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Latest Data:</strong>
+                                <div style="font-size: 0.95rem; font-weight: 500;">${latestDate}</div>
+                            </div>
+                            ${trainSize > 0 ? `
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Training Data:</strong>
+                                <div style="font-size: 0.95rem; font-weight: 500;">${trainSize} days (${((trainSize/(trainSize+testSize))*100).toFixed(0)}%)</div>
+                            </div>
+                            ` : ''}
+                            ${testSize > 0 ? `
+                            <div>
+                                <strong style="color: #64748b; font-size: 0.9rem;">Test Data:</strong>
+                                <div style="font-size: 0.95rem; font-weight: 500;">${testSize} days (${((testSize/(trainSize+testSize))*100).toFixed(0)}%)</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ${dataSourceType === 'estimated_from_inventory' ? `
+                        <div style="margin-top: 12px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 3px solid #f59e0b;">
+                            <strong style="color: #f59e0b;">⚠️ Note:</strong>
+                            <span style="color: #374151;">This forecast is based on estimated data because no actual sales transactions were found. 
+                            For more accurate forecasts, ensure you have sales data in the system.</span>
+                        </div>
+                        ` : uniqueDays < 100 ? `
+                        <div style="margin-top: 12px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3b82f6;">
+                            <strong style="color: #3b82f6;">ℹ️ Data Quality:</strong>
+                            <span style="color: #374151;">You have ${uniqueDays} days of sales data. 
+                            ${uniqueDays < 50 ? 'Consider collecting more historical data for better forecast accuracy.' : 'More data (100+ days) would improve forecast reliability.'}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                             <strong>Model Type:</strong><br>${forecast.model_type}

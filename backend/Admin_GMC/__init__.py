@@ -965,6 +965,37 @@ def api_generate_forecast():
         .all()
     )
     
+    # Calculate data source statistics
+    from sqlalchemy import func, distinct
+    total_transactions = len(sales_data)
+    unique_days = 0
+    earliest_date = None
+    latest_date = None
+    data_source_type = "real_sales_data"
+    
+    if sales_data:
+        # Get unique days count
+        unique_days_query = (
+            db.session.query(func.count(distinct(func.date(SalesTransaction.transaction_date))))
+            .filter_by(branch_id=branch_id, product_id=product_id)
+            .filter(SalesTransaction.transaction_date >= date_threshold)
+        )
+        unique_days = unique_days_query.scalar() or 0
+        
+        # Get date range
+        date_range_query = (
+            db.session.query(
+                func.min(SalesTransaction.transaction_date),
+                func.max(SalesTransaction.transaction_date)
+            )
+            .filter_by(branch_id=branch_id, product_id=product_id)
+            .filter(SalesTransaction.transaction_date >= date_threshold)
+        )
+        date_range_result = date_range_query.first()
+        if date_range_result:
+            earliest_date = date_range_result[0]
+            latest_date = date_range_result[1]
+    
     # Convert to proper format for forecasting service
     historical_data = []
     for sale in sales_data:
@@ -975,6 +1006,7 @@ def api_generate_forecast():
     
     # If no sales data, create some dummy data based on inventory
     if not historical_data:
+        data_source_type = "estimated_from_inventory"
         # Get inventory item to estimate base demand
         inventory_item = InventoryItem.query.filter_by(
             branch_id=branch_id, product_id=product_id
@@ -984,6 +1016,12 @@ def api_generate_forecast():
             # Create dummy sales data based on current stock
             base_demand = max(10, inventory_item.stock_kg * 0.1)  # 10% of stock as daily demand
             historical_data = []
+            
+            # Update data source stats for estimated data
+            total_transactions = 30
+            unique_days = 30
+            earliest_date = datetime.now() - timedelta(days=30)
+            latest_date = datetime.now()
             
             for i in range(30):  # Last 30 days
                 # Generate random variation, ensuring no NaN values
@@ -1017,6 +1055,19 @@ def api_generate_forecast():
         
         # Add forecast start date for frontend
         forecast_result['forecast_start_date'] = datetime.now().date().isoformat()
+        
+        # Add data source information
+        forecast_result['data_source'] = {
+            'type': data_source_type,
+            'total_transactions': total_transactions,
+            'unique_days': unique_days,
+            'date_range_days': 912,  # 2.5 years
+            'earliest_date': earliest_date.strftime('%Y-%m-%d') if earliest_date else None,
+            'latest_date': latest_date.strftime('%Y-%m-%d') if latest_date else None,
+            'date_threshold': date_threshold.strftime('%Y-%m-%d'),
+            'train_size': forecast_result.get('train_size', 0),
+            'test_size': forecast_result.get('test_size', 0)
+        }
         
     except Exception as e:
         print(f"Forecast generation error: {str(e)}")
@@ -4271,6 +4322,147 @@ def api_forecast_status():
             "error": str(e),
             "status": "error"
         }), 500
+
+@admin_bp.get("/api/forecast/data-availability")
+@admin_required
+def api_forecast_data_availability():
+    """Check data availability for forecasting - shows how much historical data exists"""
+    try:
+        from sqlalchemy import func, distinct
+        from datetime import datetime, timedelta
+        
+        branch_id = request.args.get('branch_id', type=int)
+        product_id = request.args.get('product_id', type=int)
+        
+        # Date thresholds
+        two_years_ago = datetime.now() - timedelta(days=730)
+        two_point_five_years_ago = datetime.now() - timedelta(days=912)
+        three_years_ago = datetime.now() - timedelta(days=1095)
+        
+        # Base query
+        base_query = SalesTransaction.query
+        if branch_id:
+            base_query = base_query.filter_by(branch_id=branch_id)
+        if product_id:
+            base_query = base_query.filter_by(product_id=product_id)
+        
+        # Overall statistics
+        total_transactions = base_query.count()
+        
+        # Date range
+        date_range = db.session.query(
+            func.min(SalesTransaction.transaction_date),
+            func.max(SalesTransaction.transaction_date)
+        )
+        if branch_id:
+            date_range = date_range.filter(SalesTransaction.branch_id == branch_id)
+        if product_id:
+            date_range = date_range.filter(SalesTransaction.product_id == product_id)
+        
+        date_result = date_range.first()
+        earliest_date = date_result[0] if date_result and date_result[0] else None
+        latest_date = date_result[1] if date_result and date_result[1] else None
+        
+        # Count unique days
+        unique_days_query = db.session.query(
+            func.count(distinct(func.date(SalesTransaction.transaction_date)))
+        )
+        if branch_id:
+            unique_days_query = unique_days_query.filter(SalesTransaction.branch_id == branch_id)
+        if product_id:
+            unique_days_query = unique_days_query.filter(SalesTransaction.product_id == product_id)
+        
+        total_unique_days = unique_days_query.scalar() or 0
+        
+        # Counts for different time periods
+        def get_count_for_period(threshold):
+            q = base_query.filter(SalesTransaction.transaction_date >= threshold)
+            return q.count()
+        
+        def get_unique_days_for_period(threshold):
+            q = db.session.query(
+                func.count(distinct(func.date(SalesTransaction.transaction_date)))
+            ).filter(SalesTransaction.transaction_date >= threshold)
+            if branch_id:
+                q = q.filter(SalesTransaction.branch_id == branch_id)
+            if product_id:
+                q = q.filter(SalesTransaction.product_id == product_id)
+            return q.scalar() or 0
+        
+        two_year_count = get_count_for_period(two_years_ago)
+        two_year_unique = get_unique_days_for_period(two_years_ago)
+        
+        two_point_five_year_count = get_count_for_period(two_point_five_years_ago)
+        two_point_five_year_unique = get_unique_days_for_period(two_point_five_years_ago)
+        
+        three_year_count = get_count_for_period(three_years_ago)
+        three_year_unique = get_unique_days_for_period(three_years_ago)
+        
+        # Calculate date range in days
+        date_range_days = 0
+        if earliest_date and latest_date:
+            date_range_days = (latest_date - earliest_date).days
+        
+        # Data quality assessment
+        data_quality = "excellent"
+        quality_message = "✅ Excellent data quality"
+        if two_point_five_year_unique < 50:
+            data_quality = "insufficient"
+            quality_message = "❌ Insufficient data (<50 days)"
+        elif two_point_five_year_unique < 100:
+            data_quality = "minimum"
+            quality_message = "⚠️ Minimum data (50-99 days)"
+        elif two_point_five_year_unique < 200:
+            data_quality = "good"
+            quality_message = "✅ Good data (100-199 days)"
+        
+        return jsonify({
+            "ok": True,
+            "summary": {
+                "total_transactions": total_transactions,
+                "total_unique_days": total_unique_days,
+                "earliest_date": earliest_date.strftime('%Y-%m-%d') if earliest_date else None,
+                "latest_date": latest_date.strftime('%Y-%m-%d') if latest_date else None,
+                "date_range_days": date_range_days,
+                "date_range_years": round(date_range_days / 365.25, 2) if date_range_days > 0 else 0,
+                "data_quality": data_quality,
+                "quality_message": quality_message
+            },
+            "periods": {
+                "last_2_years": {
+                    "transactions": two_year_count,
+                    "unique_days": two_year_unique,
+                    "threshold_date": two_years_ago.strftime('%Y-%m-%d')
+                },
+                "last_2_5_years": {
+                    "transactions": two_point_five_year_count,
+                    "unique_days": two_point_five_year_unique,
+                    "threshold_date": two_point_five_years_ago.strftime('%Y-%m-%d')
+                },
+                "last_3_years": {
+                    "transactions": three_year_count,
+                    "unique_days": three_year_unique,
+                    "threshold_date": three_years_ago.strftime('%Y-%m-%d')
+                }
+            },
+            "recommendations": {
+                "minimum_required": 50,
+                "recommended": 100,
+                "optimal": 200,
+                "current_status": two_point_five_year_unique,
+                "meets_minimum": two_point_five_year_unique >= 50,
+                "meets_recommended": two_point_five_year_unique >= 100,
+                "meets_optimal": two_point_five_year_unique >= 200
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "ok": False,
+            "error": str(e)
+        }), 500
+
 # =========================================================
 # API: USER MANAGEMENT
 # =========================================================
