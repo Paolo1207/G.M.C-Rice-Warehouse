@@ -784,20 +784,25 @@ def api_restock_inventory_item(inventory_id: int):
     supplier = (data.get("supplier") or "").strip() or None
     note     = (data.get("notes") or data.get("note") or "").strip() or None
 
-    # Optional override date (YYYY-MM-DD). If omitted, now().
+    # Optional override date (YYYY-MM-DD). If omitted or empty, always use current time.
     # If date is provided and it's today, use current time. Otherwise, use midnight of that date.
+    # IMPORTANT: Always use current time unless a valid past date is explicitly provided.
     created_at = None
-    if data.get("date"):
+    date_str = data.get("date") or ""
+    date_str = date_str.strip() if isinstance(date_str, str) else ""
+    
+    if date_str:
         try:
-            date_only = datetime.strptime(data.get("date"), "%Y-%m-%d").date()
+            date_only = datetime.strptime(date_str, "%Y-%m-%d").date()
             today = datetime.utcnow().date()
             # If the date is today, use current time. Otherwise, use midnight of that date.
             if date_only == today:
                 created_at = datetime.utcnow()  # Use current time for today's date
             else:
                 created_at = datetime.combine(date_only, datetime.min.time())  # Use midnight for past dates
-        except ValueError:
+        except (ValueError, TypeError):
             return jsonify({"ok": False, "error": "date must be YYYY-MM-DD"}), 400
+    # If no date provided, created_at remains None and will use datetime.utcnow() below
 
     # Check if inventory item with this batch code already exists
     existing_inv = InventoryItem.query.filter_by(
@@ -829,13 +834,18 @@ def api_restock_inventory_item(inventory_id: int):
         target_inv = new_inv
 
     # Create a restock log row
+    # Always use current time unless a valid past date was explicitly provided
     from models import RestockLog
+    # Explicitly use current time if created_at is None (no date provided or date is today)
+    if created_at is None:
+        created_at = datetime.utcnow()
+    
     log = RestockLog(
         inventory_item_id=target_inv.id,
         qty_kg=qty,
         supplier=supplier,
         note=note,
-        created_at=created_at or datetime.utcnow()
+        created_at=created_at  # Now guaranteed to be a datetime object
     )
     db.session.add(log)
 

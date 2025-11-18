@@ -453,8 +453,8 @@
       </div>
 
       <div class="form-group">
-        <label>Restock Date</label>
-        <input name="date" type="date">
+        <label>Restock Date <small style="color: #666; font-weight: normal;">(Leave empty for current time)</small></label>
+        <input name="date" type="date" placeholder="Leave empty to use current time">
       </div>
 
       <div class="form-group col-span-2">
@@ -1200,7 +1200,8 @@ function openRestockModal(preselectIdx = null){
   restockBatchCode.value = "";
   restockBatchCodeInput.value = "";
   restockSupplier.value = "";
-  restockDate.value     = new Date().toISOString().slice(0,10);
+  // Clear date field - backend will use current time automatically
+  restockDate.value     = "";
   restockNotes.value    = "";
   
   // Load batch codes for the initial product_id
@@ -1301,8 +1302,8 @@ restockForm.addEventListener("submit", async (e)=>{
   }
   if (!invId) { alert('Could not resolve inventory item for this product/batch.'); return; }
 
-  // Only send date if it's different from today (for backdating purposes)
-  // If date is today or empty, don't send it so backend uses current time
+  // Only send date if user explicitly set a past date (for backdating purposes)
+  // If date is empty, today, or not set, don't send it so backend uses current time
   const today = new Date().toISOString().split('T')[0];
   const payload = {
     quantity,
@@ -1311,13 +1312,14 @@ restockForm.addEventListener("submit", async (e)=>{
     notes: notes || "Restock"
   };
   
-  // Only include date if user explicitly set a different date (for backdating)
-  // If date is today or empty, omit it to use current time
-  // Backend will also check if date is today and use current time if so
-  if (date && date !== today) {
-    payload.date = date;
+  // Only include date if user explicitly set a date AND it's different from today (for backdating)
+  // If date is empty, today, or not provided, omit it completely - backend will use current time
+  const dateValue = (date || "").trim();
+  if (dateValue && dateValue !== today) {
+    // Only send date if it's a valid past date (not today)
+    payload.date = dateValue;
   }
-  // Explicitly do NOT include date if it's today - let backend use current time
+  // Explicitly do NOT include date field if it's empty or today - backend will use current time
 
   try {
     const res = await fetch(`/admin/api/inventory/${encodeURIComponent(invId)}/restock`, {
