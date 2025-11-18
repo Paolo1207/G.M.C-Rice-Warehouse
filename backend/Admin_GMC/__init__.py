@@ -960,6 +960,16 @@ def api_generate_forecast():
     # Also cap at today to exclude future dates
     today_utc = datetime.utcnow()
     date_threshold = today_utc - timedelta(days=912)  # Approximately 2.5 years
+    
+    # Debug: Check raw query first
+    raw_count = (
+        SalesTransaction.query
+        .filter_by(branch_id=branch_id, product_id=product_id)
+        .count()
+    )
+    print(f"DEBUG: Total sales transactions for branch_id={branch_id}, product_id={product_id}: {raw_count}")
+    
+    # Query with date filters
     sales_data = (
         SalesTransaction.query
         .filter_by(branch_id=branch_id, product_id=product_id)
@@ -968,6 +978,28 @@ def api_generate_forecast():
         .order_by(SalesTransaction.transaction_date.desc())
         .all()
     )
+    
+    print(f"DEBUG: Sales data after date filtering (>= {date_threshold}, <= {today_utc}): {len(sales_data)} transactions")
+    
+    # If no data after filtering, check if there are future dates
+    if len(sales_data) == 0 and raw_count > 0:
+        # Check for future dates
+        future_count = (
+            SalesTransaction.query
+            .filter_by(branch_id=branch_id, product_id=product_id)
+            .filter(SalesTransaction.transaction_date > today_utc)
+            .count()
+        )
+        print(f"DEBUG: Found {future_count} transactions with future dates (after {today_utc})")
+        
+        # Check for dates before threshold
+        old_count = (
+            SalesTransaction.query
+            .filter_by(branch_id=branch_id, product_id=product_id)
+            .filter(SalesTransaction.transaction_date < date_threshold)
+            .count()
+        )
+        print(f"DEBUG: Found {old_count} transactions before threshold date ({date_threshold})")
     
     # Calculate data source statistics
     from sqlalchemy import func, distinct

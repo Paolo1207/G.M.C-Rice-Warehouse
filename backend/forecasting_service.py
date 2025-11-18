@@ -147,19 +147,22 @@ class ForecastingService:
                 'accuracy': 0.0
             }
         
-        # Align lengths
+        # Align lengths and reset index to avoid alignment issues
         min_len = min(len(y_true), len(y_pred))
-        y_true = y_true.iloc[:min_len]
-        y_pred = y_pred.iloc[:min_len]
+        y_true = y_true.iloc[:min_len].reset_index(drop=True)
+        y_pred = y_pred.iloc[:min_len].reset_index(drop=True)
         
         # Calculate metrics
         mae = mean_absolute_error(y_true, y_pred)
         rmse = np.sqrt(mean_squared_error(y_true, y_pred))
         
         # MAPE (Mean Absolute Percentage Error)
-        mask = y_true != 0
+        # Use .values to avoid index alignment issues
+        mask = (y_true.values != 0)
         if mask.sum() > 0:
-            mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+            y_true_values = y_true.values[mask]
+            y_pred_values = y_pred.values[mask]
+            mape = np.mean(np.abs((y_true_values - y_pred_values) / y_true_values)) * 100
         else:
             mape = float('inf')
         
