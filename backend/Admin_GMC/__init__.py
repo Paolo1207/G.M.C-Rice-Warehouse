@@ -4412,7 +4412,8 @@ def api_dashboard_predictive_demand():
         from datetime import datetime, date, timedelta
         from sqlalchemy import func
         from models import Branch, Product, SalesTransaction
-        # Use the forecasting_service instance imported at the top of the file
+        import traceback
+        import sys
         
         # Get query parameters
         branch_id = request.args.get('branch_id', type=int)
@@ -4443,10 +4444,14 @@ def api_dashboard_predictive_demand():
         if not branches or not products:
             return jsonify({
                 "ok": True,
-                "forecast_data": []
+                "forecast_data": [],
+                "message": "No branches or products available"
             })
         
         forecast_data = []
+        
+        # Track if we have any successful forecasts
+        has_forecast_data = False
         
         # If viewing all branches, return aggregated forecast by branch
         if not branch_id:
@@ -4527,8 +4532,13 @@ def api_dashboard_predictive_demand():
                                 for i in range(len(forecast_dates))
                             ]
                         })
+                        has_forecast_data = True
                 except Exception as e:
-                    print(f"Error generating forecast for branch {branch.id}: {e}")
+                    error_msg = str(e)
+                    error_trace = traceback.format_exc()
+                    print(f"Error generating forecast for branch {branch.id}: {error_msg}")
+                    sys.stderr.write(f"Error generating forecast for branch {branch.id}: {error_msg}\n")
+                    sys.stderr.write(f"Traceback: {error_trace}\n")
                     continue
         else:
             # Single branch - aggregate all products or show per product
@@ -4575,7 +4585,11 @@ def api_dashboard_predictive_demand():
                         else:
                             forecast_result = None
                     except Exception as e:
-                        print(f"Error generating forecast for branch {branch.id}: {e}")
+                        error_msg = str(e)
+                        error_trace = traceback.format_exc()
+                        print(f"Error generating forecast for branch {branch.id}: {error_msg}")
+                        sys.stderr.write(f"Error generating forecast for branch {branch.id}: {error_msg}\n")
+                        sys.stderr.write(f"Traceback: {error_trace}\n")
                         forecast_result = None
                 else:
                     forecast_result = None
@@ -4603,33 +4617,45 @@ def api_dashboard_predictive_demand():
                         }
                         for i in range(len(forecast_dates))
                     ]
+                    has_forecast_data = True
                 except Exception as e:
-                    print(f"Error processing forecast for branch {branch.id}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    error_msg = str(e)
+                    error_trace = traceback.format_exc()
+                    print(f"Error processing forecast for branch {branch.id}: {error_msg}")
+                    sys.stderr.write(f"Error processing forecast for branch {branch.id}: {error_msg}\n")
+                    sys.stderr.write(f"Traceback: {error_trace}\n")
                     forecast_data = []
             else:
                 forecast_data = []
         
+        # Return success even if no forecast data (some branches might not have enough data)
         return jsonify({
             "ok": True,
-            "forecast_data": forecast_data
+            "forecast_data": forecast_data,
+            "message": "Forecast data loaded successfully" if has_forecast_data or forecast_data else "No forecast data available (insufficient historical data)"
         })
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"ERROR in api_dashboard_predictive_demand: {str(e)}")
+        error_msg = str(e)
+        print(f"ERROR in api_dashboard_predictive_demand: {error_msg}")
         print(f"ERROR TRACEBACK:\n{error_trace}")
         # Log to console for debugging
         import sys
-        sys.stderr.write(f"ERROR in api_dashboard_predictive_demand: {str(e)}\n")
+        sys.stderr.write(f"ERROR in api_dashboard_predictive_demand: {error_msg}\n")
         sys.stderr.write(f"TRACEBACK:\n{error_trace}\n")
-        # Return JSON error response, not HTML
-        return jsonify({
-            "ok": False,
-            "error": f"Failed to load predictive demand data: {str(e)}",
-            "forecast_data": []
-        }), 500
+        # Return JSON error response, not HTML - ensure we always return JSON
+        try:
+            return jsonify({
+                "ok": False,
+                "error": f"Failed to load predictive demand data: {error_msg}",
+                "forecast_data": []
+            }), 500
+        except Exception as json_error:
+            # If even jsonify fails, return a simple JSON string
+            response = make_response(f'{{"ok": false, "error": "Internal server error: {error_msg}", "forecast_data": []}}', 500)
+            response.headers['Content-Type'] = 'application/json'
+            return response
 
 def get_time_ago(dt):
     """Helper function to get human-readable time ago"""
