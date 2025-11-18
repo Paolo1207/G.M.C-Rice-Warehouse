@@ -533,7 +533,7 @@
                             <strong>How ARIMA works:</strong> This model analyzes your past sales transactions from the SalesTransaction table, identifying patterns, trends, and seasonal variations. It uses moving averages and trend analysis to predict future demand. ARIMA is best for capturing long-term trends and cyclical patterns in rice sales.
                         </p>
                         <p style="margin: 0 0 12px 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 100 transactions for this product and branch.
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data for this product and branch.
                         </p>
                         <p style="margin: 0;">
                             <strong>Confidence intervals:</strong> The shaded areas show the range where actual demand is likely to fall (95% confidence), helping you prepare for both best-case and worst-case scenarios.
@@ -555,7 +555,7 @@
                             <li><strong>Pattern recognition:</strong> The model learns complex non-linear relationships between past sales and future demand</li>
                         </ul>
                         <p style="margin: 0 0 12px 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 100 transactions. The model requires at least 10 days of data to train effectively.
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data. The model requires at least 10 days of data to train effectively.
                         </p>
                         <p style="margin: 0;">
                             <strong>Best for:</strong> Capturing complex patterns and non-linear relationships in sales data. Random Forest is particularly effective when sales patterns are irregular or influenced by multiple factors.
@@ -580,7 +580,7 @@
                             <li>Adds small random variations (±10%) to account for day-to-day fluctuations</li>
                         </ul>
                         <p style="margin: 0 0 12px 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 100 transactions. The model requires at least 7 days of data to identify the weekly pattern.
+                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data. The model requires at least 7 days of data to identify the weekly pattern.
                         </p>
                         <p style="margin: 0;">
                             <strong>Best for:</strong> Products with strong weekly patterns (e.g., higher sales on weekdays vs weekends). This model is simple, fast, and works well when sales follow predictable weekly cycles.

@@ -955,12 +955,13 @@ def api_generate_forecast():
     if not branch_id or not product_id:
         return jsonify({"ok": False, "error": "branch_id and product_id are required"}), 400
     
-    # Get historical sales data
+    # Get historical sales data - 2 to 3 years back (using 2.5 years = ~912 days)
+    date_threshold = datetime.now() - timedelta(days=912)  # Approximately 2.5 years
     sales_data = (
         SalesTransaction.query
         .filter_by(branch_id=branch_id, product_id=product_id)
+        .filter(SalesTransaction.transaction_date >= date_threshold)
         .order_by(SalesTransaction.transaction_date.desc())
-        .limit(100)  # Last 100 transactions
         .all()
     )
     
@@ -1001,34 +1002,22 @@ def api_generate_forecast():
         else:
             return jsonify({"ok": False, "error": "No inventory data found for this product"}), 400
     
-    # Generate forecast based on model type
+    # Generate forecast with ETL pipeline, train/test split, training, and model selection
     try:
-        if model_type == 'ARIMA':
-            forecast_result = forecasting_service.generate_arima_forecast(historical_data, periods)
-        elif model_type == 'RF':
-            # Convert historical data to DataFrame format for RF
-            import pandas as pd
-            df = pd.DataFrame(historical_data)
-            if not df.empty and 'transaction_date' in df.columns:
-                df['transaction_date'] = pd.to_datetime(df['transaction_date'])
-                df = df.set_index('transaction_date').resample('D')['quantity_sold'].sum().fillna(0)
-            else:
-                # Fallback: create simple series from quantity_sold values
-                df = pd.Series([d.get('quantity_sold', 0) for d in historical_data])
-            forecast_result = rf_forecast(df, periods)
-        elif model_type == 'Seasonal':
-            # Convert historical data to DataFrame format for Seasonal
-            import pandas as pd
-            df = pd.DataFrame(historical_data)
-            if not df.empty and 'transaction_date' in df.columns:
-                df['transaction_date'] = pd.to_datetime(df['transaction_date'])
-                df = df.set_index('transaction_date').resample('D')['quantity_sold'].sum().fillna(0)
-            else:
-                # Fallback: create simple series from quantity_sold values
-                df = pd.Series([d.get('quantity_sold', 0) for d in historical_data])
-            forecast_result = snaive_forecast(df, periods, season_length=7)
-        else:
-            return jsonify({"ok": False, "error": "Invalid model type"}), 400
+        # Use model selection: train all models, evaluate, and select best
+        # If user specified a model type, use it; otherwise auto-select best model
+        forecast_result = forecasting_service.generate_forecast_with_model_selection(
+            historical_data, 
+            periods, 
+            requested_model=model_type if model_type else None
+        )
+        
+        if not forecast_result:
+            return jsonify({"ok": False, "error": "Forecast generation failed - no valid model"}), 500
+        
+        # Add forecast start date for frontend
+        forecast_result['forecast_start_date'] = datetime.now().date().isoformat()
+        
     except Exception as e:
         print(f"Forecast generation error: {str(e)}")
         import traceback

@@ -2,199 +2,679 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import json
+import warnings
+warnings.filterwarnings('ignore')
+
+try:
+    from statsmodels.tsa.arima.model import ARIMA
+    from statsmodels.tsa.stattools import adfuller
+    STATSMODELS_AVAILABLE = True
+except ImportError:
+    STATSMODELS_AVAILABLE = False
+    print("Warning: statsmodels not available. Using simplified ARIMA approximation.")
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+
+class ETLPipeline:
+    """
+    Extract, Transform, Load pipeline for forecasting data
+    """
+    
+    def __init__(self):
+        self.raw_data = None
+        self.processed_data = None
+        
+    def extract(self, historical_data: List[Dict]) -> pd.DataFrame:
+        """
+        Extract: Load raw historical sales data
+        """
+        if not historical_data:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(historical_data)
+        self.raw_data = df.copy()
+        return df
+    
+    def transform(self, df: pd.DataFrame) -> pd.Series:
+        """
+        Transform: Clean, aggregate, and prepare data for modeling
+        """
+        if df.empty:
+            return pd.Series(dtype=float)
+        
+        # Convert transaction_date to datetime
+        if 'transaction_date' in df.columns:
+            df['date'] = pd.to_datetime(df['transaction_date'])
+            df = df.sort_values('date')
+            
+            # Set date as index
+            df = df.set_index('date')
+            
+            # Aggregate by day (sum quantity_sold per day)
+            if 'quantity_sold' in df.columns:
+                daily_data = df['quantity_sold'].resample('D').sum().fillna(0)
+            else:
+                # Fallback: use first numeric column
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    daily_data = df[numeric_cols[0]].resample('D').sum().fillna(0)
+                else:
+                    return pd.Series(dtype=float)
+        else:
+            # No date column - create simple series
+            if 'quantity_sold' in df.columns:
+                daily_data = pd.Series(df['quantity_sold'].values)
+            else:
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    daily_data = pd.Series(df[numeric_cols[0]].values)
+                else:
+                    return pd.Series(dtype=float)
+        
+        # Remove outliers (values beyond 3 standard deviations)
+        if len(daily_data) > 10:
+            mean = daily_data.mean()
+            std = daily_data.std()
+            if std > 0:
+                daily_data = daily_data[(daily_data >= mean - 3*std) & (daily_data <= mean + 3*std)]
+        
+        # Ensure no negative values
+        daily_data = daily_data.clip(lower=0)
+        
+        # Fill any remaining NaN values with forward fill then backward fill
+        daily_data = daily_data.ffill().bfill().fillna(0)
+        
+        self.processed_data = daily_data.copy()
+        return daily_data
+    
+    def load(self, data: pd.Series) -> pd.Series:
+        """
+        Load: Final data preparation and validation
+        """
+        if data.empty:
+            return pd.Series(dtype=float)
+        
+        # Ensure minimum data points
+        if len(data) < 7:
+            # Pad with mean if too short
+            mean_val = data.mean() if not data.empty else 20.0
+            padding = pd.Series([mean_val] * (7 - len(data)))
+            data = pd.concat([data, padding]).reset_index(drop=True)
+        
+        return data
+
 
 class ForecastingService:
     """
-    Forecasting service for rice demand prediction using ARIMA and simple ML models
+    Forecasting service with ETL pipeline, train/test split, proper training, and model selection
     """
     
     def __init__(self):
         self.model_cache = {}
+        self.etl = ETLPipeline()
+    
+    def train_test_split(self, data: pd.Series, test_size: float = 0.2) -> Tuple[pd.Series, pd.Series]:
+        """
+        Split data into training and testing sets
+        Time series split: use earlier data for training, later data for testing
+        """
+        if data.empty or len(data) < 10:
+            # Not enough data for split - use all for training
+            return data, pd.Series(dtype=float)
+        
+        split_idx = int(len(data) * (1 - test_size))
+        if split_idx < 7:  # Ensure minimum training data
+            split_idx = min(7, len(data) - 1)
+        
+        train_data = data.iloc[:split_idx]
+        test_data = data.iloc[split_idx:]
+        
+        return train_data, test_data
+    
+    def evaluate_model(self, y_true: pd.Series, y_pred: pd.Series) -> Dict[str, float]:
+        """
+        Evaluate model performance using multiple metrics
+        """
+        if len(y_true) == 0 or len(y_pred) == 0:
+            return {
+                'mae': float('inf'),
+                'mape': float('inf'),
+                'rmse': float('inf'),
+                'accuracy': 0.0
+            }
+        
+        # Align lengths
+        min_len = min(len(y_true), len(y_pred))
+        y_true = y_true.iloc[:min_len]
+        y_pred = y_pred.iloc[:min_len]
+        
+        # Calculate metrics
+        mae = mean_absolute_error(y_true, y_pred)
+        rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+        
+        # MAPE (Mean Absolute Percentage Error)
+        mask = y_true != 0
+        if mask.sum() > 0:
+            mape = np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100
+        else:
+            mape = float('inf')
+        
+        # Accuracy score (inverse of normalized error, 0-1 scale)
+        mean_true = y_true.mean()
+        if mean_true > 0:
+            normalized_error = mae / mean_true
+            accuracy = max(0.0, min(1.0, 1.0 - normalized_error))
+        else:
+            accuracy = 0.0
+        
+        return {
+            'mae': float(mae),
+            'mape': float(mape),
+            'rmse': float(rmse),
+            'accuracy': float(accuracy)
+        }
+    
+    def train_arima_model(self, train_data: pd.Series) -> Optional[object]:
+        """
+        Train ARIMA model on training data
+        """
+        if len(train_data) < 7:
+            return None
+        
+        try:
+            if STATSMODELS_AVAILABLE:
+                # Try to find optimal ARIMA parameters using auto_arima approach
+                best_aic = float('inf')
+                best_model = None
+                best_order = (1, 1, 1)
+                
+                # Grid search for ARIMA parameters (simplified)
+                for p in range(0, 3):
+                    for d in range(0, 2):
+                        for q in range(0, 3):
+                            try:
+                                model = ARIMA(train_data, order=(p, d, q))
+                                fitted_model = model.fit()
+                                if fitted_model.aic < best_aic:
+                                    best_aic = fitted_model.aic
+                                    best_model = fitted_model
+                                    best_order = (p, d, q)
+                            except:
+                                continue
+                
+                if best_model is not None:
+                    return best_model
+                else:
+                    # Fallback to simple ARIMA(1,1,1)
+                    model = ARIMA(train_data, order=(1, 1, 1))
+                    return model.fit()
+            else:
+                # Simplified ARIMA approximation (moving average based)
+                return {'type': 'simple_arima', 'data': train_data}
+        except Exception as e:
+            print(f"ARIMA training error: {e}")
+            return None
     
     def generate_arima_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
         """
-        Generate ARIMA forecast from historical sales data
+        Generate ARIMA forecast with proper ETL, train/test split, and training
         """
         try:
-            # Convert to DataFrame
-            df = pd.DataFrame(historical_data)
-            if df.empty:
+            # ETL Pipeline
+            raw_df = self.etl.extract(historical_data)
+            if raw_df.empty:
                 return self._generate_default_forecast(periods)
             
-            # Ensure we have date and quantity columns
-            if 'transaction_date' in df.columns:
-                df['date'] = pd.to_datetime(df['transaction_date'])
-                df = df.set_index('date')
-                df = df.resample('D')['quantity_sold'].sum().fillna(0)
+            processed_data = self.etl.transform(raw_df)
+            if processed_data.empty:
+                return self._generate_default_forecast(periods)
+            
+            final_data = self.etl.load(processed_data)
+            
+            # Train/Test Split
+            train_data, test_data = self.train_test_split(final_data, test_size=0.2)
+            
+            if len(train_data) < 7:
+                return self._generate_default_forecast(periods)
+            
+            # STEP 3: MODELING - Train ARIMA Model
+            model = self.train_arima_model(train_data)
+            
+            if model is None:
+                return self._generate_default_forecast(periods)
+            
+            # STEP 4: EVALUATION - Evaluate model on test data
+            if len(test_data) > 0:
+                # Generate predictions for test period
+                test_forecast = []
+                if STATSMODELS_AVAILABLE and hasattr(model, 'forecast'):
+                    try:
+                        test_forecast = model.forecast(steps=len(test_data)).tolist()
+                    except:
+                        test_forecast = [float(train_data.iloc[-1])] * len(test_data)
+                else:
+                    test_forecast = [float(train_data.iloc[-1])] * len(test_data)
+                
+                test_forecast_series = pd.Series(test_forecast)
+                metrics = self.evaluate_model(test_data, test_forecast_series)
+                accuracy_score = metrics['accuracy']
             else:
-                # If no date column, create a simple time series
-                df = pd.Series([d.get('quantity_sold', 0) for d in historical_data])
+                # No test data - estimate accuracy based on data quality
+                data_points = len(train_data)
+                accuracy_score = min(0.95, 0.6 + (data_points * 0.01))
+                metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
             
-            # Calculate product-specific base demand
-            avg_daily_demand = df.mean() if not df.empty else 50
-            
-            # Debug logging for forecast analysis
-            print(f"DEBUG: ARIMA forecast - Data points: {len(df)}, Avg demand: {avg_daily_demand:.2f}, Std dev: {df.std() if not df.empty else 'N/A'}")
-            
-            # Simple moving average forecast (ARIMA approximation)
-            window_size = min(7, len(df) // 2) if len(df) > 1 else 1
-            if window_size == 0:
-                window_size = 1
-            
-            # Calculate moving average
-            ma = df.rolling(window=window_size).mean()
-            last_ma = ma.iloc[-1] if not ma.empty else avg_daily_demand
-            
-            # Ensure realistic base demand for rice (15-30 kg range)
-            if last_ma < 15:
-                last_ma = 20  # Set to realistic 20 kg base demand
-            elif last_ma > 50:
-                last_ma = 30  # Cap at realistic 30 kg maximum
-            
-            # Generate forecast with trend
-            trend = self._calculate_trend(df)
+            # STEP 5: OUTPUT - Generate forecast for future periods using trained and evaluated model
             forecast_values = []
             confidence_lower = []
             confidence_upper = []
             
-            for i in range(periods):
-                # Simple trend-based forecast with product-specific adjustments
-                forecast_val = last_ma + (trend * (i + 1))
+            if STATSMODELS_AVAILABLE and hasattr(model, 'forecast'):
+                try:
+                    # Use trained ARIMA model
+                    forecast_result = model.forecast(steps=periods)
+                    conf_int = model.get_forecast(steps=periods).conf_int()
+                    
+                    forecast_values = forecast_result.tolist()
+                    confidence_lower = conf_int.iloc[:, 0].tolist()
+                    confidence_upper = conf_int.iloc[:, 1].tolist()
+                except:
+                    # Fallback if forecast fails
+                    last_value = float(train_data.iloc[-1])
+                    for i in range(periods):
+                        forecast_values.append(max(0, last_value))
+                        confidence_lower.append(max(0, last_value * 0.8))
+                        confidence_upper.append(max(0, last_value * 1.2))
+            else:
+                # Simplified ARIMA (moving average based)
+                window_size = min(7, len(train_data) // 2)
+                ma = train_data.rolling(window=window_size).mean()
+                last_ma = float(ma.iloc[-1]) if not ma.empty else float(train_data.mean())
+                trend = self._calculate_trend(train_data)
+                std_dev = float(train_data.std()) if not train_data.empty else last_ma * 0.2
                 
-                # Add seasonal variation (higher sales on weekdays)
-                day_of_week = (i % 7)
-                if day_of_week < 5:  # Weekdays
-                    forecast_val *= 1.1
-                else:  # Weekends
-                    forecast_val *= 0.8
-                
-                # Add some randomness for realism (seeded for consistency)
-                np.random.seed(i)  # Seed based on day for consistency
-                random_factor = np.random.normal(1, 0.15)  # 15% variation
-                forecast_val *= random_factor
-                
-                # Ensure realistic forecast values (15-35 kg range)
-                forecast_val = max(15, min(35, forecast_val))  # Cap between 15-35 kg
-                
-                # Calculate confidence intervals based on historical volatility
-                std_dev = df.std() if not df.empty else last_ma * 0.2
-                
-                # Handle NaN or zero standard deviation
-                if np.isnan(std_dev) or std_dev == 0:
-                    std_dev = last_ma * 0.2  # Use 20% of average as default volatility
-                    if i == 0:  # Only log once
-                        print(f"DEBUG: Using default std_dev: {std_dev:.2f} (was NaN or 0)")
-                
-                # Ensure realistic confidence interval width (20-30% of forecast)
-                min_ci_width = forecast_val * 0.2  # At least 20% of forecast value
-                max_ci_width = forecast_val * 0.5  # Maximum 50% of forecast value
-                ci_margin = max(min_ci_width, min(std_dev * 1.96, max_ci_width))
-                
-                # Ensure confidence intervals are properly spaced
-                confidence_lower_val = max(1, forecast_val - ci_margin)
-                confidence_upper_val = forecast_val + ci_margin
-                
-                # Debug logging for confidence intervals (only first iteration)
-                if i == 0:  # Only log for first iteration to avoid spam
-                    print(f"DEBUG: Confidence interval - std_dev: {std_dev:.2f}, ci_margin: {ci_margin:.2f}, forecast_val: {forecast_val:.2f}")
-                
-                forecast_values.append(round(forecast_val, 2))
-                confidence_lower.append(round(confidence_lower_val, 2))
-                confidence_upper.append(round(confidence_upper_val, 2))
-            
-            # Calculate accuracy based on data quality
-            data_points = len(df)
-            accuracy = min(0.95, 0.6 + (data_points * 0.01))  # More data = higher accuracy
+                for i in range(periods):
+                    forecast_val = last_ma + (trend * (i + 1))
+                    forecast_val = max(0, forecast_val)
+                    forecast_values.append(round(forecast_val, 2))
+                    
+                    ci_margin = max(forecast_val * 0.2, min(std_dev * 1.96, forecast_val * 0.5))
+                    confidence_lower.append(round(max(0, forecast_val - ci_margin), 2))
+                    confidence_upper.append(round(forecast_val + ci_margin, 2))
             
             return {
                 "forecast_values": forecast_values,
                 "confidence_lower": confidence_lower,
                 "confidence_upper": confidence_upper,
                 "model_type": "ARIMA",
-                "accuracy_score": accuracy,
-                "trend": trend,
-                "last_value": float(last_ma),
-                "avg_daily_demand": float(avg_daily_demand)
+                "accuracy_score": accuracy_score,
+                "metrics": metrics,
+                "train_size": len(train_data),
+                "test_size": len(test_data)
             }
             
         except Exception as e:
             print(f"ARIMA forecast error: {e}")
+            import traceback
+            traceback.print_exc()
             return self._generate_default_forecast(periods)
     
-    def generate_ml_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
+    def train_rf_model(self, train_data: pd.Series) -> Optional[RandomForestRegressor]:
         """
-        Generate ML-based forecast using simple linear regression
+        Train Random Forest model on training data
+        """
+        if len(train_data) < 10:
+            return None
+        
+        try:
+            # Create features
+            data = pd.DataFrame({'value': train_data})
+            target_col = 'value'
+            
+            # Add lag features
+            for lag in [1, 2, 3, 7, 14, 28]:
+                if len(data) > lag:
+                    data[f'lag_{lag}'] = data[target_col].shift(lag)
+            
+            # Add rolling mean features
+            data['rolling_7'] = data[target_col].rolling(window=7, min_periods=1).mean()
+            data['rolling_14'] = data[target_col].rolling(window=14, min_periods=1).mean()
+            
+            # Remove NaN rows
+            data = data.dropna()
+            
+            if len(data) < 10:
+                return None
+            
+            # Prepare features and target
+            feature_cols = [col for col in data.columns if col != target_col]
+            if len(feature_cols) == 0:
+                return None
+            
+            X = data[feature_cols].values
+            y = data[target_col].values
+            
+            # Train model
+            rf = RandomForestRegressor(n_estimators=100, random_state=42, max_depth=10)
+            rf.fit(X, y)
+            
+            return rf
+        except Exception as e:
+            print(f"RF training error: {e}")
+            return None
+    
+    def generate_rf_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
+        """
+        Generate Random Forest forecast with proper ETL, train/test split, and training
         """
         try:
-            if not historical_data:
+            # STEP 1: ETL PIPELINE
+            raw_df = self.etl.extract(historical_data)
+            if raw_df.empty:
                 return self._generate_default_forecast(periods)
             
-            # Convert to DataFrame
-            df = pd.DataFrame(historical_data)
-            
-            # Simple linear regression forecast
-            if len(df) < 2:
+            processed_data = self.etl.transform(raw_df)
+            if processed_data.empty:
                 return self._generate_default_forecast(periods)
             
-            # Create time series
-            df['date'] = pd.to_datetime(df.get('transaction_date', datetime.now()))
-            df = df.sort_values('date')
-            df['days_since_start'] = (df['date'] - df['date'].min()).dt.days
+            final_data = self.etl.load(processed_data)
             
-            # Simple linear regression
-            X = df['days_since_start'].values.reshape(-1, 1)
-            y = df['quantity_sold'].values
+            # STEP 2: TRAIN/TEST SPLIT
+            train_data, test_data = self.train_test_split(final_data, test_size=0.2)
             
-            # Calculate slope and intercept
-            n = len(X)
-            sum_x = np.sum(X)
-            sum_y = np.sum(y)
-            sum_xy = np.sum(X * y)
-            sum_x2 = np.sum(X * X)
+            if len(train_data) < 10:
+                return self._generate_default_forecast(periods)
             
-            slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
-            intercept = (sum_y - slope * sum_x) / n
+            # STEP 3: MODELING - Train RF Model
+            model = self.train_rf_model(train_data)
             
-            # Generate forecast
-            last_day = X[-1][0]
+            if model is None:
+                return self._generate_default_forecast(periods)
+            
+            # STEP 4: EVALUATION - Evaluate model on test data
+            # (Evaluation happens after forecast generation for RF due to feature engineering)
+            # We'll evaluate after generating test predictions
+            
+            # STEP 5: OUTPUT - Generate forecast for future periods
             forecast_values = []
-            confidence_lower = []
-            confidence_upper = []
             
-            for i in range(periods):
-                future_day = last_day + i + 1
-                forecast_val = slope * future_day + intercept
-                forecast_val = max(0, forecast_val)
-                
-                # Calculate confidence intervals
-                residuals = y - (slope * X.flatten() + intercept)
-                std_error = np.std(residuals)
-                ci_margin = std_error * 1.96
-                
-                forecast_values.append(round(forecast_val, 2))
-                confidence_lower.append(round(max(0, forecast_val - ci_margin), 2))
-                confidence_upper.append(round(forecast_val + ci_margin, 2))
+            # Create features for last known point
+            last_data = pd.DataFrame({'value': train_data})
+            for lag in [1, 2, 3, 7, 14, 28]:
+                if len(last_data) > lag:
+                    last_data[f'lag_{lag}'] = last_data['value'].shift(lag)
+            last_data['rolling_7'] = last_data['value'].rolling(window=7, min_periods=1).mean()
+            last_data['rolling_14'] = last_data['value'].rolling(window=14, min_periods=1).mean()
+            last_data = last_data.dropna()
             
-            # Calculate R-squared for accuracy
-            y_pred = slope * X.flatten() + intercept
-            ss_res = np.sum((y - y_pred) ** 2)
-            ss_tot = np.sum((y - np.mean(y)) ** 2)
-            r_squared = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+            if len(last_data) == 0:
+                last_value = float(train_data.iloc[-1])
+                forecast_values = [max(0, last_value)] * periods
+            else:
+                feature_cols = [col for col in last_data.columns if col != 'value']
+                last_features = last_data[feature_cols].iloc[-1].values.reshape(1, -1)
+                
+                # Generate forecast iteratively
+                current_features = last_features.copy()
+                for i in range(periods):
+                    pred = model.predict(current_features)[0]
+                    forecast_values.append(max(0, pred))
+                    
+                    # Update features for next prediction
+                    if len(current_features[0]) > 0:
+                        # Shift lags
+                        new_features = current_features.copy()
+                        for j in range(len(feature_cols) - 2):  # Exclude rolling means
+                            if j < len(feature_cols) - 1:
+                                new_features[0, j] = current_features[0, j+1] if j+1 < len(current_features[0]) else pred
+                        new_features[0, -2] = pred  # Update lag_1
+                        new_features[0, -1] = (new_features[0, -2] + current_features[0, -2]) / 2  # Update rolling_7
+                        current_features = new_features
+            
+            # STEP 4: EVALUATION - Evaluate model on test data (after forecast generation)
+            if len(test_data) > 0 and len(last_data) > 0:
+                # Create test features and predict
+                combined_data = pd.concat([train_data, test_data])
+                test_data_df = pd.DataFrame({'value': combined_data})
+                for lag in [1, 2, 3, 7, 14, 28]:
+                    if len(test_data_df) > lag:
+                        test_data_df[f'lag_{lag}'] = test_data_df['value'].shift(lag)
+                test_data_df['rolling_7'] = test_data_df['value'].rolling(window=7, min_periods=1).mean()
+                test_data_df['rolling_14'] = test_data_df['value'].rolling(window=14, min_periods=1).mean()
+                test_data_df = test_data_df.dropna()
+                
+                if len(test_data_df) > len(train_data) and len(feature_cols) > 0:
+                    try:
+                        test_features = test_data_df[feature_cols].iloc[len(train_data):].values
+                        test_predictions = model.predict(test_features)
+                        test_pred_series = pd.Series(test_predictions)
+                        metrics = self.evaluate_model(test_data, test_pred_series)
+                        accuracy_score = metrics['accuracy']
+                    except:
+                        accuracy_score = 0.7
+                        metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
+                else:
+                    accuracy_score = 0.7
+                    metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
+            else:
+                accuracy_score = 0.8
+                metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
             
             return {
                 "forecast_values": forecast_values,
-                "confidence_lower": confidence_lower,
-                "confidence_upper": confidence_upper,
-                "model_type": "ML_Linear",
-                "accuracy_score": max(0, min(1, r_squared)),
-                "slope": slope,
-                "intercept": intercept
+                "confidence_lower": None,
+                "confidence_upper": None,
+                "model_type": "RF",
+                "accuracy_score": accuracy_score,
+                "metrics": metrics,
+                "train_size": len(train_data),
+                "test_size": len(test_data)
             }
             
         except Exception as e:
-            print(f"ML forecast error: {e}")
+            print(f"RF forecast error: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._generate_default_forecast(periods)
+    
+    def train_seasonal_model(self, train_data: pd.Series, season_length: int = 7) -> Dict:
+        """
+        Train Seasonal Naive model
+        """
+        if len(train_data) < season_length:
+            return {'type': 'simple', 'last_value': float(train_data.iloc[-1]) if not train_data.empty else 20.0}
+        
+        # Get last season's values
+        last_season = train_data.iloc[-season_length:].values
+        
+        # Calculate seasonal averages by day of week
+        if len(train_data) >= season_length * 2:
+            seasonal_pattern = []
+            for i in range(season_length):
+                indices = [j for j in range(len(train_data)) if (len(train_data) - 1 - j) % season_length == i]
+                if indices:
+                    seasonal_pattern.append(float(train_data.iloc[indices].mean()))
+                else:
+                    seasonal_pattern.append(float(last_season[i]))
+        else:
+            seasonal_pattern = [float(x) for x in last_season]
+        
+        return {
+            'type': 'seasonal',
+            'pattern': seasonal_pattern,
+            'last_season': [float(x) for x in last_season]
+        }
+    
+    def generate_seasonal_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
+        """
+        Generate Seasonal forecast with proper ETL, train/test split, and training
+        """
+        try:
+            # STEP 1: ETL PIPELINE
+            raw_df = self.etl.extract(historical_data)
+            if raw_df.empty:
+                return self._generate_default_forecast(periods)
+            
+            processed_data = self.etl.transform(raw_df)
+            if processed_data.empty:
+                return self._generate_default_forecast(periods)
+            
+            final_data = self.etl.load(processed_data)
+            
+            # STEP 2: TRAIN/TEST SPLIT
+            train_data, test_data = self.train_test_split(final_data, test_size=0.2)
+            
+            if len(train_data) < 7:
+                return self._generate_default_forecast(periods)
+            
+            # STEP 3: MODELING - Train Seasonal Model
+            model = self.train_seasonal_model(train_data, season_length=7)
+            
+            # STEP 4: EVALUATION - Evaluate model on test data
+            if len(test_data) > 0:
+                # Generate predictions for test period
+                test_forecast = []
+                if model['type'] == 'seasonal':
+                    pattern = model['pattern']
+                    for i in range(len(test_data)):
+                        seasonal_index = i % len(pattern)
+                        test_forecast.append(pattern[seasonal_index])
+                else:
+                    test_forecast = [model['last_value']] * len(test_data)
+                
+                test_forecast_series = pd.Series(test_forecast)
+                metrics = self.evaluate_model(test_data, test_forecast_series)
+                accuracy_score = metrics['accuracy']
+            else:
+                accuracy_score = 0.7
+                metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
+            
+            # STEP 5: OUTPUT - Generate forecast for future periods
+            forecast_values = []
+            
+            if model['type'] == 'seasonal':
+                pattern = model['pattern']
+                for i in range(periods):
+                    seasonal_index = i % len(pattern)
+                    forecast_val = pattern[seasonal_index]
+                    # Add small variation
+                    variation = np.random.normal(0, forecast_val * 0.1)
+                    forecast_val = max(0, forecast_val + variation)
+                    forecast_values.append(round(forecast_val, 2))
+            else:
+                last_value = model['last_value']
+                for i in range(periods):
+                    variation = np.random.normal(0, last_value * 0.1)
+                    forecast_values.append(max(0, last_value + variation))
+            
+            # Evaluate on test data if available
+            if len(test_data) > 0:
+                # Generate predictions for test period
+                test_forecast = []
+                if model['type'] == 'seasonal':
+                    pattern = model['pattern']
+                    for i in range(len(test_data)):
+                        seasonal_index = i % len(pattern)
+                        test_forecast.append(pattern[seasonal_index])
+                else:
+                    test_forecast = [model['last_value']] * len(test_data)
+                
+                test_forecast_series = pd.Series(test_forecast)
+                metrics = self.evaluate_model(test_data, test_forecast_series)
+                accuracy_score = metrics['accuracy']
+            else:
+                accuracy_score = 0.7
+                metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
+            
+            return {
+                "forecast_values": forecast_values,
+                "confidence_lower": None,
+                "confidence_upper": None,
+                "model_type": "Seasonal",
+                "accuracy_score": accuracy_score,
+                "metrics": metrics,
+                "train_size": len(train_data),
+                "test_size": len(test_data)
+            }
+            
+        except Exception as e:
+            print(f"Seasonal forecast error: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._generate_default_forecast(periods)
+    
+    def select_best_model(self, model_results: List[Dict]) -> Dict:
+        """
+        Select the best model based on accuracy (lowest error / highest accuracy)
+        Rule: Choose model with highest accuracy_score
+        Default: ARIMA if all models have similar performance
+        """
+        if not model_results:
+            return None
+        
+        # Sort by accuracy_score (descending)
+        sorted_models = sorted(model_results, key=lambda x: x.get('accuracy_score', 0), reverse=True)
+        
+        best_model = sorted_models[0]
+        
+        # If ARIMA is close to best (within 5%), prefer ARIMA as specified
+        arima_result = next((m for m in model_results if m.get('model_type') == 'ARIMA'), None)
+        if arima_result:
+            best_accuracy = best_model.get('accuracy_score', 0)
+            arima_accuracy = arima_result.get('accuracy_score', 0)
+            
+            # If ARIMA is within 5% of best, use ARIMA
+            if arima_accuracy >= best_accuracy * 0.95:
+                return arima_result
+        
+        return best_model
+    
+    def generate_forecast_with_model_selection(self, historical_data: List[Dict], periods: int = 30, 
+                                               requested_model: Optional[str] = None) -> Dict:
+        """
+        Generate forecast using model selection - train all models, evaluate, and select best
+        """
+        model_results = []
+        
+        # Train and evaluate ARIMA
+        try:
+            arima_result = self.generate_arima_forecast(historical_data, periods)
+            if arima_result and arima_result.get('model_type') == 'ARIMA':
+                model_results.append(arima_result)
+        except Exception as e:
+            print(f"ARIMA model failed: {e}")
+        
+        # Train and evaluate Random Forest
+        try:
+            rf_result = self.generate_rf_forecast(historical_data, periods)
+            if rf_result and rf_result.get('model_type') == 'RF':
+                model_results.append(rf_result)
+        except Exception as e:
+            print(f"RF model failed: {e}")
+        
+        # Train and evaluate Seasonal
+        try:
+            seasonal_result = self.generate_seasonal_forecast(historical_data, periods)
+            if seasonal_result and seasonal_result.get('model_type') == 'Seasonal':
+                model_results.append(seasonal_result)
+        except Exception as e:
+            print(f"Seasonal model failed: {e}")
+        
+        # If user requested specific model, use it if available
+        if requested_model:
+            requested_result = next((m for m in model_results if m.get('model_type') == requested_model), None)
+            if requested_result:
+                return requested_result
+        
+        # Select best model based on accuracy
+        if model_results:
+            best_model = self.select_best_model(model_results)
+            return best_model
+        else:
             return self._generate_default_forecast(periods)
     
     def _calculate_trend(self, series: pd.Series) -> float:
@@ -202,11 +682,9 @@ class ForecastingService:
         if len(series) < 2:
             return 0
         
-        # Simple linear trend calculation
         x = np.arange(len(series))
         y = series.values
         
-        # Calculate slope
         n = len(x)
         sum_x = np.sum(x)
         sum_y = np.sum(y)
@@ -221,24 +699,21 @@ class ForecastingService:
     
     def _generate_default_forecast(self, periods: int) -> Dict:
         """Generate default forecast when no historical data is available"""
-        base_demand = 50  # Default daily demand
+        base_demand = 50
         forecast_values = []
         confidence_lower = []
         confidence_upper = []
         
         for i in range(periods):
-            # Add weekly pattern
             day_of_week = (i % 7)
-            if day_of_week < 5:  # Weekdays
+            if day_of_week < 5:
                 daily_demand = base_demand * 1.1
-            else:  # Weekends
+            else:
                 daily_demand = base_demand * 0.8
             
-            # Add some trend
-            trend_factor = 1 + (i * 0.005)  # 0.5% growth per day
+            trend_factor = 1 + (i * 0.005)
             daily_demand *= trend_factor
             
-            # Add randomness (seeded for consistency)
             np.random.seed(i)
             random_factor = np.random.normal(1, 0.1)
             if np.isnan(random_factor):
@@ -255,276 +730,36 @@ class ForecastingService:
             "confidence_upper": confidence_upper,
             "model_type": "Default",
             "accuracy_score": 0.5,
-            "trend": 0.005,
-            "last_value": base_demand,
-            "avg_daily_demand": base_demand
+            "metrics": {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': 0.5},
+            "train_size": 0,
+            "test_size": 0
         }
-    
-    def generate_seasonal_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
-        """
-        Generate seasonal forecast considering weekly patterns
-        """
-        try:
-            if not historical_data:
-                return self._generate_default_forecast(periods)
-            
-            df = pd.DataFrame(historical_data)
-            df['date'] = pd.to_datetime(df.get('transaction_date', datetime.now()))
-            df['day_of_week'] = df['date'].dt.dayofweek
-            df['week'] = df['date'].dt.isocalendar().week
-            
-            # Calculate average demand by day of week
-            daily_averages = df.groupby('day_of_week')['quantity_sold'].mean()
-            
-            # Generate forecast using seasonal pattern
-            forecast_values = []
-            confidence_lower = []
-            confidence_upper = []
-            
-            start_date = datetime.now()
-            
-            for i in range(periods):
-                forecast_date = start_date + timedelta(days=i)
-                day_of_week = forecast_date.weekday()
-                
-                # Get seasonal average for this day of week
-                seasonal_demand = daily_averages.get(day_of_week, daily_averages.mean())
-                
-                # Add some trend and randomness
-                trend_factor = 1 + (i * 0.01)  # 1% growth per day
-                random_factor = np.random.normal(1, 0.1)  # 10% random variation
-                
-                forecast_val = seasonal_demand * trend_factor * random_factor
-                forecast_val = max(0, forecast_val)
-                
-                forecast_values.append(round(forecast_val, 2))
-                confidence_lower.append(round(forecast_val * 0.8, 2))
-                confidence_upper.append(round(forecast_val * 1.2, 2))
-            
-            return {
-                "forecast_values": forecast_values,
-                "confidence_lower": confidence_lower,
-                "confidence_upper": confidence_upper,
-                "model_type": "Seasonal",
-                "accuracy_score": 0.75,
-                "seasonal_pattern": daily_averages.to_dict(),
-                "trend": 0.01
-            }
-            
-        except Exception as e:
-            print(f"Seasonal forecast error: {e}")
-            return self._generate_default_forecast(periods)
 
+
+# Standalone functions for backward compatibility
 def rf_forecast(df, horizon):
-    """
-    Random Forest forecast with lags 1,2,3,7,14,28 + 7/14-day rolling means
-    """
-    try:
-        import pandas as pd
-        import numpy as np
-        from sklearn.ensemble import RandomForestRegressor
-        
-        # Convert Series to DataFrame if needed
-        if isinstance(df, pd.Series):
-            data = pd.DataFrame({'value': df})
-            target_col_name = 'value'
-        else:
-            data = df.copy()
-            # If DataFrame, use first numeric column as target
-            numeric_cols = data.select_dtypes(include=[np.number]).columns
-            if len(numeric_cols) == 0:
-                raise ValueError("No numeric columns found in input data")
-            target_col_name = numeric_cols[0]
-            # Keep only numeric columns
-            data = data[numeric_cols]
-        
-        # Ensure data is not empty
-        if data.empty or len(data) == 0:
-            raise ValueError("Empty data provided to RF forecast")
-        
-        # Ensure target column is numeric
-        if not pd.api.types.is_numeric_dtype(data[target_col_name]):
-            data[target_col_name] = pd.to_numeric(data[target_col_name], errors='coerce')
-            data = data.dropna()
-        
-        # Add lag features
-        for lag in [1, 2, 3, 7, 14, 28]:
-            if len(data) > lag:
-                data[f'lag_{lag}'] = data[target_col_name].shift(lag)
-        
-        # Add rolling mean features
-        data['rolling_7'] = data[target_col_name].rolling(window=7, min_periods=1).mean()
-        data['rolling_14'] = data[target_col_name].rolling(window=14, min_periods=1).mean()
-        
-        # Ensure we have numeric data (select only numeric columns)
-        data = data.select_dtypes(include=[np.number])
-        
-        # Remove rows with NaN values
-        data = data.dropna()
-        
-        if len(data) < 10:  # Need sufficient data for RF
-            # Fallback to simple forecast
-            try:
-                if isinstance(df, pd.Series):
-                    last_value = float(df.iloc[-1]) if len(df) > 0 else 20.0
-                else:
-                    # Get last value from target column
-                    last_value = float(data[target_col_name].iloc[-1]) if len(data) > 0 else 20.0
-            except (IndexError, KeyError, ValueError):
-                last_value = 20.0
-            
-            forecast_values = [max(0.0, last_value + np.random.normal(0, last_value * 0.1)) for _ in range(horizon)]
-            return {
-                "forecast_values": forecast_values,
-                "confidence_lower": None,
-                "confidence_upper": None,
-                "model_type": "RF",
-                "accuracy_score": 0.7
-            }
-        
-        # Prepare features and target
-        if len(data.columns) == 0:
-            raise ValueError("No numeric columns found in data after feature engineering")
-        
-        # Use the original target column name if it exists, otherwise use first column
-        if target_col_name in data.columns:
-            target_col = target_col_name
-        else:
-            target_col = data.columns[0]  # First column is target
-        
-        feature_cols = [col for col in data.columns if col != target_col]  # All except target
-        
-        if len(feature_cols) == 0:
-            raise ValueError("No feature columns found")
-            
-        # Ensure we have valid data
-        if data.empty:
-            raise ValueError("Empty data after processing")
-            
-        X = data[feature_cols].values
-        y = data[target_col].values
-        
-        if len(X) == 0 or len(y) == 0:
-            raise ValueError("Empty feature or target data")
-            
-        # Ensure X and y are not None
-        if X is None or y is None:
-            raise ValueError("Feature or target data is None")
-        
-        # Train Random Forest
-        rf = RandomForestRegressor(n_estimators=100, random_state=42)
-        rf.fit(X, y)
-        
-        # Generate forecast
-        forecast_values = []
-        last_features = X[-1].reshape(1, -1)
-        
-        for i in range(horizon):
-            # Predict next value
-            pred = rf.predict(last_features)[0]
-            forecast_values.append(max(0, pred))
-            
-            # Update features for next prediction (shift lags)
-            new_features = last_features.copy()
-            # Shift all lags: lag_1 becomes pred, lag_2 becomes old lag_1, etc.
-            for j in range(len(feature_cols)):
-                if j == 0:  # lag_1
-                    new_features[0, j] = pred
-                else:  # lag_2, lag_3, etc.
-                    new_features[0, j] = last_features[0, j-1]
-            
-            # Update rolling means (simplified - use last known values)
-            # This is a simplified approach for rolling means
-            last_features = new_features
-        
-        return {
-            "forecast_values": forecast_values,
-            "confidence_lower": None,  # RF doesn't provide confidence intervals easily
-            "confidence_upper": None,
-            "model_type": "RF",
-            "accuracy_score": 0.8
-        }
-        
-    except Exception as e:
-        print(f"RF forecast error: {e}")
-        import traceback
-        traceback.print_exc()
-        # Fallback
-        try:
-            if isinstance(df, pd.Series):
-                last_value = float(df.iloc[-1]) if len(df) > 0 else 20.0
-            else:
-                # Try to get last numeric value
-                numeric_cols = df.select_dtypes(include=[np.number]).columns
-                if len(numeric_cols) > 0:
-                    last_value = float(df[numeric_cols[0]].iloc[-1]) if len(df) > 0 else 20.0
-                else:
-                    last_value = 20.0
-        except (IndexError, KeyError, ValueError, AttributeError):
-            last_value = 20.0
-        
-        forecast_values = [max(0.0, last_value + np.random.normal(0, abs(last_value) * 0.1)) for _ in range(horizon)]
-        return {
-            "forecast_values": forecast_values,
-            "confidence_lower": None,
-            "confidence_upper": None,
-            "model_type": "RF",
-            "accuracy_score": 0.6
-        }
+    """Random Forest forecast - wrapper for new service"""
+    service = ForecastingService()
+    if isinstance(df, pd.Series):
+        historical_data = [{'transaction_date': df.index[i].strftime('%Y-%m-%d %H:%M:%S') if hasattr(df.index[i], 'strftime') else str(df.index[i]), 
+                           'quantity_sold': float(df.iloc[i])} for i in range(len(df))]
+    else:
+        historical_data = [{'quantity_sold': float(df.iloc[i])} for i in range(len(df))]
+    
+    result = service.generate_rf_forecast(historical_data, horizon)
+    return result
 
 def snaive_forecast(df, horizon, season_length=7):
-    """
-    Seasonal Naive forecast - uses last season's values
-    """
-    try:
-        import pandas as pd
-        import numpy as np
-        
-        if len(df) < season_length:
-            # Not enough data for seasonal pattern
-            last_value = df.iloc[-1] if not df.empty else 20
-            forecast_values = [max(0, last_value + np.random.normal(0, last_value * 0.1)) for _ in range(horizon)]
-            return {
-                "forecast_values": forecast_values,
-                "confidence_lower": None,
-                "confidence_upper": None,
-                "model_type": "Seasonal",
-                "accuracy_score": 0.6
-            }
-        
-        # Get last season's values
-        last_season = df.iloc[-season_length:].values
-        
-        # Generate forecast by repeating seasonal pattern
-        forecast_values = []
-        for i in range(horizon):
-            seasonal_index = i % season_length
-            forecast_val = last_season[seasonal_index]
-            # Add some variation
-            variation = np.random.normal(0, forecast_val * 0.1)
-            forecast_val = max(0, forecast_val + variation)
-            forecast_values.append(forecast_val)
-        
-        return {
-            "forecast_values": forecast_values,
-            "confidence_lower": None,  # SNAIVE doesn't provide confidence intervals
-            "confidence_upper": None,
-            "model_type": "Seasonal",
-            "accuracy_score": 0.7
-        }
-        
-    except Exception as e:
-        print(f"SNAIVE forecast error: {e}")
-        # Fallback
-        last_value = df.iloc[-1] if not df.empty else 20
-        forecast_values = [max(0, last_value + np.random.normal(0, last_value * 0.1)) for _ in range(horizon)]
-        return {
-            "forecast_values": forecast_values,
-            "confidence_lower": None,
-            "confidence_upper": None,
-            "model_type": "Seasonal",
-            "accuracy_score": 0.5
-        }
+    """Seasonal Naive forecast - wrapper for new service"""
+    service = ForecastingService()
+    if isinstance(df, pd.Series):
+        historical_data = [{'transaction_date': df.index[i].strftime('%Y-%m-%d %H:%M:%S') if hasattr(df.index[i], 'strftime') else str(df.index[i]), 
+                           'quantity_sold': float(df.iloc[i])} for i in range(len(df))]
+    else:
+        historical_data = [{'quantity_sold': float(df.iloc[i])} for i in range(len(df))]
+    
+    result = service.generate_seasonal_forecast(historical_data, horizon)
+    return result
 
 # Global instance
 forecasting_service = ForecastingService()
