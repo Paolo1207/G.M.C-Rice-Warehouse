@@ -647,6 +647,9 @@ class ForecastingService:
             
             final_data = self.etl.load(processed_data)
             
+            # Get ETL process information
+            etl_info = self.etl.get_process_info()
+            
             # STEP 2: TRAIN/TEST SPLIT
             train_data, test_data = self.train_test_split(final_data, test_size=0.2)
             
@@ -736,7 +739,8 @@ class ForecastingService:
                 "accuracy_score": accuracy_score,
                 "metrics": metrics,
                 "train_size": len(train_data),
-                "test_size": len(test_data)
+                "test_size": len(test_data),
+                "etl_process": etl_info
             }
             
         except Exception as e:
@@ -788,6 +792,9 @@ class ForecastingService:
                 return self._generate_default_forecast(periods)
             
             final_data = self.etl.load(processed_data)
+            
+            # Get ETL process information
+            etl_info = self.etl.get_process_info()
             
             # STEP 2: TRAIN/TEST SPLIT
             train_data, test_data = self.train_test_split(final_data, test_size=0.2)
@@ -862,7 +869,8 @@ class ForecastingService:
                 "accuracy_score": accuracy_score,
                 "metrics": metrics,
                 "train_size": len(train_data),
-                "test_size": len(test_data)
+                "test_size": len(test_data),
+                "etl_process": etl_info
             }
             
         except Exception as e:
