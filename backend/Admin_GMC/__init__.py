@@ -836,7 +836,8 @@ def api_restock_inventory_item(inventory_id: int):
     # Create a restock log row
     # Always use current time unless a valid past date was explicitly provided
     from models import RestockLog
-    # Explicitly use current time if created_at is None (no date provided or date is today)
+    # IMPORTANT: Call datetime.utcnow() right here to capture the exact moment of restock
+    # Do NOT rely on model default - explicitly set the timestamp
     if created_at is None:
         created_at = datetime.utcnow()
     
@@ -844,13 +845,18 @@ def api_restock_inventory_item(inventory_id: int):
         inventory_item_id=target_inv.id,
         qty_kg=qty,
         supplier=supplier,
-        note=note,
-        created_at=created_at  # Now guaranteed to be a datetime object
+        note=note
     )
+    # CRITICAL: Explicitly set created_at AFTER object creation to override any defaults
+    # This ensures we use the exact timestamp we calculated, not a model default
+    log.created_at = created_at
     db.session.add(log)
 
     try:
         db.session.commit()
+        
+        # Refresh the log from database to ensure we have the actual stored timestamp
+        db.session.refresh(log)
         
         # Log the restock activity
         from activity_logger import ActivityLogger

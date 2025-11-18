@@ -143,6 +143,9 @@ class RestockLog(db.Model):
     inventory_item = db.relationship("InventoryItem", back_populates="logs")
 
     def to_dict(self):
+        # Format datetime as ISO 8601 with UTC timezone indicator for proper parsing
+        datetime_str = self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else ""
+        datetime_iso = self.created_at.isoformat() + "Z" if self.created_at else ""  # Add Z for UTC
         return {
             "id": self.id,
             "inventory_item_id": self.inventory_item_id,
@@ -150,8 +153,9 @@ class RestockLog(db.Model):
             "supplier": self.supplier,
             "note": self.note,
             "created_by": self.created_by,
-            "date": self.created_at.strftime("%Y-%m-%d"),
-            "datetime": self.created_at.strftime("%Y-%m-%d %H:%M:%S"),  # Full timestamp for sorting
+            "date": self.created_at.strftime("%Y-%m-%d") if self.created_at else "",
+            "datetime": datetime_str,  # Full timestamp for sorting (YYYY-MM-DD HH:MM:SS)
+            "datetime_iso": datetime_iso,  # ISO format with timezone for proper JavaScript parsing
             "variant": self.inventory_item.product.name,
             "batch_code": self.inventory_item.batch_code or "",  # Include batch code from inventory item
         }
