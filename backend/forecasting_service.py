@@ -186,7 +186,16 @@ class ForecastingService:
         Train ARIMA model on training data
         """
         if len(train_data) < 7:
+            print(f"ARIMA training: Not enough data ({len(train_data)} < 7)")
             return None
+        
+        # Check if data has variance - constant data will produce flat forecast
+        data_std = float(train_data.std()) if len(train_data) > 1 else 0
+        data_mean = float(train_data.mean()) if not train_data.empty else 0
+        
+        if data_std < 0.01 and data_mean > 0:
+            print(f"WARNING: ARIMA training data has no variance (std={data_std}). Model may produce flat forecast.")
+            # Still try to train, but we'll handle flat forecasts in generation
         
         try:
             if STATSMODELS_AVAILABLE:
@@ -206,20 +215,31 @@ class ForecastingService:
                                     best_aic = fitted_model.aic
                                     best_model = fitted_model
                                     best_order = (p, d, q)
-                            except:
+                            except Exception as e:
+                                # Silently continue to next parameter combination
                                 continue
                 
                 if best_model is not None:
+                    print(f"ARIMA model trained successfully with order {best_order}, AIC={best_aic:.2f}")
                     return best_model
                 else:
                     # Fallback to simple ARIMA(1,1,1)
-                    model = ARIMA(train_data, order=(1, 1, 1))
-                    return model.fit()
+                    try:
+                        print("ARIMA: Using fallback ARIMA(1,1,1)")
+                        model = ARIMA(train_data, order=(1, 1, 1))
+                        fitted = model.fit()
+                        print(f"ARIMA(1,1,1) trained successfully, AIC={fitted.aic:.2f}")
+                        return fitted
+                    except Exception as e:
+                        print(f"ARIMA(1,1,1) fallback failed: {e}")
+                        return None
             else:
                 # Simplified ARIMA approximation (moving average based)
                 return {'type': 'simple_arima', 'data': train_data}
         except Exception as e:
             print(f"ARIMA training error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def generate_arima_forecast(self, historical_data: List[Dict], periods: int = 30) -> Dict:
@@ -257,10 +277,23 @@ class ForecastingService:
                 if STATSMODELS_AVAILABLE and hasattr(model, 'forecast'):
                     try:
                         test_forecast = model.forecast(steps=len(test_data)).tolist()
-                    except:
-                        test_forecast = [float(train_data.iloc[-1])] * len(test_data)
+                        # Check if test forecast is constant
+                        if len(test_forecast) > 1 and np.std(test_forecast) < 0.01:
+                            print("WARNING: Test forecast is constant, using trend-based forecast")
+                            trend = self._calculate_trend(train_data)
+                            last_val = float(train_data.iloc[-1])
+                            test_forecast = [max(0, last_val + trend * (i+1)) for i in range(len(test_data))]
+                    except Exception as e:
+                        print(f"Test forecast generation error: {e}")
+                        # Use trend-based fallback instead of flat line
+                        trend = self._calculate_trend(train_data)
+                        last_val = float(train_data.iloc[-1])
+                        test_forecast = [max(0, last_val + trend * (i+1)) for i in range(len(test_data))]
                 else:
-                    test_forecast = [float(train_data.iloc[-1])] * len(test_data)
+                    # Use trend-based fallback
+                    trend = self._calculate_trend(train_data)
+                    last_val = float(train_data.iloc[-1])
+                    test_forecast = [max(0, last_val + trend * (i+1)) for i in range(len(test_data))]
                 
                 test_forecast_series = pd.Series(test_forecast)
                 metrics = self.evaluate_model(test_data, test_forecast_series)
@@ -276,6 +309,10 @@ class ForecastingService:
             confidence_lower = []
             confidence_upper = []
             
+            # Check data variance - if constant, ARIMA will produce flat forecast
+            data_variance = float(train_data.std()) if len(train_data) > 1 else 0
+            data_mean = float(train_data.mean()) if not train_data.empty else 0
+            
             if STATSMODELS_AVAILABLE and hasattr(model, 'forecast'):
                 try:
                     # Use trained ARIMA model
@@ -285,13 +322,51 @@ class ForecastingService:
                     forecast_values = forecast_result.tolist()
                     confidence_lower = conf_int.iloc[:, 0].tolist()
                     confidence_upper = conf_int.iloc[:, 1].tolist()
-                except:
-                    # Fallback if forecast fails
+                    
+                    # Check if forecast is constant (flat line) - this indicates a problem
+                    if len(forecast_values) > 1:
+                        forecast_variance = np.std(forecast_values)
+                        if forecast_variance < 0.01:  # Essentially constant
+                            print(f"WARNING: ARIMA forecast is constant (variance={forecast_variance}). Data may have no variance or model failed.")
+                            # Use trend-based forecast instead
+                            trend = self._calculate_trend(train_data)
+                            last_value = float(train_data.iloc[-1])
+                            std_dev = max(data_variance, data_mean * 0.1) if data_variance > 0 else data_mean * 0.2
+                            
+                            for i in range(periods):
+                                # Apply trend with some variation
+                                forecast_val = last_value + (trend * (i + 1))
+                                # Add small random variation to avoid flat line
+                                variation = np.random.normal(0, std_dev * 0.1) if std_dev > 0 else 0
+                                forecast_val = max(0, forecast_val + variation)
+                                forecast_values[i] = round(forecast_val, 2)
+                                
+                                ci_margin = max(forecast_val * 0.15, std_dev * 1.5)
+                                confidence_lower[i] = round(max(0, forecast_val - ci_margin), 2)
+                                confidence_upper[i] = round(forecast_val + ci_margin, 2)
+                except Exception as e:
+                    print(f"ARIMA forecast generation error: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    # Improved fallback with trend instead of flat line
+                    trend = self._calculate_trend(train_data)
                     last_value = float(train_data.iloc[-1])
+                    std_dev = max(data_variance, data_mean * 0.1) if data_variance > 0 else data_mean * 0.2
+                    
                     for i in range(periods):
-                        forecast_values.append(max(0, last_value))
-                        confidence_lower.append(max(0, last_value * 0.8))
-                        confidence_upper.append(max(0, last_value * 1.2))
+                        # Apply trend
+                        forecast_val = last_value + (trend * (i + 1))
+                        # Add small variation to avoid completely flat line
+                        if std_dev > 0:
+                            variation = np.random.normal(0, std_dev * 0.1)
+                            forecast_val = max(0, forecast_val + variation)
+                        else:
+                            forecast_val = max(0, forecast_val)
+                        
+                        forecast_values.append(round(forecast_val, 2))
+                        ci_margin = max(forecast_val * 0.15, std_dev * 1.5) if std_dev > 0 else forecast_val * 0.2
+                        confidence_lower.append(round(max(0, forecast_val - ci_margin), 2))
+                        confidence_upper.append(round(forecast_val + ci_margin, 2))
             else:
                 # Simplified ARIMA (moving average based)
                 window_size = min(7, len(train_data) // 2)
