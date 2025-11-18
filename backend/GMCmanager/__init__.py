@@ -1352,20 +1352,31 @@ def mgr_forecast_generate():
             inventory_items = query.all()
             products = [item.product for item in inventory_items if item.product]
         
+        # Store forecast result for single product forecasts
+        stored_forecast_result = None
+        
         for product in products:
             if not product:
                 continue
             
             print(f"DEBUG FORECAST: Processing product: {product.name}")
             
-            # Get historical sales data for this product (last 90 days)
-            sales_transactions = db.session.query(SalesTransaction).filter(
-                SalesTransaction.branch_id == branch_id,
-                SalesTransaction.product_id == product.id,
-                func.date(SalesTransaction.transaction_date) >= today - timedelta(days=90)
-            ).order_by(SalesTransaction.transaction_date.desc()).all()
+            # Get historical sales data for this product - 2 to 3 years back (using 2.5 years = ~912 days)
+            # Use UTC to match database timezone and cap at today to exclude future dates
+            today_utc = datetime.utcnow()
+            date_threshold = today_utc - timedelta(days=912)  # Approximately 2.5 years
             
-            print(f"DEBUG FORECAST: Found {len(sales_transactions)} sales transactions for {product.name}")
+            # Query with date filters
+            sales_transactions = (
+                SalesTransaction.query
+                .filter_by(branch_id=branch_id, product_id=product.id)
+                .filter(SalesTransaction.transaction_date >= date_threshold)
+                .filter(SalesTransaction.transaction_date <= today_utc)  # Exclude future dates
+                .order_by(SalesTransaction.transaction_date.desc())
+                .all()
+            )
+            
+            print(f"DEBUG FORECAST: Found {len(sales_transactions)} sales transactions for {product.name} (last 2-3 years)")
             
             # Convert to list for forecasting service
             historical_data = []
@@ -1374,6 +1385,21 @@ def mgr_forecast_generate():
                     'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S'),
                     'quantity_sold': sale.quantity_sold
                 })
+            
+            # Calculate data source statistics
+            total_transactions = len(historical_data)
+            unique_days = 0
+            earliest_date = None
+            latest_date = None
+            
+            if historical_data:
+                dates = [datetime.strptime(d['transaction_date'], '%Y-%m-%d %H:%M:%S').date() for d in historical_data]
+                unique_days = len(set(dates))
+                earliest_date = min(dates)
+                latest_date = max(dates)
+            
+            # Determine data source type
+            data_source_type = 'actual_sales' if historical_data else 'estimated_from_inventory'
             
             # If no sales data, create some dummy data based on inventory (avoid grn_number column)
             if not historical_data:
@@ -1399,10 +1425,36 @@ def mgr_forecast_generate():
             if historical_data:
                 print(f"DEBUG FORECAST: Sample data: {historical_data[:3]}")
             
-            # Generate forecast using the forecasting service
-            print(f"DEBUG FORECAST: Calling forecasting service for {product.name}")
-            forecast_result = forecasting_service.generate_arima_forecast(historical_data, days)
-            print(f"DEBUG FORECAST: Forecast result: {forecast_result}")
+            # Generate forecast using the forecasting service with ETL pipeline and model selection
+            print(f"DEBUG FORECAST: Calling forecasting service with model selection for {product.name}")
+            model_type_upper = model_type.upper() if model_type else None
+            forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                historical_data, 
+                days, 
+                requested_model=model_type_upper
+            )
+            print(f"DEBUG FORECAST: Forecast result keys: {forecast_result.keys() if forecast_result else 'None'}")
+            
+            if not forecast_result:
+                print(f"ERROR: Forecast generation returned None for {product.name}")
+                continue
+            
+            # Add data source information
+            forecast_result['data_source'] = {
+                'type': data_source_type,
+                'total_transactions': total_transactions,
+                'unique_days': unique_days,
+                'date_range_days': 912,  # 2.5 years
+                'earliest_date': earliest_date.strftime('%Y-%m-%d') if earliest_date else None,
+                'latest_date': latest_date.strftime('%Y-%m-%d') if latest_date else None,
+                'date_threshold': date_threshold.strftime('%Y-%m-%d'),
+                'train_size': forecast_result.get('train_size', 0),
+                'test_size': forecast_result.get('test_size', 0)
+            }
+            
+            # Store forecast result for single product forecasts
+            if product_id:
+                stored_forecast_result = forecast_result
             
             # Store forecast in database
             for i, (predicted_demand, lower, upper) in enumerate(zip(
@@ -1506,7 +1558,9 @@ def mgr_forecast_generate():
         for item in forecast_data:
             print(f"DEBUG FORECAST: Product: {item.get('product_name', 'Unknown')}, Forecast points: {len(item.get('forecast_data', []))}")
         
-        return jsonify({
+        # Get the forecast result from the last product processed (for single product forecasts)
+        # Include ETL process and data source information
+        forecast_response = {
             "ok": True,
             "message": f"Generated {model_type.upper()} forecast for {len(forecast_data)} products",
             "forecast": chart_data,
@@ -1517,7 +1571,28 @@ def mgr_forecast_generate():
                 "days_forecasted": days,
                 "confidence_avg": round(sum(f['confidence'] for f in forecast_data) / len(forecast_data), 2) if forecast_data else 0
             }
-        })
+        }
+        
+        # If we have a single product forecast, include the full forecast result with ETL info
+        if product_id and stored_forecast_result:
+            forecast_response["forecast"] = {
+                "labels": chart_data.get("labels", []),
+                "forecast": chart_data.get("forecast", []),
+                "actual": chart_data.get("actual", []),
+                "forecast_values": stored_forecast_result.get('forecast_values', []),
+                "confidence_lower": stored_forecast_result.get('confidence_lower', []),
+                "confidence_upper": stored_forecast_result.get('confidence_upper', []),
+                "model_type": stored_forecast_result.get('model_type', model_type.upper()),
+                "accuracy_score": stored_forecast_result.get('accuracy_score', 0.75),
+                "forecast_start_date": datetime.now().date().isoformat(),
+                "train_size": stored_forecast_result.get('train_size', 0),
+                "test_size": stored_forecast_result.get('test_size', 0),
+                "metrics": stored_forecast_result.get('metrics', {}),
+                "etl_process": stored_forecast_result.get('etl_process', {}),
+                "data_source": stored_forecast_result.get('data_source', {})
+            }
+        
+        return jsonify(forecast_response)
         
     except Exception as e:
         db.session.rollback()
