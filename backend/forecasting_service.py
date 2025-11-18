@@ -246,6 +246,13 @@ class ForecastingService:
         """
         Generate ARIMA forecast with proper ETL, train/test split, and training
         Uses ONLY historical sales data - no estimated data
+        
+        PIPELINE STEPS:
+        1. ETL (Extract → Transform → Load)
+        2. Train/Test Split
+        3. Modeling (Train ARIMA)
+        4. Evaluation (Test on held-out data)
+        5. Output (Generate forecast with confidence intervals)
         """
         try:
             # Validate that we have actual historical sales data
@@ -261,12 +268,21 @@ class ForecastingService:
             
             print(f"ARIMA: Using {len(historical_data)} historical sales records with total quantity {total_quantity:.2f} kg")
             
-            # ETL Pipeline
+            # ============================================================
+            # STEP 1: ETL PIPELINE (Extract → Transform → Load)
+            # ============================================================
+            # EXTRACT: Load raw historical sales data
             raw_df = self.etl.extract(historical_data)
             if raw_df.empty:
                 print("ARIMA: ETL Extract returned empty dataframe")
                 return self._generate_default_forecast(periods, "ARIMA")
             
+            # TRANSFORM: Clean, aggregate, and prepare data for modeling
+            # - Converts transaction_date to datetime
+            # - Aggregates by day (sum quantity_sold per day)
+            # - Removes outliers (beyond 3 standard deviations)
+            # - Clips negative values to 0
+            # - Fills missing values
             processed_data = self.etl.transform(raw_df)
             if processed_data.empty:
                 print("ARIMA: ETL Transform returned empty series")
@@ -275,9 +291,14 @@ class ForecastingService:
             # Ensure processed data has no negative values
             processed_data = processed_data.clip(lower=0)
             
+            # LOAD: Final data preparation and validation
+            # - Ensures minimum data points (pads if needed)
             final_data = self.etl.load(processed_data)
             
-            # Train/Test Split
+            # ============================================================
+            # STEP 2: TRAIN/TEST SPLIT
+            # ============================================================
+            # Split data chronologically: 80% training (older), 20% testing (recent)
             train_data, test_data = self.train_test_split(final_data, test_size=0.2)
             
             if len(train_data) < 7:
@@ -291,20 +312,27 @@ class ForecastingService:
             print(f"ARIMA: Data statistics - Mean: {data_mean:.2f}, Std: {data_variance:.2f}, CV: {coefficient_of_variation:.4f}")
             
             # If coefficient of variation is very low (< 0.01), data is essentially constant
-            # ARIMA will produce flat forecasts - use exponential smoothing or moving average instead
+            # ARIMA will produce flat forecasts - use simple moving average instead
             if coefficient_of_variation < 0.01 and data_mean > 0:
-                print(f"WARNING: Data has very low variance (CV={coefficient_of_variation:.4f}). Using exponential smoothing instead of ARIMA.")
-                # Use exponential smoothing for near-constant data
-                return self._generate_exponential_smoothing_forecast(train_data, periods)
+                print(f"WARNING: Data has very low variance (CV={coefficient_of_variation:.4f}). Using simple moving average instead of ARIMA.")
+                # Use simple moving average for near-constant data (smoother than exponential smoothing)
+                return self._generate_simple_ma_forecast(train_data, periods)
             
+            # ============================================================
             # STEP 3: MODELING - Train ARIMA Model
+            # ============================================================
+            # Train ARIMA model on training data
+            # Uses grid search to find best (p, d, q) parameters
             model = self.train_arima_model(train_data)
             
             if model is None:
-                print("ARIMA: Model training returned None, using exponential smoothing fallback")
-                return self._generate_exponential_smoothing_forecast(train_data, periods)
+                print("ARIMA: Model training returned None, using simple moving average fallback")
+                return self._generate_simple_ma_forecast(train_data, periods)
             
+            # ============================================================
             # STEP 4: EVALUATION - Evaluate model on test data
+            # ============================================================
+            # Generate predictions on test data and calculate metrics (MAE, MAPE, RMSE, Accuracy)
             if len(test_data) > 0:
                 # Generate predictions for test period
                 test_forecast = []
@@ -338,7 +366,10 @@ class ForecastingService:
                 accuracy_score = min(0.95, 0.6 + (data_points * 0.01))
                 metrics = {'mae': 0, 'mape': 0, 'rmse': 0, 'accuracy': accuracy_score}
             
-            # STEP 5: OUTPUT - Generate forecast for future periods using trained and evaluated model
+            # ============================================================
+            # STEP 5: OUTPUT - Generate forecast for future periods
+            # ============================================================
+            # Generate predicted daily demand with confidence intervals (upper/lower)
             forecast_values = []
             confidence_lower = []
             confidence_upper = []
@@ -349,7 +380,7 @@ class ForecastingService:
             
             if STATSMODELS_AVAILABLE and hasattr(model, 'forecast'):
                 try:
-                    # Use trained ARIMA model
+                    # Use trained ARIMA model to generate forecast
                     forecast_result = model.forecast(steps=periods)
                     conf_int = model.get_forecast(steps=periods).conf_int()
                     
@@ -386,23 +417,21 @@ class ForecastingService:
                     if len(forecast_values) > 1:
                         forecast_variance = np.std(forecast_values)
                         if forecast_variance < 0.01:  # Essentially constant
-                            print(f"WARNING: ARIMA forecast is constant (variance={forecast_variance:.10f}). Using exponential smoothing instead.")
-                            # Use exponential smoothing for better forecast with variation
-                            exp_result = self._generate_exponential_smoothing_forecast(train_data, periods)
-                            if exp_result:
-                                return exp_result
+                            print(f"WARNING: ARIMA forecast is constant (variance={forecast_variance:.10f}). Using simple moving average instead.")
+                            # Use simple moving average for smoother forecast
+                            ma_result = self._generate_simple_ma_forecast(train_data, periods)
+                            if ma_result:
+                                return ma_result
                             
-                            # Fallback to trend-based if exponential smoothing fails
+                            # Fallback to trend-based if simple MA fails (no random variation)
                             trend = self._calculate_trend(train_data)
                             last_value = float(train_data.iloc[-1])
                             std_dev = max(data_variance, data_mean * 0.1) if data_variance > 0 else data_mean * 0.2
                             
                             for i in range(periods):
-                                # Apply trend with some variation
+                                # Apply trend only (no random variation for smooth forecast)
                                 forecast_val = last_value + (trend * (i + 1))
-                                # Add small random variation to avoid flat line
-                                variation = np.random.normal(0, std_dev * 0.1) if std_dev > 0 else 0
-                                forecast_val = max(0, forecast_val + variation)  # Ensure non-negative
+                                forecast_val = max(0, forecast_val)  # Ensure non-negative
                                 
                                 # Calculate confidence intervals ensuring no negative values
                                 ci_margin = max(forecast_val * 0.15, std_dev * 1.5) if std_dev > 0 else forecast_val * 0.2
@@ -420,20 +449,15 @@ class ForecastingService:
                     print(f"ARIMA forecast generation error: {e}")
                     import traceback
                     traceback.print_exc()
-                    # Improved fallback with trend instead of flat line
+                    # Improved fallback with trend (no random variation for smooth forecast)
                     trend = self._calculate_trend(train_data)
                     last_value = max(0, float(train_data.iloc[-1]))  # Ensure non-negative
                     std_dev = max(data_variance, data_mean * 0.1) if data_variance > 0 else max(data_mean * 0.2, 1.0)
                     
                     for i in range(periods):
-                        # Apply trend
+                        # Apply trend only (no random variation for smooth forecast)
                         forecast_val = last_value + (trend * (i + 1))
-                        # Add small variation to avoid completely flat line
-                        if std_dev > 0:
-                            variation = np.random.normal(0, std_dev * 0.1)
-                            forecast_val = max(0, forecast_val + variation)  # Ensure non-negative
-                        else:
-                            forecast_val = max(0, forecast_val)
+                        forecast_val = max(0, forecast_val)  # Ensure non-negative
                         
                         # Calculate confidence intervals ensuring no negative values
                         ci_margin = max(forecast_val * 0.15, std_dev * 1.5) if std_dev > 0 else forecast_val * 0.2
@@ -895,14 +919,12 @@ class ForecastingService:
         slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
         return slope
     
-    def _generate_exponential_smoothing_forecast(self, train_data: pd.Series, periods: int) -> Dict:
+    def _generate_simple_ma_forecast(self, train_data: pd.Series, periods: int) -> Dict:
         """
-        Generate forecast using exponential smoothing when data has low variance
-        This prevents flat forecasts for near-constant data
+        Generate forecast using simple moving average when data has low variance
+        Produces smooth forecasts without wavy patterns
         """
         try:
-            # Calculate exponential smoothing parameters
-            alpha = 0.3  # Smoothing parameter (0-1, lower = more smoothing)
             last_value = float(train_data.iloc[-1])
             mean_value = float(train_data.mean())
             
@@ -913,28 +935,19 @@ class ForecastingService:
             # Calculate standard deviation for confidence intervals
             std_dev = float(train_data.std()) if len(train_data) > 1 else mean_value * 0.1
             
+            # Use simple moving average (last 7 days) as base
+            window_size = min(7, len(train_data))
+            ma_value = float(train_data.iloc[-window_size:].mean()) if len(train_data) >= window_size else mean_value
+            
             forecast_values = []
             confidence_lower = []
             confidence_upper = []
             
-            # Use simple exponential smoothing with trend
-            # Start with last observed value
-            smoothed_value = last_value
-            
+            # Generate smooth forecast with trend (no random variation)
             for i in range(periods):
-                # Exponential smoothing: new_forecast = alpha * last_observed + (1-alpha) * previous_forecast
-                # Add trend component
-                forecast_val = smoothed_value + (trend * (i + 1))
-                
-                # Add small variation to prevent flat line (use historical variation pattern)
-                # If data has low variance, add minimum variation based on mean
-                min_variation = mean_value * 0.02  # 2% of mean as minimum variation
-                variation_std = max(std_dev * 0.15, min_variation)
-                variation = np.random.normal(0, variation_std)
-                forecast_val = max(0, forecast_val + variation)
-                
-                # Update smoothed value for next iteration (decay towards mean with trend)
-                smoothed_value = alpha * forecast_val + (1 - alpha) * smoothed_value
+                # Apply trend to moving average (smooth, no wavy pattern)
+                forecast_val = ma_value + (trend * (i + 1))
+                forecast_val = max(0, forecast_val)  # Ensure non-negative
                 
                 # Calculate confidence intervals
                 ci_margin = max(forecast_val * 0.15, std_dev * 1.5) if std_dev > 0 else forecast_val * 0.2
@@ -950,10 +963,10 @@ class ForecastingService:
                 confidence_upper.append(round(conf_up, 2))
             
             # Calculate simple metrics
-            accuracy_score = 0.7  # Default accuracy for exponential smoothing
+            accuracy_score = 0.7  # Default accuracy for simple MA
             metrics = {
                 'mae': std_dev * 0.5 if std_dev > 0 else mean_value * 0.1,
-                'mape': 15.0,  # Typical MAPE for exponential smoothing
+                'mape': 15.0,  # Typical MAPE for simple MA
                 'rmse': std_dev * 0.6 if std_dev > 0 else mean_value * 0.12,
                 'accuracy': accuracy_score
             }
@@ -969,7 +982,7 @@ class ForecastingService:
                 "test_size": 0
             }
         except Exception as e:
-            print(f"Exponential smoothing forecast error: {e}")
+            print(f"Simple MA forecast error: {e}")
             return self._generate_default_forecast(periods, "ARIMA")
     
     def _generate_default_forecast(self, periods: int, model_type: str = "Default") -> Dict:
