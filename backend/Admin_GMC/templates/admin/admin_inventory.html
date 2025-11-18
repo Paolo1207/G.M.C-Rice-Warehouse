@@ -1276,7 +1276,7 @@ restockForm.addEventListener("submit", async (e)=>{
   // Batch code only when shown
   const batchCode  = (restockBatchGroup.style.display !== 'none' ? (restockBatchCode.value || '').trim() : '');
   const supplier   = restockSupplier.value.trim();
-  const date        = restockDate.value;
+  const date        = (restockDate.value || '').trim();
   const notes      = restockNotes.value.trim();
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -1313,9 +1313,11 @@ restockForm.addEventListener("submit", async (e)=>{
   
   // Only include date if user explicitly set a different date (for backdating)
   // If date is today or empty, omit it to use current time
+  // Backend will also check if date is today and use current time if so
   if (date && date !== today) {
     payload.date = date;
   }
+  // Explicitly do NOT include date if it's today - let backend use current time
 
   try {
     const res = await fetch(`/admin/api/inventory/${encodeURIComponent(invId)}/restock`, {

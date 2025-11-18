@@ -785,10 +785,17 @@ def api_restock_inventory_item(inventory_id: int):
     note     = (data.get("notes") or data.get("note") or "").strip() or None
 
     # Optional override date (YYYY-MM-DD). If omitted, now().
+    # If date is provided and it's today, use current time. Otherwise, use midnight of that date.
     created_at = None
     if data.get("date"):
         try:
-            created_at = datetime.strptime(data.get("date"), "%Y-%m-%d")
+            date_only = datetime.strptime(data.get("date"), "%Y-%m-%d").date()
+            today = datetime.utcnow().date()
+            # If the date is today, use current time. Otherwise, use midnight of that date.
+            if date_only == today:
+                created_at = datetime.utcnow()  # Use current time for today's date
+            else:
+                created_at = datetime.combine(date_only, datetime.min.time())  # Use midnight for past dates
         except ValueError:
             return jsonify({"ok": False, "error": "date must be YYYY-MM-DD"}), 400
 
@@ -1651,8 +1658,42 @@ def api_sales_export():
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(['Date','Branch','Product','Qty','Amount'])
+        
+        # Calculate totals
+        total_qty = 0
+        total_amt = 0
+        
         for r in rows:
-            writer.writerow([r.get('date', ''), r.get('branch_name', ''), r.get('product_name', ''), r.get('qty', 0), r.get('amount', 0)])
+            # Format date properly for Excel (MM/DD/YYYY format)
+            date_str_val = r.get('date', '')
+            if date_str_val:
+                try:
+                    # Parse the date and format as MM/DD/YYYY for Excel compatibility
+                    date_obj = datetime.strptime(date_str_val, '%Y-%m-%d')
+                    formatted_date = date_obj.strftime('%m/%d/%Y')
+                except:
+                    # If parsing fails, use original value
+                    formatted_date = date_str_val
+            else:
+                formatted_date = ''
+            
+            qty = float(r.get('qty', 0) or 0)
+            amt = float(r.get('amount', 0) or 0)
+            total_qty += qty
+            total_amt += amt
+            
+            writer.writerow([
+                formatted_date,
+                r.get('branch_name', ''),
+                r.get('product_name', ''),
+                qty,
+                amt
+            ])
+        
+        # Add totals row
+        writer.writerow([])  # Empty row for spacing
+        writer.writerow(['TOTAL', '', '', total_qty, total_amt])
+        
         data = output.getvalue()
         resp = make_response(data)
         resp.headers['Content-Type'] = 'text/csv'
