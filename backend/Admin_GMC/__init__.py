@@ -1680,18 +1680,37 @@ def api_sales_export():
         total_amt = 0
         
         for r in rows:
-            # Format date properly for Excel (MM/DD/YYYY format)
+            # Format date properly for Excel - use multiple format attempts
             date_str_val = r.get('date', '')
+            formatted_date = ''
+            
             if date_str_val:
                 try:
-                    # Parse the date and format as MM/DD/YYYY for Excel compatibility
-                    date_obj = datetime.strptime(date_str_val, '%Y-%m-%d')
-                    formatted_date = date_obj.strftime('%m/%d/%Y')
-                except:
-                    # If parsing fails, use original value
-                    formatted_date = date_str_val
-            else:
-                formatted_date = ''
+                    # Try parsing as YYYY-MM-DD first (most common format from API)
+                    if isinstance(date_str_val, str) and len(date_str_val) >= 10:
+                        # Try YYYY-MM-DD format
+                        try:
+                            date_obj = datetime.strptime(date_str_val[:10], '%Y-%m-%d')
+                            # Format as MM/DD/YYYY for Excel (Excel recognizes this format)
+                            formatted_date = date_obj.strftime('%m/%d/%Y')
+                        except ValueError:
+                            # Try other common formats
+                            try:
+                                date_obj = datetime.strptime(date_str_val[:10], '%m/%d/%Y')
+                                formatted_date = date_obj.strftime('%m/%d/%Y')
+                            except ValueError:
+                                # If all parsing fails, try to extract date parts manually
+                                parts = date_str_val.split('-')
+                                if len(parts) >= 3:
+                                    # Assume YYYY-MM-DD format
+                                    formatted_date = f"{parts[1]}/{parts[2]}/{parts[0]}"
+                                else:
+                                    formatted_date = date_str_val
+                    else:
+                        formatted_date = str(date_str_val)
+                except Exception as e:
+                    # If all parsing fails, use original value
+                    formatted_date = str(date_str_val) if date_str_val else ''
             
             qty = float(r.get('qty', 0) or 0)
             amt = float(r.get('amount', 0) or 0)
