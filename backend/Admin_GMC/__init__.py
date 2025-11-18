@@ -4472,27 +4472,41 @@ def api_dashboard_predictive_demand():
                         sales_by_date[sale_date] = 0
                     sales_by_date[sale_date] += float(sale.quantity_sold or 0)
                 
+                # Skip if no sales data after aggregation
+                if not sales_by_date:
+                    continue
+                
                 # Convert to list format for forecasting service
+                # Format dates as strings in the expected format
                 historical_data = [
                     {
-                        'transaction_date': date_key,
-                        'quantity_sold': qty,
-                        'branch_id': branch.id,
-                        'product_id': 0  # Aggregated across all products
+                        'transaction_date': date_key.strftime('%Y-%m-%d %H:%M:%S') if hasattr(date_key, 'strftime') else str(date_key) + ' 00:00:00',
+                        'quantity_sold': qty
                     }
-                    for date_key, qty in sales_by_date.items()
+                    for date_key, qty in sorted(sales_by_date.items())  # Sort by date
                 ]
                 
-                # Generate forecast using ARIMA
+                # Generate forecast using ARIMA with model selection
                 try:
-                    forecast_result = forecasting_service.generate_arima_forecast(historical_data, periods)
+                    if len(historical_data) < 7:  # Need at least 7 days of data
+                        continue
+                    
+                    forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                        historical_data, 
+                        periods, 
+                        requested_model='ARIMA'
+                    )
                     
                     if forecast_result and forecast_result.get('forecast_values'):
                         # Generate dates for forecast
                         start_date = date.today()
+                        forecast_values = forecast_result.get('forecast_values', [])
+                        confidence_lower = forecast_result.get('confidence_lower', []) or []
+                        confidence_upper = forecast_result.get('confidence_upper', []) or []
+                        
                         forecast_dates = [
                             (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
-                            for i in range(periods)
+                            for i in range(min(len(forecast_values), periods))
                         ]
                         
                         forecast_data.append({
@@ -4501,11 +4515,11 @@ def api_dashboard_predictive_demand():
                             'forecast_data': [
                                 {
                                     'date': forecast_dates[i],
-                                    'forecast': forecast_result['forecast_values'][i],
-                                    'confidence_lower': forecast_result.get('confidence_lower', [])[i] if forecast_result.get('confidence_lower') else None,
-                                    'confidence_upper': forecast_result.get('confidence_upper', [])[i] if forecast_result.get('confidence_upper') else None
+                                    'forecast': float(forecast_values[i]) if i < len(forecast_values) else 0.0,
+                                    'confidence_lower': float(confidence_lower[i]) if confidence_lower and i < len(confidence_lower) else None,
+                                    'confidence_upper': float(confidence_upper[i]) if confidence_upper and i < len(confidence_upper) else None
                                 }
-                                for i in range(min(len(forecast_result['forecast_values']), len(forecast_dates)))
+                                for i in range(len(forecast_dates))
                             ]
                         })
                 except Exception as e:
@@ -4537,38 +4551,60 @@ def api_dashboard_predictive_demand():
                         sales_by_date[sale_date] = 0
                     sales_by_date[sale_date] += float(sale.quantity_sold or 0)
                 
-                historical_data = [
-                    {
-                        'transaction_date': date_key,
-                        'quantity_sold': qty,
-                        'branch_id': branch.id,
-                        'product_id': 0
-                    }
-                    for date_key, qty in sales_by_date.items()
-                ]
-                
-                try:
-                    forecast_result = forecasting_service.generate_arima_forecast(historical_data, periods)
+                if sales_by_date:
+                    historical_data = [
+                        {
+                            'transaction_date': date_key.strftime('%Y-%m-%d %H:%M:%S') if hasattr(date_key, 'strftime') else str(date_key) + ' 00:00:00',
+                            'quantity_sold': qty
+                        }
+                        for date_key, qty in sorted(sales_by_date.items())  # Sort by date
+                    ]
                     
-                    if forecast_result and forecast_result.get('forecast_values'):
-                        start_date = date.today()
-                        forecast_dates = [
-                            (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
-                            for i in range(periods)
-                        ]
-                        
-                        forecast_data = [
-                            {
-                                'date': forecast_dates[i],
-                                'forecast': forecast_result['forecast_values'][i],
-                                'confidence_lower': forecast_result.get('confidence_lower', [])[i] if forecast_result.get('confidence_lower') else None,
-                                'confidence_upper': forecast_result.get('confidence_upper', [])[i] if forecast_result.get('confidence_upper') else None
-                            }
-                            for i in range(min(len(forecast_result['forecast_values']), len(forecast_dates)))
-                        ]
+                    try:
+                        if len(historical_data) >= 7:  # Need at least 7 days of data
+                            forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                                historical_data, 
+                                periods, 
+                                requested_model='ARIMA'
+                            )
+                        else:
+                            forecast_result = None
+                    except Exception as e:
+                        print(f"Error generating forecast for branch {branch.id}: {e}")
+                        forecast_result = None
+                else:
+                    forecast_result = None
+            else:
+                forecast_result = None
+                
+            if forecast_result and forecast_result.get('forecast_values'):
+                try:
+                    start_date = date.today()
+                    forecast_values = forecast_result.get('forecast_values', [])
+                    confidence_lower = forecast_result.get('confidence_lower', []) or []
+                    confidence_upper = forecast_result.get('confidence_upper', []) or []
+                    
+                    forecast_dates = [
+                        (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
+                        for i in range(min(len(forecast_values), periods))
+                    ]
+                    
+                    forecast_data = [
+                        {
+                            'date': forecast_dates[i],
+                            'forecast': float(forecast_values[i]) if i < len(forecast_values) else 0.0,
+                            'confidence_lower': float(confidence_lower[i]) if confidence_lower and i < len(confidence_lower) else None,
+                            'confidence_upper': float(confidence_upper[i]) if confidence_upper and i < len(confidence_upper) else None
+                        }
+                        for i in range(len(forecast_dates))
+                    ]
                 except Exception as e:
-                    print(f"Error generating forecast for branch {branch.id}: {e}")
+                    print(f"Error processing forecast for branch {branch.id}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     forecast_data = []
+            else:
+                forecast_data = []
         
         return jsonify({
             "ok": True,
@@ -4576,8 +4612,10 @@ def api_dashboard_predictive_demand():
         })
     except Exception as e:
         import traceback
+        error_trace = traceback.format_exc()
         print(f"Error in api_dashboard_predictive_demand: {str(e)}")
-        print(traceback.format_exc())
+        print(error_trace)
+        # Return JSON error response, not HTML
         return jsonify({
             "ok": False,
             "error": f"Failed to load predictive demand data: {str(e)}",
