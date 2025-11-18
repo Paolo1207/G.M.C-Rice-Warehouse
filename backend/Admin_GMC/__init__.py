@@ -956,11 +956,15 @@ def api_generate_forecast():
         return jsonify({"ok": False, "error": "branch_id and product_id are required"}), 400
     
     # Get historical sales data - 2 to 3 years back (using 2.5 years = ~912 days)
-    date_threshold = datetime.now() - timedelta(days=912)  # Approximately 2.5 years
+    # Use UTC to match database timezone
+    # Also cap at today to exclude future dates
+    today_utc = datetime.utcnow()
+    date_threshold = today_utc - timedelta(days=912)  # Approximately 2.5 years
     sales_data = (
         SalesTransaction.query
         .filter_by(branch_id=branch_id, product_id=product_id)
         .filter(SalesTransaction.transaction_date >= date_threshold)
+        .filter(SalesTransaction.transaction_date <= today_utc)  # Exclude future dates
         .order_by(SalesTransaction.transaction_date.desc())
         .all()
     )
@@ -973,23 +977,31 @@ def api_generate_forecast():
     latest_date = None
     data_source_type = "real_sales_data"
     
+    # Also try a more lenient date comparison (date-only, no time)
+    # This helps if there are timezone or time component issues
+    date_threshold_date_only = date_threshold.date() if hasattr(date_threshold, 'date') else date_threshold
+    today_date_only = today_utc.date()
+    
     if sales_data:
-        # Get unique days count
+        # Get unique days count - use date-only comparison for more reliable results
+        # Exclude future dates
         unique_days_query = (
             db.session.query(func.count(distinct(func.date(SalesTransaction.transaction_date))))
             .filter_by(branch_id=branch_id, product_id=product_id)
-            .filter(SalesTransaction.transaction_date >= date_threshold)
+            .filter(func.date(SalesTransaction.transaction_date) >= date_threshold_date_only)
+            .filter(func.date(SalesTransaction.transaction_date) <= today_date_only)  # Exclude future dates
         )
         unique_days = unique_days_query.scalar() or 0
         
-        # Get date range
+        # Get date range - use date-only comparison, exclude future dates
         date_range_query = (
             db.session.query(
-                func.min(SalesTransaction.transaction_date),
-                func.max(SalesTransaction.transaction_date)
+                func.min(func.date(SalesTransaction.transaction_date)),
+                func.max(func.date(SalesTransaction.transaction_date))
             )
             .filter_by(branch_id=branch_id, product_id=product_id)
-            .filter(SalesTransaction.transaction_date >= date_threshold)
+            .filter(func.date(SalesTransaction.transaction_date) >= date_threshold_date_only)
+            .filter(func.date(SalesTransaction.transaction_date) <= today_date_only)  # Exclude future dates
         )
         date_range_result = date_range_query.first()
         if date_range_result:
