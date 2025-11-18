@@ -4412,7 +4412,7 @@ def api_dashboard_predictive_demand():
         from datetime import datetime, date, timedelta
         from sqlalchemy import func
         from models import Branch, Product, SalesTransaction
-        from forecasting_service import ForecastingService
+        # Use the forecasting_service instance imported at the top of the file
         
         # Get query parameters
         branch_id = request.args.get('branch_id', type=int)
@@ -4422,8 +4422,13 @@ def api_dashboard_predictive_demand():
         if periods not in [7, 30, 90]:
             periods = 30
         
-        # Initialize forecasting service
-        forecasting_service = ForecastingService()
+        # Use the global forecasting_service instance (already imported at top of file)
+        if not forecasting_service:
+            return jsonify({
+                "ok": False,
+                "error": "Forecasting service not available",
+                "forecast_data": []
+            }), 500
         
         # Get all branches if no branch filter, otherwise just the selected branch
         if branch_id:
@@ -4613,8 +4618,12 @@ def api_dashboard_predictive_demand():
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
-        print(f"Error in api_dashboard_predictive_demand: {str(e)}")
-        print(error_trace)
+        print(f"ERROR in api_dashboard_predictive_demand: {str(e)}")
+        print(f"ERROR TRACEBACK:\n{error_trace}")
+        # Log to console for debugging
+        import sys
+        sys.stderr.write(f"ERROR in api_dashboard_predictive_demand: {str(e)}\n")
+        sys.stderr.write(f"TRACEBACK:\n{error_trace}\n")
         # Return JSON error response, not HTML
         return jsonify({
             "ok": False,
