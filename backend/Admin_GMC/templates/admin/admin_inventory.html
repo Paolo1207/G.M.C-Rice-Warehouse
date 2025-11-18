@@ -1301,18 +1301,28 @@ restockForm.addEventListener("submit", async (e)=>{
   }
   if (!invId) { alert('Could not resolve inventory item for this product/batch.'); return; }
 
+  // Only send date if it's different from today (for backdating purposes)
+  // If date is today or empty, don't send it so backend uses current time
+  const today = new Date().toISOString().split('T')[0];
+  const payload = {
+    quantity,
+    batch_code: batchCode || null,
+    supplier: supplier || "Admin",
+    notes: notes || "Restock"
+  };
+  
+  // Only include date if user explicitly set a different date (for backdating)
+  // If date is today or empty, omit it to use current time
+  if (date && date !== today) {
+    payload.date = date;
+  }
+
   try {
     const res = await fetch(`/admin/api/inventory/${encodeURIComponent(invId)}/restock`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: 'include',
-      body: JSON.stringify({
-        quantity,
-        batch_code: batchCode || null,
-        supplier: supplier || "Admin",
-        date: date || null,
-        notes: notes || "Restock"
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json().catch(()=>({}));
@@ -1327,11 +1337,15 @@ restockForm.addEventListener("submit", async (e)=>{
       row.status = updated.status ?? row.status;
     }
     BRANCH_DATA[currentBranch].logs = BRANCH_DATA[currentBranch].logs || [];
+    // Use datetime from API response for accurate timestamp, fallback to current time
+    const logDateTime = (data.log && data.log.datetime) || new Date().toISOString();
     BRANCH_DATA[currentBranch].logs.unshift({
-      date: (data.log && data.log.date) || (date || new Date().toISOString().slice(0,10)),
+      date: (data.log && data.log.date) || new Date().toISOString().split('T')[0],
+      datetime: logDateTime, // Include full datetime for accurate sorting and display
       variant: row?.variant || (updated.product_name ?? ""),
       qty: quantity,
       supplier: supplier || "Admin",
+      created_by: "Admin",
       note: notes || "Restock"
     });
 
