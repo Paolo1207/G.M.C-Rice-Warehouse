@@ -370,12 +370,35 @@
 
                 const data = await response.json();
                 
+                // Debug logging to console
+                console.log('=== FORECAST API RESPONSE ===');
+                console.log('Response OK:', data.ok);
+                console.log('Forecast keys:', data.forecast ? Object.keys(data.forecast) : 'No forecast');
+                console.log('Has ETL process:', data.forecast && 'etl_process' in data.forecast);
+                console.log('Has data_source:', data.forecast && 'data_source' in data.forecast);
+                if (data.forecast && data.forecast.etl_process) {
+                    console.log('ETL process:', data.forecast.etl_process);
+                }
+                if (data.forecast && data.forecast.data_source) {
+                    console.log('Data source:', data.forecast.data_source);
+                }
+                if (data.forecast && data.forecast.forecast_values) {
+                    console.log('Forecast values (first 10):', data.forecast.forecast_values.slice(0, 10));
+                    console.log('Forecast values range:', {
+                        min: Math.min(...data.forecast.forecast_values),
+                        max: Math.max(...data.forecast.forecast_values),
+                        mean: data.forecast.forecast_values.reduce((a, b) => a + b, 0) / data.forecast.forecast_values.length
+                    });
+                }
+                console.log('===========================');
+                
                 if (data.ok) {
                     showAlert('Forecast generated successfully!', 'success');
                     await displayForecastResults(data.forecast, branchId, productId);
                     updateCharts(data.forecast);
                     await displayForecastInformation(data.forecast, branchId, productId);
                 } else {
+                    console.error('Forecast generation error:', data.error);
                     showAlert('Error generating forecast: ' + data.error, 'error');
                 }
             } catch (error) {

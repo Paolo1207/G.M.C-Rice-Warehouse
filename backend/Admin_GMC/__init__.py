@@ -1086,6 +1086,9 @@ def api_generate_forecast():
     
     # Generate forecast with ETL pipeline, train/test split, training, and model selection
     try:
+        print(f"DEBUG FORECAST API: Generating forecast for branch_id={branch_id}, product_id={product_id}, model_type={model_type}, periods={periods}")
+        print(f"DEBUG FORECAST API: Historical data count: {len(historical_data)}")
+        
         # Use model selection: train all models, evaluate, and select best
         # If user specified a model type, use it; otherwise auto-select best model
         forecast_result = forecasting_service.generate_forecast_with_model_selection(
@@ -1095,7 +1098,16 @@ def api_generate_forecast():
         )
         
         if not forecast_result:
+            print("ERROR: Forecast generation returned None")
             return jsonify({"ok": False, "error": "Forecast generation failed - no valid model"}), 500
+        
+        print(f"DEBUG FORECAST API: Forecast result keys: {forecast_result.keys()}")
+        print(f"DEBUG FORECAST API: Model type: {forecast_result.get('model_type')}")
+        print(f"DEBUG FORECAST API: Forecast values count: {len(forecast_result.get('forecast_values', []))}")
+        print(f"DEBUG FORECAST API: Forecast values (first 5): {forecast_result.get('forecast_values', [])[:5]}")
+        print(f"DEBUG FORECAST API: Has ETL process: {'etl_process' in forecast_result}")
+        if 'etl_process' in forecast_result:
+            print(f"DEBUG FORECAST API: ETL process keys: {forecast_result['etl_process'].keys()}")
         
         # Add forecast start date for frontend
         forecast_result['forecast_start_date'] = datetime.now().date().isoformat()
@@ -1112,6 +1124,8 @@ def api_generate_forecast():
             'train_size': forecast_result.get('train_size', 0),
             'test_size': forecast_result.get('test_size', 0)
         }
+        
+        print(f"DEBUG FORECAST API: Added data_source with train_size={forecast_result['data_source']['train_size']}, test_size={forecast_result['data_source']['test_size']}")
         
     except Exception as e:
         print(f"Forecast generation error: {str(e)}")
@@ -1186,14 +1200,32 @@ def api_generate_forecast():
     # Calculate forecast start date (tomorrow)
     forecast_start_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
     
+    # Get ETL process and data source from forecast_result
+    etl_process = forecast_result.get('etl_process', {})
+    data_source = forecast_result.get('data_source', {})
+    
+    print(f"DEBUG FORECAST API: Before cleaning - etl_process present: {bool(etl_process)}, data_source present: {bool(data_source)}")
+    print(f"DEBUG FORECAST API: ETL process extract keys: {etl_process.get('extract', {}).keys() if etl_process else 'N/A'}")
+    
     cleaned_forecast = {
         "model_type": forecast_result.get('model_type', 'ARIMA'),
         "accuracy_score": float(forecast_result.get('accuracy_score', 0.5)) if not np.isnan(forecast_result.get('accuracy_score', 0.5)) else 0.5,
         "forecast_values": [float(v) if not np.isnan(v) else 0.0 for v in forecast_result.get('forecast_values', [])],
         "confidence_lower": [float(v) if v is not None and not np.isnan(v) else 0.0 for v in confidence_lower],
         "confidence_upper": [float(v) if v is not None and not np.isnan(v) else 0.0 for v in confidence_upper],
-        "forecast_start_date": forecast_start_date
+        "forecast_start_date": forecast_start_date,
+        "train_size": forecast_result.get('train_size', 0),
+        "test_size": forecast_result.get('test_size', 0),
+        "metrics": forecast_result.get('metrics', {}),
+        # Include ETL process information
+        "etl_process": etl_process,
+        # Include data source information
+        "data_source": data_source
     }
+    
+    print(f"DEBUG FORECAST API: After cleaning - etl_process in cleaned_forecast: {'etl_process' in cleaned_forecast}")
+    print(f"DEBUG FORECAST API: data_source in cleaned_forecast: {'data_source' in cleaned_forecast}")
+    print(f"DEBUG FORECAST API: Forecast values range: [{min(cleaned_forecast['forecast_values']):.2f}, {max(cleaned_forecast['forecast_values']):.2f}]")
     
     return jsonify({
         "ok": True,
