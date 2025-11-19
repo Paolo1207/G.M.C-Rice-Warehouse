@@ -4410,17 +4410,25 @@ def api_dashboard_rice_stock():
 
 @admin_bp.get("/api/dashboard/predictive-demand")
 def api_dashboard_predictive_demand():
-    """Get predictive demand forecast data for dashboard chart"""
+    """Get predictive demand forecast data for dashboard chart using ARIMA with ETL"""
     try:
         from datetime import datetime, date, timedelta
-        from sqlalchemy import func
-        from models import Branch, Product, SalesTransaction
+        from sqlalchemy import func, and_
+        from models import Branch, Product, SalesTransaction, InventoryItem
         import traceback
         import sys
         
         # Get query parameters
         branch_id = request.args.get('branch_id', type=int)
         periods = request.args.get('periods', '30', type=int)
+        
+        # Require branch_id
+        if not branch_id:
+            return jsonify({
+                "ok": False,
+                "error": "branch_id is required",
+                "forecast_data": []
+            }), 400
         
         # Validate periods
         if periods not in [7, 30, 90]:
@@ -4434,237 +4442,131 @@ def api_dashboard_predictive_demand():
                 "forecast_data": []
             }), 500
         
-        # Get all branches if no branch filter, otherwise just the selected branch
+        # Get branch
         try:
-            if branch_id:
-                branches = Branch.query.filter_by(id=branch_id).all()
-            else:
-                branches = Branch.query.all()
+            branch = Branch.query.get(branch_id)
+            if not branch:
+                return jsonify({
+                    "ok": False,
+                    "error": f"Branch {branch_id} not found",
+                    "forecast_data": []
+                }), 404
         except Exception as db_error:
-            print(f"Error querying branches: {db_error}")
+            print(f"Error querying branch: {db_error}")
             return jsonify({
                 "ok": False,
                 "error": f"Database error: {str(db_error)}",
                 "forecast_data": []
             }), 500
         
-        # Get all products (not strictly needed for aggregated forecast, but keep for compatibility)
+        forecast_data = []
+        
+        # Single branch - aggregate all products for this branch
+        # Get all products for this branch
         try:
-            products = Product.query.all()
+            products = db.session.query(Product).join(
+                InventoryItem, Product.id == InventoryItem.product_id
+            ).filter(
+                InventoryItem.branch_id == branch_id
+            ).distinct().all()
         except Exception as db_error:
             print(f"Error querying products: {db_error}")
-            # Continue anyway - we can still generate forecasts without products list
+            products = []
         
-        # If no branches, return empty data
-        if not branches:
+        if not products:
             return jsonify({
                 "ok": True,
                 "forecast_data": [],
-                "message": "No branches available"
+                "message": "No products available for this branch"
             })
         
-        forecast_data = []
+        # Generate forecast for each product and aggregate
+        product_forecasts = []
         
-        # Track if we have any successful forecasts
-        has_forecast_data = False
-        
-        # If viewing all branches, return aggregated forecast by branch
-        if not branch_id:
-            # All branches - generate forecast for each branch (aggregate all products)
-            for branch in branches:
-                # Get historical sales for this branch (all products combined)
-                today_utc = datetime.utcnow()
-                date_threshold = today_utc - timedelta(days=912)  # 2.5 years
-                
-                # Get all sales transactions for this branch
-                try:
-                    sales_data = (
-                        SalesTransaction.query
-                        .filter_by(branch_id=branch.id)
-                        .filter(SalesTransaction.transaction_date >= date_threshold)
-                        .filter(SalesTransaction.transaction_date <= today_utc)
-                        .order_by(SalesTransaction.transaction_date.desc())
-                        .all()
-                    )
-                except Exception as db_error:
-                    print(f"Error querying sales for branch {branch.id}: {db_error}")
-                    continue
-                
-                if not sales_data:
-                    continue
-                
-                # Aggregate sales by date (sum all products for this branch)
-                sales_by_date = {}
-                for sale in sales_data:
-                    sale_date = sale.transaction_date.date() if hasattr(sale.transaction_date, 'date') else sale.transaction_date
-                    if sale_date not in sales_by_date:
-                        sales_by_date[sale_date] = 0
-                    sales_by_date[sale_date] += float(sale.quantity_sold or 0)
-                
-                # Skip if no sales data after aggregation
-                if not sales_by_date:
-                    continue
-                
-                # Convert to list format for forecasting service
-                # Format dates as strings in the expected format
-                historical_data = [
-                    {
-                        'transaction_date': date_key.strftime('%Y-%m-%d %H:%M:%S') if hasattr(date_key, 'strftime') else str(date_key) + ' 00:00:00',
-                        'quantity_sold': qty
-                    }
-                    for date_key, qty in sorted(sales_by_date.items())  # Sort by date
-                ]
-                
-                # Generate forecast using ARIMA with model selection
-                try:
-                    if len(historical_data) < 7:  # Need at least 7 days of data
-                        continue
-                    
-                    forecast_result = forecasting_service.generate_forecast_with_model_selection(
-                        historical_data, 
-                        periods, 
-                        requested_model='ARIMA'
-                    )
-                    
-                    if forecast_result and forecast_result.get('forecast_values'):
-                        # Generate dates for forecast
-                        start_date = date.today()
-                        forecast_values = forecast_result.get('forecast_values', [])
-                        confidence_lower = forecast_result.get('confidence_lower', []) or []
-                        confidence_upper = forecast_result.get('confidence_upper', []) or []
-                        
-                        forecast_dates = [
-                            (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
-                            for i in range(min(len(forecast_values), periods))
-                        ]
-                        
-                        forecast_data.append({
-                            'branch_id': branch.id,
-                            'branch_name': branch.name,
-                            'forecast_data': [
-                                {
-                                    'date': forecast_dates[i],
-                                    'forecast': float(forecast_values[i]) if i < len(forecast_values) else 0.0,
-                                    'confidence_lower': float(confidence_lower[i]) if confidence_lower and i < len(confidence_lower) else None,
-                                    'confidence_upper': float(confidence_upper[i]) if confidence_upper and i < len(confidence_upper) else None
-                                }
-                                for i in range(len(forecast_dates))
-                            ]
-                        })
-                        has_forecast_data = True
-                except Exception as e:
-                    error_msg = str(e)
-                    error_trace = traceback.format_exc()
-                    print(f"Error generating forecast for branch {branch.id}: {error_msg}")
-                    sys.stderr.write(f"Error generating forecast for branch {branch.id}: {error_msg}\n")
-                    sys.stderr.write(f"Traceback: {error_trace}\n")
-                    continue
-        else:
-            # Single branch - aggregate all products or show per product
-            # For simplicity, aggregate all products for the selected branch
-            branch = branches[0]
-            
-            today_utc = datetime.utcnow()
-            date_threshold = today_utc - timedelta(days=912)
-            
+        for product in products:
             try:
-                sales_data = (
-                    SalesTransaction.query
-                    .filter_by(branch_id=branch.id)
-                    .filter(SalesTransaction.transaction_date >= date_threshold)
-                    .filter(SalesTransaction.transaction_date <= today_utc)
-                    .order_by(SalesTransaction.transaction_date.desc())
-                    .all()
+                # Get historical sales data for this branch and product
+                date_threshold = datetime.now() - timedelta(days=912)  # ~2.5 years
+                
+                sales_data = db.session.query(
+                    SalesTransaction.transaction_date,
+                    SalesTransaction.quantity_sold
+                ).filter(
+                    and_(
+                        SalesTransaction.branch_id == branch_id,
+                        SalesTransaction.product_id == product.id,
+                        SalesTransaction.transaction_date >= date_threshold,
+                        SalesTransaction.transaction_date <= datetime.now()
+                    )
+                ).all()
+                
+                if not sales_data or len(sales_data) < 7:
+                    continue
+                
+                # Format historical data for forecasting service
+                historical_data = [{
+                    'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'quantity_sold': float(sale.quantity_sold),
+                    'branch_id': branch_id,
+                    'product_id': product.id
+                } for sale in sales_data]
+                
+                # Generate forecast using ARIMA with ETL
+                forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                    historical_data=historical_data,
+                    periods=periods,
+                    requested_model='ARIMA'
                 )
-            except Exception as db_error:
-                print(f"Error querying sales for branch {branch.id}: {db_error}")
-                sales_data = []
+                
+                if forecast_result and 'forecast_values' in forecast_result:
+                    # Add forecast data points
+                    start_date = datetime.now().date() + timedelta(days=1)
+                    for i, forecast_value in enumerate(forecast_result['forecast_values'][:periods]):
+                        forecast_date = start_date + timedelta(days=i)
+                        product_forecasts.append({
+                            'date': forecast_date.strftime('%Y-%m-%d'),
+                            'predicted': float(forecast_value),
+                            'product_id': product.id,
+                            'product_name': product.name
+                        })
             
-            if sales_data:
-                # Aggregate sales by date
-                sales_by_date = {}
-                for sale in sales_data:
-                    sale_date = sale.transaction_date.date() if hasattr(sale.transaction_date, 'date') else sale.transaction_date
-                    if sale_date not in sales_by_date:
-                        sales_by_date[sale_date] = 0
-                    sales_by_date[sale_date] += float(sale.quantity_sold or 0)
-                
-                if sales_by_date:
-                    historical_data = [
-                        {
-                            'transaction_date': date_key.strftime('%Y-%m-%d %H:%M:%S') if hasattr(date_key, 'strftime') else str(date_key) + ' 00:00:00',
-                            'quantity_sold': qty
-                        }
-                        for date_key, qty in sorted(sales_by_date.items())  # Sort by date
-                    ]
-                    
-                    try:
-                        if len(historical_data) >= 7:  # Need at least 7 days of data
-                            forecast_result = forecasting_service.generate_forecast_with_model_selection(
-                                historical_data, 
-                                periods, 
-                                requested_model='ARIMA'
-                            )
-                        else:
-                            forecast_result = None
-                    except Exception as e:
-                        error_msg = str(e)
-                        error_trace = traceback.format_exc()
-                        print(f"Error generating forecast for branch {branch.id}: {error_msg}")
-                        sys.stderr.write(f"Error generating forecast for branch {branch.id}: {error_msg}\n")
-                        sys.stderr.write(f"Traceback: {error_trace}\n")
-                        forecast_result = None
-                else:
-                    forecast_result = None
-            else:
-                forecast_result = None
-                
-            if forecast_result and forecast_result.get('forecast_values'):
-                try:
-                    start_date = date.today()
-                    forecast_values = forecast_result.get('forecast_values', [])
-                    confidence_lower = forecast_result.get('confidence_lower', []) or []
-                    confidence_upper = forecast_result.get('confidence_upper', []) or []
-                    
-                    forecast_dates = [
-                        (start_date + timedelta(days=i)).strftime('%Y-%m-%d')
-                        for i in range(min(len(forecast_values), periods))
-                    ]
-                    
-                    forecast_data = [
-                        {
-                            'date': forecast_dates[i],
-                            'forecast': float(forecast_values[i]) if i < len(forecast_values) else 0.0,
-                            'confidence_lower': float(confidence_lower[i]) if confidence_lower and i < len(confidence_lower) else None,
-                            'confidence_upper': float(confidence_upper[i]) if confidence_upper and i < len(confidence_upper) else None
-                        }
-                        for i in range(len(forecast_dates))
-                    ]
-                    has_forecast_data = True
-                except Exception as e:
-                    error_msg = str(e)
-                    error_trace = traceback.format_exc()
-                    print(f"Error processing forecast for branch {branch.id}: {error_msg}")
-                    sys.stderr.write(f"Error processing forecast for branch {branch.id}: {error_msg}\n")
-                    sys.stderr.write(f"Traceback: {error_trace}\n")
-                    forecast_data = []
-            else:
-                forecast_data = []
+            except Exception as e:
+                print(f"Error generating forecast for product {product.id}: {e}")
+                continue
         
-        # Return success even if no forecast data (some branches might not have enough data)
+        # Aggregate forecasts by date (sum across all products)
+        aggregated_forecast = {}
+        for item in product_forecasts:
+            date_key = item['date']
+            if date_key not in aggregated_forecast:
+                aggregated_forecast[date_key] = {
+                    'forecast': 0.0,
+                    'confidence_lower': None,
+                    'confidence_upper': None
+                }
+            aggregated_forecast[date_key]['forecast'] += item['predicted']
+        
+        # Convert to list format
+        forecast_data = [{
+            'date': date,
+            'forecast': float(data['forecast']),
+            'predicted_demand': float(data['forecast']),
+            'confidence_lower': data['confidence_lower'],
+            'confidence_upper': data['confidence_upper']
+        } for date, data in sorted(aggregated_forecast.items())]
+        
         return jsonify({
             "ok": True,
             "forecast_data": forecast_data,
-            "message": "Forecast data loaded successfully" if has_forecast_data or forecast_data else "No forecast data available (insufficient historical data)"
+            "message": "Forecast data loaded successfully" if forecast_data else "No forecast data available (insufficient historical data)"
         })
+        
     except Exception as e:
         import traceback
         error_trace = traceback.format_exc()
         error_msg = str(e)
         print(f"ERROR in api_dashboard_predictive_demand: {error_msg}")
         print(f"ERROR TRACEBACK:\n{error_trace}")
-        # Log to console for debugging
-        import sys
         sys.stderr.write(f"ERROR in api_dashboard_predictive_demand: {error_msg}\n")
         sys.stderr.write(f"TRACEBACK:\n{error_trace}\n")
         # Return JSON error response, not HTML - ensure we always return JSON

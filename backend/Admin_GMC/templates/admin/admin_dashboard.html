@@ -278,9 +278,9 @@
                             <option value="30" selected>Next 30 days</option>
                             <option value="90">Next 90 days</option>
                         </select>
-                        <select class="branch-filter" id="predictiveDemandBranch">
-                            <option value="">All Branches</option>
-                            <option value="1">Marawoy</option>
+                        <select class="branch-filter" id="predictiveDemandBranch" required>
+                            <option value="">Select Branch</option>
+                            <option value="1" selected>Marawoy</option>
                             <option value="2">Lipa</option>
                             <option value="3">Malvar</option>
                             <option value="4">Bulacnin</option>
@@ -651,9 +651,16 @@
                 const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod')?.value || '30';
                 const predictiveDemandBranch = document.getElementById('predictiveDemandBranch')?.value || '';
 
+                // Require branch selection
+                if (!predictiveDemandBranch) {
+                    console.warn('Branch selection required for Predictive Demand');
+                    updatePredictiveDemandChart([]);
+                    return;
+                }
+
                 const params = new URLSearchParams();
-                if (predictiveDemandBranch) params.append('branch_id', predictiveDemandBranch);
-                if (predictiveDemandPeriod) params.append('periods', predictiveDemandPeriod);
+                params.append('branch_id', predictiveDemandBranch);
+                params.append('periods', predictiveDemandPeriod);
 
                 console.log('Loading Predictive Demand with filters:', { predictiveDemandPeriod, predictiveDemandBranch });
 
