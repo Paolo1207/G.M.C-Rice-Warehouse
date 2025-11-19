@@ -862,6 +862,7 @@
                             <div style="background: #d1fae5; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #a7f3d0;">
                                 <strong style="color: #065f46; display: block; margin-bottom: 8px; font-size: 0.95rem;">🎯 Evaluation Process:</strong>
                                 <div style="font-size: 0.85rem; color: #4b5563; line-height: 2;">
+                                    <div style="margin-bottom: 6px;">0. <strong>Train/Test Split:</strong> Data split chronologically (80% train, 20% test) - See "Train/Test Split" section above</div>
                                     <div style="margin-bottom: 6px;">1. <strong>Model Training:</strong> ${forecast.model_type} model trained on ${forecast.train_size.toLocaleString()} days of training data</div>
                                     <div style="margin-bottom: 6px;">2. <strong>Test Prediction:</strong> Model predicts values for ${forecast.test_size.toLocaleString()} days of test data</div>
                                     <div style="margin-bottom: 6px;">3. <strong>Comparison:</strong> Predicted values compared with actual test data</div>
@@ -907,10 +908,26 @@
                             <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; border-left: 3px solid #10b981; margin-top: 12px;">
                                 <strong style="color: #065f46; display: block; margin-bottom: 6px; font-size: 0.9rem;">📐 Evaluation Formulas:</strong>
                                 <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; line-height: 1.6;">
-                                    <div><strong>MAE</strong> = (1/n) × Σ|actual - predicted|</div>
+                                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb;">
+                                        <strong style="color: #1e40af;">📊 Data Preparation (SQL/Pandas):</strong>
+                                        <div style="margin-top: 4px; color: #4b5563;">
+                                            <div>-- Get test data from database</div>
+                                            <div>SELECT DATE(transaction_date) as date,</div>
+                                            <div>       SUM(quantity_sold) as actual</div>
+                                            <div>FROM SalesTransaction</div>
+                                            <div>WHERE branch_id = ${branchId} AND product_id = ${productId}</div>
+                                            <div>  AND DATE(transaction_date) BETWEEN test_start AND test_end</div>
+                                            <div>GROUP BY DATE(transaction_date)</div>
+                                            <div>ORDER BY date</div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 8px;"><strong>MAE</strong> = (1/n) × Σ|actual - predicted|</div>
                                     <div style="margin-top: 4px;"><strong>MAPE</strong> = (1/n) × Σ|(actual - predicted) / actual| × 100%</div>
                                     <div style="margin-top: 4px;"><strong>RMSE</strong> = √[(1/n) × Σ(actual - predicted)²]</div>
                                     <div style="margin-top: 4px;"><strong>Accuracy</strong> = 1 - (MAE / mean(actual))</div>
+                                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; color: #64748b; font-size: 0.8rem;">
+                                        <strong>Note:</strong> actual = actual test data from database, predicted = model predictions
+                                    </div>
                                 </div>
                             </div>
                             
