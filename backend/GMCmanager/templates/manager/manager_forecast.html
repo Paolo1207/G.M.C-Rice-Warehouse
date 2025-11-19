@@ -404,6 +404,9 @@
           await loadManagerBranch();
         }
         
+        // Update branch title after branch data is loaded
+        updateBranchTitle();
+        
         setupTabs();
         updateHeaderTitle('demand'); // Set initial title for demand tab
         await loadManagerData();
@@ -462,6 +465,7 @@
 
           if (tabId === 'risk') {
             loadRiskData();
+          }
         });
       });
     }
@@ -1771,16 +1775,51 @@
 
     // Update title and header based on branch selection
     function updateBranchTitle() {
-      const branchName = '{{ branch_name if branch_name else "" }}' || new URLSearchParams(window.location.search).get('branch_name');
-      const branchId = {{ branch_id if branch_id else 'null' }} || new URLSearchParams(window.location.search).get('branch');
+      // Try multiple sources for branch name: MANAGER_BRANCH_NAME, template variable, URL parameter
+      let branchName = MANAGER_BRANCH_NAME || 
+                      ('{{ branch_name if branch_name else "" }}' || '') ||
+                      new URLSearchParams(window.location.search).get('branch_name');
+      
+      // Decode if it's URL encoded
+      if (branchName) {
+        try {
+          branchName = decodeURIComponent(branchName);
+        } catch (e) {
+          // Already decoded or not URL encoded
+        }
+      }
+      
+      // Get branch ID from multiple sources
+      const branchId = MANAGER_BRANCH_ID || 
+                       {{ branch_id if branch_id else 'null' }} || 
+                       new URLSearchParams(window.location.search).get('branch') ||
+                       new URLSearchParams(window.location.search).get('branch_id');
       
       if (branchName) {
-        const decodedBranchName = decodeURIComponent(branchName);
-        document.getElementById('pageTitle').textContent = `Forecast - G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
-        document.getElementById('branchTitle').textContent = `G.M.C. Rice Warehouse - ${decodedBranchName} Branch`;
+        const branchTitleEl = document.getElementById('branchTitle');
+        const pageTitleEl = document.getElementById('pageTitle');
+        
+        if (branchTitleEl) {
+          branchTitleEl.textContent = `G.M.C. Rice Warehouse - ${branchName} Branch`;
+        }
+        
+        if (pageTitleEl) {
+          pageTitleEl.textContent = `Forecast - G.M.C. Rice Warehouse - ${branchName} Branch`;
+        }
+        
+        // Update document title
+        document.title = `Forecast - G.M.C. Rice Warehouse - ${branchName} Branch`;
         
         // Update all navigation links to preserve branch parameters
-        updateNavigationLinks(branchId, branchName);
+        if (branchId) {
+          updateNavigationLinks(branchId, branchName);
+        }
+      } else {
+        // Fallback if no branch name found
+        const branchTitleEl = document.getElementById('branchTitle');
+        if (branchTitleEl) {
+          branchTitleEl.textContent = 'G.M.C. Rice Warehouse';
+        }
       }
     }
 
