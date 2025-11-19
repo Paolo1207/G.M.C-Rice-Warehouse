@@ -236,11 +236,9 @@
           </div>
 
           <div class="forecast-grid">
-            <div class="forecast-chart" style="width: 100%;">
+            <div class="forecast-chart">
               <h3><i class="fas fa-chart-line"></i> Demand Forecast</h3>
-              <div style="position: relative; height: 400px; width: 100%;">
-                <canvas id="demandChart"></canvas>
-              </div>
+              <canvas id="demandChart"></canvas>
             </div>
           </div>
 
@@ -473,118 +471,34 @@
             borderColor: '#1a365d',
             backgroundColor: 'rgba(26, 54, 93, 0.1)',
             tension: 0.4,
-            fill: true,
-            pointRadius: 4,
-            pointHoverRadius: 6
+            fill: true
             }, {
-              label: 'Predicted Demand',
+              label: 'Forecast',
               data: [],
-              borderColor: '#2e7d32',
-              backgroundColor: 'transparent',
-              borderWidth: 3,
-              tension: 0.4,
-              fill: false,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              pointStyle: 'circle',
-              order: 2
-            }, {
-              label: 'Confidence Upper',
-              data: [],
-              borderColor: '#f59e0b',
-              backgroundColor: 'transparent',
-              borderWidth: 2,
+              borderColor: '#e53e3e',
+              backgroundColor: 'rgba(229, 62, 62, 0.1)',
               borderDash: [5, 5],
               tension: 0.4,
-              fill: false,
-              pointRadius: 3,
-              pointHoverRadius: 5,
-              order: 1
-            }, {
-              label: 'Confidence Lower',
-              data: [],
-              borderColor: '#f59e0b',
-              backgroundColor: 'transparent',
-              borderWidth: 2,
-              borderDash: [5, 5],
-              tension: 0.4,
-              fill: false,
-              pointRadius: 3,
-              pointHoverRadius: 5,
-              order: 1
-            }]
+              fill: false
+          }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
-          aspectRatio: 2.5,
             plugins: { 
-              title: { 
-                display: true, 
-                text: 'ARIMA Forecast with Confidence Intervals',
-                font: { size: 14, weight: 'bold' }
-              },
+              title: { display: true, text: 'Demand Forecast' },
               legend: { 
                 position: 'top',
-                labels: {
-                  boxWidth: 12,
-                  padding: 8,
-                  font: { size: 11 },
-                  usePointStyle: true
-                },
                 onClick: (e, item, legend) => Chart.defaults.plugins.legend.onClick(e, item, legend)
-              },
-              tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                titleColor: '#ffffff',
-                bodyColor: '#ffffff',
-                borderColor: '#2e7d32',
-                borderWidth: 1,
-                cornerRadius: 8,
-                callbacks: {
-                  label: function(context) {
-                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
-                  }
-                }
               }
             },
             scales: {
               y: {
                 beginAtZero: true,
-                grid: {
-                  color: 'rgba(0,0,0,0.1)',
-                  drawBorder: false
-                },
-                title: { 
-                  display: true, 
-                  text: 'Quantity (kg)',
-                  font: { size: 12, weight: 'bold' }
-                },
-                ticks: {
-                  callback: function(value) {
-                    return value.toLocaleString() + ' kg';
-                  },
-                  font: { size: 11 }
-                }
+                title: { display: true, text: 'Quantity (kg)' }
               },
               x: {
-                grid: {
-                  color: 'rgba(0,0,0,0.1)',
-                  drawBorder: false
-                },
-                title: { 
-                  display: true, 
-                  text: 'Date',
-                  font: { size: 12, weight: 'bold' }
-                },
-                ticks: {
-                  font: { size: 11 }
-                }
+                title: { display: true, text: 'Date' }
               }
-            },
-            interaction: {
-              intersect: false,
-              mode: 'index'
             }
           }
         });
@@ -597,95 +511,27 @@
       console.log('Applying forecast data:', { forecast, summary, details });
       
       if (demandChart && forecast) {
-        // Handle both forecast.forecast and forecast.forecast_values
-        const forecastData = forecast.forecast || forecast.forecast_values || [];
-        const actualData = forecast.actual || [];
-        
-        // Generate labels if not provided or format existing labels
-        let labels = [];
-        if (forecast.labels && forecast.labels.length > 0) {
-          // Format existing labels for display
-          labels = forecast.labels.map(label => {
-            if (typeof label === 'string') {
-              // Try to parse and format date
-              const date = new Date(label);
-              if (!isNaN(date.getTime())) {
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-              }
-              return label;
-            }
-            return label;
-          });
-        } else if (forecastData.length > 0) {
-          // Generate labels from forecast_start_date or use current date
-          const startDate = forecast.forecast_start_date 
-            ? new Date(forecast.forecast_start_date) 
-            : new Date();
-          for (let i = 0; i < forecastData.length; i++) {
-            const date = new Date(startDate);
-            date.setDate(startDate.getDate() + i);
-            labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-          }
-        }
-        
         // Check if we have valid data
-        const hasLabels = labels.length > 0;
-        const hasForecast = forecastData.length > 0;
-        const hasActual = actualData.length > 0;
+        const hasLabels = forecast.labels && forecast.labels.length > 0;
+        const hasForecast = forecast.forecast && forecast.forecast.length > 0;
+        const hasActual = forecast.actual && forecast.actual.length > 0;
         
-        if (hasLabels && hasForecast) {
-          console.log('Updating chart with data:', {
-            labels: labels.length,
-            forecast: forecastData.length,
-            actual: actualData.length,
-            confidence_upper: forecast.confidence_upper?.length || 0,
-            confidence_lower: forecast.confidence_lower?.length || 0
-          });
-          
+        if (hasLabels && (hasForecast || hasActual)) {
           // Replace arrays wholesale - never mutate partially
-          demandChart.data.labels = labels;
-          demandChart.data.datasets[0].data = actualData; // Actual Demand
-          demandChart.data.datasets[1].data = forecastData; // Predicted Demand
+          demandChart.data.labels = forecast.labels || [];
+          demandChart.data.datasets[0].data = forecast.actual || [];
+          demandChart.data.datasets[1].data = forecast.forecast || [];
           
-          // Add confidence intervals if available (for ARIMA)
-          if (forecast.confidence_upper && forecast.confidence_lower && 
-              forecast.confidence_upper.length > 0 && forecast.confidence_lower.length > 0) {
-            // Ensure confidence intervals match forecast length
-            const upperData = forecast.confidence_upper.slice(0, forecastData.length);
-            const lowerData = forecast.confidence_lower.slice(0, forecastData.length);
-            demandChart.data.datasets[2].data = upperData;
-            demandChart.data.datasets[3].data = lowerData;
-            
-            // Update chart title for ARIMA with confidence intervals
-            demandChart.options.plugins.title.text = 'ARIMA Forecast with Confidence Intervals';
-          } else {
-            // Clear confidence intervals if not available
-            demandChart.data.datasets[2].data = [];
-            demandChart.data.datasets[3].data = [];
-            demandChart.options.plugins.title.text = 'Demand Forecast';
-          }
-          
-          // Force chart update with animation
-          demandChart.update('active');
-          console.log('Chart updated successfully with', forecastData.length, 'data points');
-          
-          // Make sure chart is visible
-          const chartContainer = document.querySelector('.forecast-chart');
-          if (chartContainer) {
-            chartContainer.style.display = 'block';
-          }
-        } else {
-          console.warn('Invalid forecast data:', {
-            hasLabels,
-            hasForecast,
-            labelsLength: labels.length,
-            forecastLength: forecastData.length,
-            actualLength: actualData.length
-          });
-          // Don't generate sample data - just show empty chart
-          demandChart.data.labels = [];
-          demandChart.data.datasets.forEach(dataset => dataset.data = []);
           demandChart.update();
+          console.log('Chart updated successfully');
+          
+          // Summary section removed - data is shown in forecast-information section below
+          
+          // Note: Forecast Details table removed - using description section instead
+          // Details are now shown in the forecast-information section below
+        } else {
+          console.warn('Invalid forecast data - generating sample data');
+          generateSampleForecastData();
         }
       } else {
         console.error('Chart or forecast data missing:', { 
