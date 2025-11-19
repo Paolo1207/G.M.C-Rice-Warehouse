@@ -147,6 +147,13 @@
     border-radius: 12px;
     padding: 1.5rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: block;
+    width: 100%;
+}
+
+.forecast-chart canvas {
+    max-height: 500px;
+    width: 100% !important;
 }
 
 .forecast-chart h3 {
