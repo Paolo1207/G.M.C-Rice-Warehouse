@@ -118,21 +118,22 @@ body {
   margin-right: 4px;
 }
 .export-btn {
-  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
-  color: #1e293b;
+  background: linear-gradient(90deg, #2e7d32 0%, #1b5e20 100%);
+  color: #fff;
   border: none;
   border-radius: 8px;
   padding: 8px 18px;
   font-size: 0.98rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.18);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.18);
   transition: all 0.2s;
 }
 .export-btn:hover {
-  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+  background: linear-gradient(90deg, #1b5e20 0%, #2e7d32 100%);
   color: #fff;
   transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
 }
 
 .forecast-alerts {
