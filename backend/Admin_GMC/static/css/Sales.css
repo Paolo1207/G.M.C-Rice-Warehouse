@@ -2,6 +2,10 @@
 
 .sales-module {
   /* Main content area for Sales Module */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-header {
@@ -20,6 +24,10 @@
   color: #2e7d32;
   font-size: 1.5rem;
   font-weight: 600;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-filters {
@@ -35,6 +43,10 @@
   font-weight: 500;
   color: #374151;
   font-size: 0.875rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-filters select {
@@ -72,19 +84,35 @@
 .sales-indicator-card .indicator-title {
   font-weight: 600;
   color: #2e7d32;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-indicator-card .indicator-value {
   font-size: 2rem;
   margin: 0.5rem 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-indicator-card .indicator-change.positive {
   color: #2e7d32;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-indicator-card .indicator-change.negative {
   color: #d32f2f;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-widgets-row {
@@ -99,6 +127,24 @@
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   padding: 1.5rem;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sales-widget .widget-header h3 {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sales-log-header h3 {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-trend-widget .chart-container {
@@ -115,6 +161,10 @@
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #eee;
   text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .sales-log-section {
@@ -156,9 +206,150 @@
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #eee;
   text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Responsive design */
+/* Large screens (1600px and above) */
+@media (max-width: 1600px) {
+  .sales-header h2 {
+    font-size: 1.4rem;
+  }
+  .sales-indicator-card .indicator-value {
+    font-size: 1.9rem;
+  }
+  .sales-filters label {
+    font-size: 0.85rem;
+  }
+}
+
+/* Medium-large screens (1400px) */
+@media (max-width: 1400px) {
+  .sales-header h2 {
+    font-size: 1.35rem;
+  }
+  .sales-indicator-card .indicator-value {
+    font-size: 1.8rem;
+  }
+  .sales-indicator-card .indicator-title {
+    font-size: 0.95rem;
+  }
+  .sales-filters label {
+    font-size: 0.83rem;
+  }
+}
+
+/* Medium screens (1200px) */
+@media (max-width: 1200px) {
+  .sales-header h2 {
+    font-size: 1.3rem;
+  }
+  .sales-indicator-card .indicator-value {
+    font-size: 1.7rem;
+  }
+  .sales-indicator-card .indicator-title {
+    font-size: 0.9rem;
+  }
+  .sales-indicator-card .indicator-change {
+    font-size: 0.85rem;
+  }
+  .sales-filters label {
+    font-size: 0.8rem;
+  }
+  .sales-widget .widget-header h3 {
+    font-size: 1.1rem;
+  }
+  .sales-log-header h3 {
+    font-size: 1.1rem;
+  }
+  .performance-table th, .performance-table td {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.85rem;
+  }
+  .sales-log-table th, .sales-log-table td {
+    font-size: 0.9rem;
+    padding: 0.65rem 0.85rem;
+  }
+}
+
+/* Standard laptop screens (1024px) */
+@media (max-width: 1024px) {
+  .sales-header h2 {
+    font-size: 1.25rem;
+  }
+  .sales-indicator-card .indicator-value {
+    font-size: 1.6rem;
+  }
+  .sales-indicator-card .indicator-title {
+    font-size: 0.88rem;
+  }
+  .sales-indicator-card .indicator-change {
+    font-size: 0.83rem;
+  }
+  .sales-filters label {
+    font-size: 0.78rem;
+  }
+  .sales-widget .widget-header h3 {
+    font-size: 1.05rem;
+  }
+  .sales-log-header h3 {
+    font-size: 1.05rem;
+  }
+  .performance-table th, .performance-table td {
+    font-size: 0.88rem;
+    padding: 0.6rem 0.8rem;
+  }
+  .sales-log-table th, .sales-log-table td {
+    font-size: 0.88rem;
+    padding: 0.6rem 0.8rem;
+  }
+  .export-buttons button {
+    font-size: 0.88rem;
+    padding: 0.45rem 0.9rem;
+  }
+}
+
+/* Smaller laptop screens (900px) */
+@media (max-width: 900px) {
+  .sales-header h2 {
+    font-size: 1.2rem;
+  }
+  .sales-indicator-card .indicator-value {
+    font-size: 1.5rem;
+  }
+  .sales-indicator-card .indicator-title {
+    font-size: 0.85rem;
+  }
+  .sales-indicator-card .indicator-change {
+    font-size: 0.8rem;
+  }
+  .sales-filters label {
+    font-size: 0.75rem;
+  }
+  .sales-widget .widget-header h3 {
+    font-size: 1rem;
+  }
+  .sales-log-header h3 {
+    font-size: 1rem;
+  }
+  .performance-table th, .performance-table td {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.75rem;
+  }
+  .sales-log-table th, .sales-log-table td {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.75rem;
+  }
+  .export-buttons button {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.85rem;
+  }
+}
+
+/* Tablet and small laptop (768px) */
 @media (max-width: 768px) {
   .sales-header {
     flex-direction: column;
@@ -166,14 +357,23 @@
     align-items: stretch;
   }
   
+  .sales-header h2 {
+    font-size: 1.15rem;
+  }
+  
   .sales-filters {
     flex-direction: column;
     gap: 1rem;
   }
   
+  .sales-filters label {
+    font-size: 0.73rem;
+  }
+  
   .sales-filters select {
     min-width: auto;
     width: 100%;
+    font-size: 0.85rem;
   }
   
   .sales-widgets-row {
@@ -182,6 +382,91 @@
   
   .sales-indicators-row {
     flex-direction: column;
+  }
+  
+  .sales-indicator-card .indicator-value {
+    font-size: 1.4rem;
+  }
+  
+  .sales-indicator-card .indicator-title {
+    font-size: 0.83rem;
+  }
+  
+  .sales-indicator-card .indicator-change {
+    font-size: 0.78rem;
+  }
+  
+  .sales-widget .widget-header h3 {
+    font-size: 0.95rem;
+  }
+  
+  .sales-log-header h3 {
+    font-size: 0.95rem;
+  }
+  
+  .performance-table th, .performance-table td {
+    font-size: 0.83rem;
+    padding: 0.5rem 0.7rem;
+  }
+  
+  .sales-log-table th, .sales-log-table td {
+    font-size: 0.83rem;
+    padding: 0.5rem 0.7rem;
+  }
+  
+  .export-buttons button {
+    font-size: 0.83rem;
+    padding: 0.4rem 0.8rem;
+  }
+}
+
+/* Small screens (600px) */
+@media (max-width: 600px) {
+  .sales-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  .sales-indicator-card .indicator-value {
+    font-size: 1.3rem;
+  }
+  
+  .sales-indicator-card .indicator-title {
+    font-size: 0.8rem;
+  }
+  
+  .sales-indicator-card .indicator-change {
+    font-size: 0.75rem;
+  }
+  
+  .sales-filters label {
+    font-size: 0.7rem;
+  }
+  
+  .sales-filters select {
+    font-size: 0.8rem;
+  }
+  
+  .sales-widget .widget-header h3 {
+    font-size: 0.9rem;
+  }
+  
+  .sales-log-header h3 {
+    font-size: 0.9rem;
+  }
+  
+  .performance-table th, .performance-table td {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.6rem;
+  }
+  
+  .sales-log-table th, .sales-log-table td {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.6rem;
+  }
+  
+  .export-buttons button {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.7rem;
   }
 }
 
