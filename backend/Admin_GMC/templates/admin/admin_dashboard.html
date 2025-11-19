@@ -674,7 +674,55 @@
 
                 // Use the forecast dashboard API which aggregates all products
                 const response = await fetch(`/admin/api/forecast/dashboard?branch_id=${branchId}`);
-                const data = await response.json();
+                
+                // Check if response is OK
+                if (!response.ok) {
+                    // Try to get error message from response
+                    let errorText = `Server error (${response.status})`;
+                    try {
+                        const errorData = await response.json();
+                        errorText = errorData.error || errorText;
+                    } catch (e) {
+                        // If not JSON, try to get text
+                        try {
+                            const text = await response.text();
+                            if (text && text.length < 200) {
+                                errorText = text;
+                            }
+                        } catch (e2) {
+                            // Ignore
+                        }
+                    }
+                    
+                    const container = document.getElementById('forecastSummaryContainer');
+                    if (container) {
+                        container.innerHTML = `
+                            <div style="text-align: center; color: #dc2626; padding: 3rem;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                                <p>${errorText}</p>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+                
+                // Parse JSON response
+                let data;
+                try {
+                    data = await response.json();
+                } catch (jsonError) {
+                    console.error('Error parsing JSON response:', jsonError);
+                    const container = document.getElementById('forecastSummaryContainer');
+                    if (container) {
+                        container.innerHTML = `
+                            <div style="text-align: center; color: #dc2626; padding: 3rem;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                                <p>Error parsing server response</p>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
                 
                 if (data.ok && data.forecast) {
                     updateForecastSummary(data.forecast, branchId);
@@ -696,7 +744,7 @@
                     container.innerHTML = `
                         <div style="text-align: center; color: #dc2626; padding: 3rem;">
                             <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <p>Error loading forecast summary</p>
+                            <p>Error loading forecast summary: ${error.message || 'Unknown error'}</p>
                         </div>
                     `;
                 }
