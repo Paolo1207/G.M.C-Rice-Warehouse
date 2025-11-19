@@ -70,16 +70,16 @@ class ETLPipeline:
         """
         Transform: Clean, aggregate, and prepare data for modeling
         """
-            if df.empty:
+        if df.empty:
             return pd.Series(dtype=float)
             
         # Convert transaction_date to datetime
-            if 'transaction_date' in df.columns:
-                df['date'] = pd.to_datetime(df['transaction_date'])
+        if 'transaction_date' in df.columns:
+            df['date'] = pd.to_datetime(df['transaction_date'])
             df = df.sort_values('date')
             
             # Set date as index
-                df = df.set_index('date')
+            df = df.set_index('date')
             
             # Aggregate by day (sum quantity_sold per day)
             if 'quantity_sold' in df.columns:
