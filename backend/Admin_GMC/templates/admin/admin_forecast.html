@@ -579,61 +579,201 @@
                         </h5>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
                             <!-- EXTRACT Step -->
-                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                                <strong style="color: #3b82f6; font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                                    1️⃣ EXTRACT
+                            <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                                <strong style="color: #3b82f6; font-size: 1rem; display: block; margin-bottom: 12px; font-weight: 700;">
+                                    1️⃣ EXTRACT - Database Query
                                 </strong>
-                                <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
-                                    <div><strong>Raw Transactions:</strong> ${(forecast.etl_process.extract?.raw_transactions || 0).toLocaleString()}</div>
-                                    <div><strong>Total Quantity:</strong> ${(forecast.etl_process.extract?.raw_total_quantity || 0).toFixed(2)} kg</div>
+                                <div style="font-size: 0.9rem; color: #374151; line-height: 1.8;">
+                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #e5e7eb;">
+                                        <strong style="color: #1f2937; display: block; margin-bottom: 8px; font-size: 0.95rem;">📊 Source: SalesTransaction Table</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; margin-top: 8px;">
+                                            <div style="margin-bottom: 4px;"><strong>SELECT:</strong> transaction_date, quantity_sold, branch_id, product_id</div>
+                                            <div style="margin-bottom: 4px;"><strong>FROM:</strong> SalesTransaction</div>
+                                            <div style="margin-bottom: 4px;"><strong>WHERE:</strong> branch_id = ${branchId} AND product_id = ${productId}</div>
+                                            <div><strong>FILTER:</strong> transaction_date >= (today - 912 days)</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                                        <div style="background: #eff6ff; padding: 10px; border-radius: 6px; border: 1px solid #bfdbfe;">
+                                            <strong style="color: #1e40af; font-size: 0.85rem;">Raw Transactions:</strong>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: #1e40af; margin-top: 4px;">${(forecast.etl_process.extract?.raw_transactions || 0).toLocaleString()}</div>
+                                        </div>
+                                        <div style="background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
+                                            <strong style="color: #166534; font-size: 0.85rem;">Total Quantity:</strong>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: #166534; margin-top: 4px;">${(forecast.etl_process.extract?.raw_total_quantity || 0).toFixed(2)} kg</div>
+                                        </div>
+                                    </div>
+                                    
                                     ${forecast.etl_process.extract?.date_range ? `
-                                    <div><strong>Date Range:</strong> ${forecast.etl_process.extract.date_range.earliest} to ${forecast.etl_process.extract.date_range.latest}</div>
+                                    <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 12px;">
+                                        <strong style="color: #92400e; font-size: 0.85rem;">Date Range:</strong>
+                                        <div style="font-size: 0.95rem; font-weight: 600; color: #92400e; margin-top: 4px;">
+                                            ${forecast.etl_process.extract.date_range.earliest} to ${forecast.etl_process.extract.date_range.latest}
+                                        </div>
+                                    </div>
                                     ` : ''}
-                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
-                                        Loaded raw historical sales data from database
+                                    
+                                    <div style="background: #e0e7ff; padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1; margin-top: 12px;">
+                                        <strong style="color: #4338ca; display: block; margin-bottom: 6px; font-size: 0.9rem;">📋 Extracted Fields:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.8;">
+                                            <div>• <strong>transaction_date:</strong> Date and time of each sale</div>
+                                            <div>• <strong>quantity_sold:</strong> Amount sold in kilograms</div>
+                                            <div>• <strong>branch_id:</strong> Branch identifier (${branchName})</div>
+                                            <div>• <strong>product_id:</strong> Product identifier (${productName})</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.8rem; color: #6b7280; font-style: italic; border-left: 3px solid #9ca3af;">
+                                        ✅ Successfully loaded raw historical sales data from SalesTransaction table
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- TRANSFORM Step -->
-                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #10b981;">
-                                <strong style="color: #10b981; font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                                    2️⃣ TRANSFORM
+                            <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
+                                <strong style="color: #10b981; font-size: 1rem; display: block; margin-bottom: 12px; font-weight: 700;">
+                                    2️⃣ TRANSFORM - Data Cleaning & Aggregation
                                 </strong>
-                                <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
-                                    <div><strong>Daily Aggregated Days:</strong> ${(forecast.etl_process.transform?.daily_aggregated_days || 0).toLocaleString()}</div>
-                                    <div><strong>Mean Daily Quantity:</strong> ${(forecast.etl_process.transform?.mean_daily_quantity || 0).toFixed(2)} kg</div>
-                                    <div><strong>Std Dev:</strong> ${(forecast.etl_process.transform?.std_daily_quantity || 0).toFixed(2)} kg</div>
-                                    ${(forecast.etl_process.transform?.outliers_removed || 0) > 0 ? `
-                                    <div style="color: #f59e0b;"><strong>Outliers Removed:</strong> ${forecast.etl_process.transform.outliers_removed}</div>
-                                    ` : ''}
+                                <div style="font-size: 0.9rem; color: #374151; line-height: 1.8;">
+                                    <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #bbf7d0;">
+                                        <strong style="color: #166534; display: block; margin-bottom: 8px; font-size: 0.95rem;">🔄 Transformation Steps:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 2;">
+                                            <div style="margin-bottom: 6px;">1. <strong>Date Conversion:</strong> Convert transaction_date to datetime format</div>
+                                            <div style="margin-bottom: 6px;">2. <strong>Daily Aggregation:</strong> GROUP BY date, SUM(quantity_sold) per day</div>
+                                            <div style="margin-bottom: 6px;">3. <strong>Outlier Detection:</strong> Remove values beyond 3 standard deviations</div>
+                                            <div style="margin-bottom: 6px;">4. <strong>Data Cleaning:</strong> Clip negative values, fill missing dates</div>
+                                            <div>5. <strong>Normalization:</strong> Ensure data consistency for modeling</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                                        <div style="background: #ecfdf5; padding: 10px; border-radius: 6px; border: 1px solid #a7f3d0;">
+                                            <strong style="color: #065f46; font-size: 0.85rem;">Daily Aggregated Days:</strong>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: #065f46; margin-top: 4px;">${(forecast.etl_process.transform?.daily_aggregated_days || 0).toLocaleString()}</div>
+                                        </div>
+                                        <div style="background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
+                                            <strong style="color: #166534; font-size: 0.85rem;">Mean Daily Quantity:</strong>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: #166534; margin-top: 4px;">${(forecast.etl_process.transform?.mean_daily_quantity || 0).toFixed(2)} kg</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                                        <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a;">
+                                            <strong style="color: #92400e; font-size: 0.85rem;">Standard Deviation:</strong>
+                                            <div style="font-size: 1rem; font-weight: 600; color: #92400e; margin-top: 4px;">${(forecast.etl_process.transform?.std_daily_quantity || 0).toFixed(2)} kg</div>
+                                        </div>
+                                        ${(forecast.etl_process.transform?.outliers_removed || 0) > 0 ? `
+                                        <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a;">
+                                            <strong style="color: #92400e; font-size: 0.85rem;">Outliers Removed:</strong>
+                                            <div style="font-size: 1rem; font-weight: 600; color: #92400e; margin-top: 4px;">${forecast.etl_process.transform.outliers_removed} days</div>
+                                        </div>
+                                        ` : `
+                                        <div style="background: #ecfdf5; padding: 10px; border-radius: 6px; border: 1px solid #a7f3d0;">
+                                            <strong style="color: #065f46; font-size: 0.85rem;">Outliers Removed:</strong>
+                                            <div style="font-size: 1rem; font-weight: 600; color: #065f46; margin-top: 4px;">0 days</div>
+                                        </div>
+                                        `}
+                                    </div>
+                                    
                                     ${(forecast.etl_process.transform?.negative_values_clipped || 0) > 0 ? `
-                                    <div style="color: #ef4444;"><strong>Negative Values Clipped:</strong> ${forecast.etl_process.transform.negative_values_clipped}</div>
+                                    <div style="background: #fee2e2; padding: 10px; border-radius: 6px; border: 1px solid #fecaca; margin-bottom: 12px;">
+                                        <strong style="color: #991b1b; font-size: 0.85rem;">⚠️ Negative Values Clipped:</strong>
+                                        <div style="font-size: 0.95rem; font-weight: 600; color: #991b1b; margin-top: 4px;">${forecast.etl_process.transform.negative_values_clipped} values set to 0</div>
+                                    </div>
                                     ` : ''}
+                                    
                                     ${(forecast.etl_process.transform?.missing_values_filled || 0) > 0 ? `
-                                    <div style="color: #6366f1;"><strong>Missing Values Filled:</strong> ${forecast.etl_process.transform.missing_values_filled}</div>
+                                    <div style="background: #e0e7ff; padding: 10px; border-radius: 6px; border: 1px solid #c7d2fe; margin-bottom: 12px;">
+                                        <strong style="color: #4338ca; font-size: 0.85rem;">ℹ️ Missing Values Filled:</strong>
+                                        <div style="font-size: 0.95rem; font-weight: 600; color: #4338ca; margin-top: 4px;">${forecast.etl_process.transform.missing_values_filled} days filled with forward fill</div>
+                                    </div>
                                     ` : ''}
-                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
-                                        Cleaned, aggregated by day, removed outliers, filled missing values
+                                    
+                                    <div style="background: #d1fae5; padding: 12px; border-radius: 6px; border-left: 3px solid #10b981; margin-top: 12px;">
+                                        <strong style="color: #065f46; display: block; margin-bottom: 6px; font-size: 0.9rem;">📊 Aggregation Formula:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; line-height: 1.6;">
+                                            <div>daily_quantity = SUM(quantity_sold)</div>
+                                            <div style="margin-top: 4px;">GROUP BY DATE(transaction_date)</div>
+                                            <div style="margin-top: 4px;">WHERE branch_id = ${branchId}</div>
+                                            <div style="margin-top: 4px;">AND product_id = ${productId}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.8rem; color: #6b7280; font-style: italic; border-left: 3px solid #9ca3af;">
+                                        ✅ Data cleaned, aggregated by day, outliers removed, missing values handled
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- LOAD Step -->
-                            <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-                                <strong style="color: #8b5cf6; font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                                    3️⃣ LOAD
+                            <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                                <strong style="color: #8b5cf6; font-size: 1rem; display: block; margin-bottom: 12px; font-weight: 700;">
+                                    3️⃣ LOAD - Data Validation & Preparation
                                 </strong>
-                                <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
-                                    <div><strong>Final Data Points:</strong> ${(forecast.etl_process.load?.final_data_points || 0).toLocaleString()}</div>
+                                <div style="font-size: 0.9rem; color: #374151; line-height: 1.8;">
+                                    <div style="background: #faf5ff; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #e9d5ff;">
+                                        <strong style="color: #6b21a8; display: block; margin-bottom: 8px; font-size: 0.95rem;">✅ Validation Steps:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 2;">
+                                            <div style="margin-bottom: 6px;">1. <strong>Data Completeness:</strong> Verify all required fields present</div>
+                                            <div style="margin-bottom: 6px;">2. <strong>Data Quality:</strong> Check for sufficient data points (min 7 days)</div>
+                                            <div style="margin-bottom: 6px;">3. <strong>Data Consistency:</strong> Ensure no null or invalid values</div>
+                                            <div style="margin-bottom: 6px;">4. <strong>Padding Check:</strong> Add padding if data too short for model</div>
+                                            <div>5. <strong>Final Format:</strong> Convert to time series format for modeling</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
+                                        <div style="background: #faf5ff; padding: 10px; border-radius: 6px; border: 1px solid #e9d5ff;">
+                                            <strong style="color: #6b21a8; font-size: 0.85rem;">Final Data Points:</strong>
+                                            <div style="font-size: 1.1rem; font-weight: 700; color: #6b21a8; margin-top: 4px;">${(forecast.etl_process.load?.final_data_points || 0).toLocaleString()}</div>
+                                        </div>
+                                        ${forecast.etl_process.load?.padded ? `
+                                        <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a;">
+                                            <strong style="color: #92400e; font-size: 0.85rem;">⚠️ Padding Applied:</strong>
+                                            <div style="font-size: 1rem; font-weight: 600; color: #92400e; margin-top: 4px;">${forecast.etl_process.load.padding_count} days</div>
+                                        </div>
+                                        ` : `
+                                        <div style="background: #ecfdf5; padding: 10px; border-radius: 6px; border: 1px solid #a7f3d0;">
+                                            <strong style="color: #065f46; font-size: 0.85rem;">✅ Data Quality:</strong>
+                                            <div style="font-size: 1rem; font-weight: 600; color: #065f46; margin-top: 4px;">Sufficient</div>
+                                        </div>
+                                        `}
+                                    </div>
+                                    
                                     ${forecast.etl_process.load?.padded ? `
-                                    <div style="color: #f59e0b;"><strong>⚠️ Padded:</strong> ${forecast.etl_process.load.padding_count} days (data was too short)</div>
-                                    <div style="font-size: 0.8rem; color: #64748b;">Original: ${forecast.etl_process.load.original_length} days</div>
+                                    <div style="background: #fef3c7; padding: 12px; border-radius: 6px; border-left: 3px solid #f59e0b; margin-bottom: 12px;">
+                                        <strong style="color: #92400e; display: block; margin-bottom: 6px; font-size: 0.9rem;">⚠️ Data Padding Details:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.8;">
+                                            <div>• <strong>Original Length:</strong> ${forecast.etl_process.load.original_length} days</div>
+                                            <div>• <strong>Padding Added:</strong> ${forecast.etl_process.load.padding_count} days</div>
+                                            <div>• <strong>Final Length:</strong> ${forecast.etl_process.load.final_data_points} days</div>
+                                            <div style="margin-top: 6px; color: #92400e; font-weight: 600;">Reason: Data was too short for model requirements</div>
+                                        </div>
+                                    </div>
                                     ` : `
-                                    <div style="color: #10b981;">✅ No padding needed</div>
+                                    <div style="background: #ecfdf5; padding: 12px; border-radius: 6px; border-left: 3px solid #10b981; margin-bottom: 12px;">
+                                        <strong style="color: #065f46; display: block; margin-bottom: 6px; font-size: 0.9rem;">✅ Data Validation Passed:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.8;">
+                                            <div>• <strong>Data Points:</strong> ${(forecast.etl_process.load?.final_data_points || 0).toLocaleString()} days</div>
+                                            <div>• <strong>Quality:</strong> Sufficient for ${forecast.model_type} model</div>
+                                            <div>• <strong>Format:</strong> Time series ready</div>
+                                        </div>
+                                    </div>
                                     `}
-                                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
-                                        Validated and prepared data for modeling
+                                    
+                                    <div style="background: #e0e7ff; padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1; margin-top: 12px;">
+                                        <strong style="color: #4338ca; display: block; margin-bottom: 6px; font-size: 0.9rem;">📦 Output Format:</strong>
+                                        <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; line-height: 1.6;">
+                                            <div>pandas.Series with:</div>
+                                            <div style="margin-top: 4px;">• Index: datetime (daily)</div>
+                                            <div>• Values: quantity_sold (kg)</div>
+                                            <div style="margin-top: 4px;">→ Ready for ${forecast.model_type} model training</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.8rem; color: #6b7280; font-style: italic; border-left: 3px solid #9ca3af;">
+                                        ✅ Data validated, formatted, and prepared for ${forecast.model_type} forecasting model
                                     </div>
                                 </div>
                             </div>
