@@ -1262,42 +1262,129 @@ def api_get_forecast(branch_id: int, product_id: int):
 
 @admin_bp.get("/api/forecast/dashboard")
 def api_forecast_dashboard():
-    """Get forecast dashboard data for all branches"""
-    from models import ForecastData, Branch, Product
+    """Get forecast dashboard data for a specific branch (aggregates all products)"""
+    from models import Branch, Product, SalesTransaction, InventoryItem
     from datetime import datetime, timedelta
+    from sqlalchemy import func, and_
+    import traceback
+    import sys
     
-    # Get recent forecasts (next 7 days)
-    end_date = datetime.now().date() + timedelta(days=7)
+    branch_id = request.args.get('branch_id', type=int)
     
-    forecasts = (
-        ForecastData.query
-        .join(Branch)
-        .join(Product)
-        .filter(ForecastData.forecast_date >= datetime.now().date())
-        .filter(ForecastData.forecast_date <= end_date)
-        .order_by(ForecastData.forecast_date)
-        .all()
-    )
+    if not branch_id:
+        return jsonify({
+            "ok": False,
+            "error": "branch_id is required"
+        }), 400
     
-    # Group by branch and product
-    dashboard_data = {}
-    for forecast in forecasts:
-        branch_name = forecast.branch.name
-        product_name = forecast.product.name
+    try:
+        branch = Branch.query.get(branch_id)
+        if not branch:
+            return jsonify({
+                "ok": False,
+                "error": f"Branch {branch_id} not found"
+            }), 404
         
-        if branch_name not in dashboard_data:
-            dashboard_data[branch_name] = {}
+        # Get all products for this branch
+        products = db.session.query(Product).join(
+            InventoryItem, Product.id == InventoryItem.product_id
+        ).filter(
+            InventoryItem.branch_id == branch_id
+        ).distinct().all()
         
-        if product_name not in dashboard_data[branch_name]:
-            dashboard_data[branch_name][product_name] = []
+        if not products:
+            return jsonify({
+                "ok": False,
+                "error": "No products available for this branch"
+            }), 404
         
-        dashboard_data[branch_name][product_name].append(forecast.to_dict())
-    
-    return jsonify({
-        "ok": True,
-        "dashboard_data": dashboard_data,
-        "total_forecasts": len(forecasts)
-    })
+        # Generate forecast for each product and aggregate
+        all_forecast_values = []
+        total_accuracy = 0
+        product_count = 0
+        
+        for product in products:
+            try:
+                # Get historical sales data
+                date_threshold = datetime.now() - timedelta(days=912)  # ~2.5 years
+                
+                sales_data = db.session.query(
+                    SalesTransaction.transaction_date,
+                    SalesTransaction.quantity_sold
+                ).filter(
+                    and_(
+                        SalesTransaction.branch_id == branch_id,
+                        SalesTransaction.product_id == product.id,
+                        SalesTransaction.transaction_date >= date_threshold,
+                        SalesTransaction.transaction_date <= datetime.now()
+                    )
+                ).all()
+                
+                if not sales_data or len(sales_data) < 7:
+                    continue
+                
+                # Format historical data
+                historical_data = [{
+                    'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'quantity_sold': float(sale.quantity_sold),
+                    'branch_id': branch_id,
+                    'product_id': product.id
+                } for sale in sales_data]
+                
+                # Generate forecast using ARIMA with ETL
+                forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                    historical_data=historical_data,
+                    periods=30,
+                    requested_model='ARIMA'
+                )
+                
+                if forecast_result and 'forecast_values' in forecast_result:
+                    # Aggregate forecast values by date (sum across products)
+                    for i, value in enumerate(forecast_result['forecast_values'][:30]):
+                        if i >= len(all_forecast_values):
+                            all_forecast_values.append(0)
+                        all_forecast_values[i] += float(value)
+                    
+                    # Track accuracy
+                    if forecast_result.get('accuracy_score'):
+                        total_accuracy += forecast_result['accuracy_score']
+                        product_count += 1
+            
+            except Exception as e:
+                print(f"Error generating forecast for product {product.id}: {e}")
+                continue
+        
+        if not all_forecast_values:
+            return jsonify({
+                "ok": False,
+                "error": "No forecast data available (insufficient historical data)"
+            }), 404
+        
+        avg_accuracy = total_accuracy / product_count if product_count > 0 else 0.75
+        
+        return jsonify({
+            "ok": True,
+            "forecast": {
+                "forecast_values": all_forecast_values,
+                "model_type": "ARIMA",
+                "accuracy_score": avg_accuracy,
+                "periods": len(all_forecast_values)
+            },
+            "branch_id": branch_id,
+            "branch_name": branch.name
+        })
+        
+    except Exception as e:
+        error_msg = str(e)
+        error_trace = traceback.format_exc()
+        print(f"ERROR in api_forecast_dashboard: {error_msg}")
+        sys.stderr.write(f"ERROR in api_forecast_dashboard: {error_msg}\n")
+        sys.stderr.write(f"TRACEBACK:\n{error_trace}\n")
+        
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to generate forecast: {error_msg}"
+        }), 500
 
 # ========== SALES TRANSACTION API ==========
 
