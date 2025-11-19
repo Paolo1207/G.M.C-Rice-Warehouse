@@ -63,8 +63,8 @@
     
     /* Ensure chart containers have proper dimensions */
     #salesTrendChart,
-    #forecastVsActualChart,
-    #topProductsChart {
+    #riceStockChart,
+    #predictiveDemandChart {
       display: block !important;
       width: 100% !important;
       height: 400px !important;
@@ -208,23 +208,23 @@
           <canvas id="salesTrendChart" style="height: 400px; width: 100%;"></canvas>
         </div>
 
-        <!-- Forecast vs Actual Chart -->
+        <!-- Current Rice Stock Chart -->
         <div class="chart-container">
-          <h3><i class="fas fa-chart-line"></i> Forecast vs Actual</h3>
-          <div class="chart-controls">
-            <select class="chart-period" id="forecastPeriod">
-              <option value="7">Last 7 days</option>
-              <option value="30" selected>Last 30 days</option>
-              <option value="90">Last 90 days</option>
-            </select>
-          </div>
-          <canvas id="forecastVsActualChart" style="height: 400px; width: 100%;"></canvas>
+          <h3><i class="fas fa-box"></i> Current Rice Stock</h3>
+          <canvas id="riceStockChart" style="height: 400px; width: 100%;"></canvas>
         </div>
 
-        <!-- Top Products Chart -->
+        <!-- Predictive Demand Chart -->
         <div class="chart-container">
-          <h3><i class="fas fa-chart-bar"></i> Top Products This Month</h3>
-          <canvas id="topProductsChart" style="height: 400px; width: 100%;"></canvas>
+          <h3><i class="fas fa-chart-line"></i> Predictive Demand</h3>
+          <div class="chart-controls">
+            <select class="chart-period" id="predictiveDemandPeriod">
+              <option value="7">Next 7 days</option>
+              <option value="30" selected>Next 30 days</option>
+              <option value="90">Next 90 days</option>
+            </select>
+          </div>
+          <canvas id="predictiveDemandChart" style="height: 400px; width: 100%;"></canvas>
         </div>
 
       </div>
@@ -441,9 +441,9 @@
       // Load charts sequentially to prevent conflicts
       await loadSalesTrendData();
       await new Promise(resolve => setTimeout(resolve, 100));
-      await loadForecastData();
+      await loadRiceStockData();
       await new Promise(resolve => setTimeout(resolve, 100));
-      await loadTopProductsData();
+      await loadPredictiveDemandData();
     }
 
     // Load Sales Trend data with its own filters
@@ -478,65 +478,69 @@
       }
     }
 
-    // Load Forecast data with its own filters
-    async function loadForecastData() {
+    // Load Current Rice Stock data
+    async function loadRiceStockData() {
       try {
         const branchId = {{ branch_id if branch_id else 'null' }} || 
                         new URLSearchParams(window.location.search).get('branch') || 
                         new URLSearchParams(window.location.search).get('branch_id');
-        const forecastPeriod = document.getElementById('forecastPeriod')?.value || '30';
 
         const params = new URLSearchParams();
         if (branchId) params.append('branch_id', branchId);
-        if (forecastPeriod) params.append('days', forecastPeriod);
 
-        console.log('Loading Forecast with filters:', { forecastPeriod, branchId });
+        console.log('Loading Rice Stock with filters:', { branchId });
 
-        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`, {
+        const response = await fetch(`/manager/api/dashboard/rice-stock?${params.toString()}`, {
           credentials: 'include'
         });
         const data = await response.json();
         
         if (data.ok) {
-          updateForecastVsActualChart(data.charts.forecast_vs_actual);
+          updateRiceStockChart(data.stock_data);
+        } else {
+          console.error('Rice stock API returned error:', data.error || 'Unknown error');
         }
       } catch (error) {
-        console.error('Error loading forecast data:', error);
+        console.error('Error loading rice stock data:', error);
       }
     }
 
-    // Load Top Products data with its own filters
-    async function loadTopProductsData() {
+    // Load Predictive Demand data
+    async function loadPredictiveDemandData() {
       try {
         const branchId = {{ branch_id if branch_id else 'null' }} || 
                         new URLSearchParams(window.location.search).get('branch') || 
                         new URLSearchParams(window.location.search).get('branch_id');
+        const periods = document.getElementById('predictiveDemandPeriod')?.value || '30';
 
         const params = new URLSearchParams();
         if (branchId) params.append('branch_id', branchId);
+        if (periods) params.append('periods', periods);
 
-        console.log('Loading Top Products with filters:', { branchId });
+        console.log('Loading Predictive Demand with filters:', { periods, branchId });
 
-        const response = await fetch(`/manager/api/dashboard/charts?${params.toString()}`, {
+        const response = await fetch(`/manager/api/dashboard/predictive-demand?${params.toString()}`, {
           credentials: 'include'
         });
         const data = await response.json();
         
         if (data.ok) {
-          updateTopProductsChart(data.charts.top_products);
+          updatePredictiveDemandChart(data.forecast_data, periods);
+        } else {
+          console.error('Predictive demand API returned error:', data.error || 'Unknown error');
         }
       } catch (error) {
-        console.error('Error loading top products data:', error);
+        console.error('Error loading predictive demand data:', error);
       }
     }
 
     function initDashboard() {
       // Check if chart canvases exist
       const salesCanvas = document.getElementById('salesTrendChart');
-      const forecastCanvas = document.getElementById('forecastVsActualChart');
-      const topProductsCanvas = document.getElementById('topProductsChart');
+      const riceStockCanvas = document.getElementById('riceStockChart');
+      const predictiveDemandCanvas = document.getElementById('predictiveDemandChart');
       
-      if (!salesCanvas || !forecastCanvas || !topProductsCanvas) {
+      if (!salesCanvas || !riceStockCanvas || !predictiveDemandCanvas) {
         console.error('Chart canvases not found, retrying in 1 second...');
         setTimeout(initDashboard, 1000);
         return;
@@ -704,11 +708,11 @@
       }
     }
 
-    // Update Forecast vs Actual Chart
-    function updateForecastVsActualChart(data) {
-      const ctx = document.getElementById('forecastVsActualChart');
+    // Update Current Rice Stock Chart
+    function updateRiceStockChart(data) {
+      const ctx = document.getElementById('riceStockChart');
       if (!ctx) {
-        console.error('Forecast vs Actual chart canvas not found');
+        console.error('Rice stock chart canvas not found');
         return;
       }
 
@@ -718,174 +722,34 @@
       ctx.width = ctx.offsetWidth;
       ctx.height = ctx.offsetHeight;
 
-      console.log('Updating Forecast vs Actual Chart with data:', data);
+      console.log('Updating Rice Stock Chart with data:', data);
 
-      if (window.forecastVsActualChart && typeof window.forecastVsActualChart.destroy === 'function') {
-        console.log('Destroying existing forecast vs actual chart');
-        window.forecastVsActualChart.destroy();
-        window.forecastVsActualChart = null;
+      if (window.riceStockChart && typeof window.riceStockChart.destroy === 'function') {
+        console.log('Destroying existing rice stock chart');
+        window.riceStockChart.destroy();
+        window.riceStockChart = null;
       }
 
       // Handle empty data
       if (!data || data.length === 0) {
-        console.log('No forecast vs actual data, using fallback');
-        data = [{ date: 'No Data', actual: 0, forecast: 0 }];
+        console.log('No rice stock data, using fallback');
+        data = [{ product_name: 'No Data', stock_kg: 0 }];
       }
 
-      const labels = data.map(item => item.date);
-      const actualData = data.map(item => item.actual);
-      const forecastData = data.map(item => item.forecast);
+      // Limit to top 10 products by stock
+      const sortedData = [...data].sort((a, b) => b.stock_kg - a.stock_kg).slice(0, 10);
+      const labels = sortedData.map(item => item.product_name);
+      const stockData = sortedData.map(item => item.stock_kg);
 
-      window.forecastVsActualChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Actual Sales (kg)',
-            data: actualData,
-            borderColor: '#1a365d',
-            backgroundColor: 'rgba(26, 54, 93, 0.1)',
-            borderWidth: 3,
-            fill: false,
-            tension: 0.4,
-            pointBackgroundColor: '#1a365d',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6
-          }, {
-            label: 'Forecast (kg)',
-            data: forecastData,
-            borderColor: '#ecc94b',
-            backgroundColor: 'rgba(236, 201, 75, 0.1)',
-            borderWidth: 3,
-            borderDash: [5, 5],
-            fill: false,
-            tension: 0.4,
-            pointBackgroundColor: '#ecc94b',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          aspectRatio: 2,
-          plugins: {
-            legend: { 
-              display: true,
-              position: 'top'
-            },
-            title: { 
-              display: true, 
-              text: 'Forecast vs Actual Sales',
-              font: { size: 14, weight: 'bold' }
-            },
-            tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              titleColor: '#ffffff',
-              bodyColor: '#ffffff',
-              borderColor: '#1a365d',
-              borderWidth: 1,
-              cornerRadius: 8,
-              callbacks: {
-                label: function(context) {
-                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
-                }
-              }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              grid: {
-                color: 'rgba(0,0,0,0.1)',
-                drawBorder: false
-              },
-              title: { 
-                display: true, 
-                text: 'Quantity (kg)',
-                font: { size: 12, weight: 'bold' }
-              },
-              ticks: {
-                callback: function(value) {
-                  return value.toLocaleString() + ' kg';
-                },
-                font: { size: 11 }
-              }
-            },
-            x: {
-              grid: {
-                color: 'rgba(0,0,0,0.1)',
-                drawBorder: false
-              },
-              ticks: {
-                font: { size: 11 }
-              }
-            }
-          },
-          interaction: {
-            intersect: false,
-            mode: 'index'
-          }
-        }
-      });
-    }
-
-    // Update Top Products Chart
-    function updateTopProductsChart(data) {
-      const ctx = document.getElementById('topProductsChart');
-      if (!ctx) {
-        console.error('Top products chart canvas not found');
-        return;
-      }
-
-      // Ensure canvas has proper dimensions
-      ctx.style.width = '100%';
-      ctx.style.height = '400px';
-      ctx.width = ctx.offsetWidth;
-      ctx.height = ctx.offsetHeight;
-
-      console.log('Updating Top Products Chart with data:', data);
-
-      if (window.topProductsChart && typeof window.topProductsChart.destroy === 'function') {
-        console.log('Destroying existing top products chart');
-        window.topProductsChart.destroy();
-        window.topProductsChart = null;
-      }
-
-      // Handle empty data
-      if (!data || data.length === 0) {
-        console.log('No top products data, using fallback');
-        data = [{ name: 'No Data', quantity: 0 }];
-      }
-
-      const labels = data.map(item => item.name);
-      const quantities = data.map(item => item.quantity);
-
-      window.topProductsChart = new Chart(ctx, {
+      window.riceStockChart = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: labels,
           datasets: [{
-            label: 'Quantity Sold (kg)',
-            data: quantities,
-            backgroundColor: [
-              'rgba(26, 54, 93, 0.8)',
-              'rgba(59, 130, 246, 0.8)',
-              'rgba(245, 158, 11, 0.8)',
-              'rgba(139, 92, 246, 0.8)',
-              'rgba(236, 72, 153, 0.8)'
-            ],
-            borderColor: [
-              '#1a365d',
-              '#3b82f6',
-              '#f59e0b',
-              '#8b5cf6',
-              '#ec4899'
-            ],
+            label: 'Current Stock (kg)',
+            data: stockData,
+            backgroundColor: 'rgba(46, 125, 50, 0.8)',
+            borderColor: '#2e7d32',
             borderWidth: 2,
             borderRadius: 8,
             borderSkipped: false
@@ -897,18 +761,19 @@
           aspectRatio: 2,
           plugins: {
             legend: { 
-              display: false 
+              display: true,
+              position: 'top'
             },
             title: {
               display: true,
-              text: 'Top 5 Products This Month',
+              text: 'Current Rice Stock by Product',
               font: { size: 14, weight: 'bold' }
             },
             tooltip: {
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               titleColor: '#ffffff',
               bodyColor: '#ffffff',
-              borderColor: '#1a365d',
+              borderColor: '#2e7d32',
               borderWidth: 1,
               cornerRadius: 8,
               callbacks: {
@@ -927,7 +792,7 @@
               },
               title: { 
                 display: true, 
-                text: 'Quantity (kg)',
+                text: 'Stock (kg)',
                 font: { size: 12, weight: 'bold' }
               },
               ticks: {
@@ -943,9 +808,137 @@
                 drawBorder: false
               },
               ticks: {
-                font: { size: 11 }
+                font: { size: 11 },
+                maxRotation: 45,
+                minRotation: 45
               }
             }
+          }
+        }
+      });
+    }
+
+    // Update Predictive Demand Chart
+    function updatePredictiveDemandChart(data, periods = 30) {
+      const ctx = document.getElementById('predictiveDemandChart');
+      if (!ctx) {
+        console.error('Predictive demand chart canvas not found');
+        return;
+      }
+
+      // Ensure canvas has proper dimensions
+      ctx.style.width = '100%';
+      ctx.style.height = '400px';
+      ctx.width = ctx.offsetWidth;
+      ctx.height = ctx.offsetHeight;
+
+      console.log('Updating Predictive Demand Chart with data:', data);
+
+      if (window.predictiveDemandChart && typeof window.predictiveDemandChart.destroy === 'function') {
+        console.log('Destroying existing predictive demand chart');
+        window.predictiveDemandChart.destroy();
+        window.predictiveDemandChart = null;
+      }
+
+      // Handle empty data
+      if (!data || data.length === 0) {
+        console.log('No predictive demand data, using fallback');
+        data = [{ date: 'No Data', predicted: 0 }];
+      }
+
+      const labels = data.map(item => {
+        if (item.date) {
+          const dateParts = item.date.split('-');
+          if (dateParts.length === 3) {
+            return `${dateParts[1]}/${dateParts[2]}`;
+          }
+          return item.date;
+        }
+        return 'No Data';
+      });
+      const predictedData = data.map(item => parseFloat(item.predicted || item.predicted_demand || 0));
+
+      window.predictiveDemandChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Predicted Demand (kg)',
+            data: predictedData,
+            borderColor: '#2e7d32',
+            backgroundColor: 'rgba(46, 125, 50, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#2e7d32',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
+          plugins: {
+            legend: { 
+              display: true,
+              position: 'top'
+            },
+            title: { 
+              display: true, 
+              text: `Predictive Demand Forecast (Next ${periods} Days)`,
+              font: { size: 14, weight: 'bold' }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#ffffff',
+              bodyColor: '#ffffff',
+              borderColor: '#2e7d32',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return context.parsed.y.toLocaleString() + ' kg';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              title: { 
+                display: true, 
+                text: 'Predicted Demand (kg)',
+                font: { size: 12, weight: 'bold' }
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString() + ' kg';
+                },
+                font: { size: 11 }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                font: { size: 11 },
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
           }
         }
       });
@@ -962,12 +955,12 @@
         });
       }
 
-      // Forecast filter
-      const forecastPeriod = document.getElementById('forecastPeriod');
-      if (forecastPeriod) {
-        forecastPeriod.addEventListener('change', () => {
-          console.log('Forecast Period changed to:', forecastPeriod.value);
-          loadForecastData();
+      // Predictive Demand filter
+      const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod');
+      if (predictiveDemandPeriod) {
+        predictiveDemandPeriod.addEventListener('change', () => {
+          console.log('Predictive Demand Period changed to:', predictiveDemandPeriod.value);
+          loadPredictiveDemandData();
         });
       }
     }

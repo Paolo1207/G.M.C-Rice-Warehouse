@@ -1033,6 +1033,222 @@ def mgr_dashboard_charts():
         }
     })
 
+@manager_bp.get("/api/dashboard/rice-stock")
+@manager_required
+def mgr_dashboard_rice_stock():
+    """Get current rice stock data for manager dashboard (branch-specific)"""
+    try:
+        from sqlalchemy import func
+        from models import InventoryItem, Product, Branch
+        
+        # Get manager's branch ID
+        branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
+        if not branch_id:
+            return jsonify({
+                "ok": False,
+                "error": "Manager branch not found",
+                "stock_data": []
+            }), 400
+        
+        # Query inventory items for this branch only
+        query = db.session.query(
+            InventoryItem.product_id,
+            Product.name.label('product_name'),
+            InventoryItem.branch_id,
+            Branch.name.label('branch_name'),
+            func.sum(InventoryItem.stock_kg).label('stock_kg')
+        ).join(
+            Product, InventoryItem.product_id == Product.id
+        ).join(
+            Branch, InventoryItem.branch_id == Branch.id
+        ).filter(
+            and_(
+                InventoryItem.branch_id == branch_id,
+                InventoryItem.stock_kg > 0  # Only show items with stock
+            )
+        ).group_by(
+            InventoryItem.product_id,
+            Product.name,
+            InventoryItem.branch_id,
+            Branch.name
+        )
+        
+        results = query.all()
+        
+        # Format response
+        stock_data = []
+        for row in results:
+            stock_data.append({
+                'product_id': row.product_id,
+                'product_name': row.product_name,
+                'stock_kg': float(row.stock_kg or 0),
+                'branch_id': row.branch_id,
+                'branch_name': row.branch_name
+            })
+        
+        # Sort by stock quantity (descending)
+        stock_data.sort(key=lambda x: x['stock_kg'], reverse=True)
+        
+        return jsonify({
+            "ok": True,
+            "stock_data": stock_data
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in mgr_dashboard_rice_stock: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to load rice stock data: {str(e)}",
+            "stock_data": []
+        }), 500
+
+@manager_bp.get("/api/dashboard/predictive-demand")
+@manager_required
+def mgr_dashboard_predictive_demand():
+    """Get predictive demand forecast data for manager dashboard (branch-specific)"""
+    try:
+        from datetime import datetime, date, timedelta
+        from sqlalchemy import func
+        from models import Branch, Product, SalesTransaction
+        import traceback
+        import sys
+        
+        # Get manager's branch ID
+        branch_id = request.args.get('branch_id', type=int) or _current_manager_branch_id()
+        if not branch_id:
+            return jsonify({
+                "ok": False,
+                "error": "Manager branch not found",
+                "forecast_data": []
+            }), 400
+        
+        periods = request.args.get('periods', '30', type=int)
+        
+        # Validate periods
+        if periods not in [7, 30, 90]:
+            periods = 30
+        
+        # Import forecasting service
+        from forecasting_service import forecasting_service
+        
+        if not forecasting_service:
+            return jsonify({
+                "ok": False,
+                "error": "Forecasting service not available",
+                "forecast_data": []
+            }), 500
+        
+        # Get branch
+        branch = Branch.query.get(branch_id)
+        if not branch:
+            return jsonify({
+                "ok": False,
+                "error": f"Branch {branch_id} not found",
+                "forecast_data": []
+            }), 404
+        
+        # Get all products for this branch
+        products = db.session.query(Product).join(
+            InventoryItem, Product.id == InventoryItem.product_id
+        ).filter(
+            InventoryItem.branch_id == branch_id
+        ).distinct().all()
+        
+        if not products:
+            return jsonify({
+                "ok": True,
+                "forecast_data": [],
+                "message": "No products available for this branch"
+            })
+        
+        forecast_data = []
+        
+        # Generate forecast for each product and aggregate
+        for product in products:
+            try:
+                # Get historical sales data for this branch and product (last 2-3 years)
+                date_threshold = datetime.now() - timedelta(days=912)  # ~2.5 years
+                
+                sales_data = db.session.query(
+                    SalesTransaction.transaction_date,
+                    SalesTransaction.quantity_sold
+                ).filter(
+                    and_(
+                        SalesTransaction.branch_id == branch_id,
+                        SalesTransaction.product_id == product.id,
+                        SalesTransaction.transaction_date >= date_threshold,
+                        SalesTransaction.transaction_date <= datetime.now()
+                    )
+                ).all()
+                
+                if not sales_data or len(sales_data) < 7:
+                    continue
+                
+                # Format historical data for forecasting service
+                historical_data = [{
+                    'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S'),
+                    'quantity_sold': float(sale.quantity_sold),
+                    'branch_id': branch_id,
+                    'product_id': product.id
+                } for sale in sales_data]
+                
+                # Generate forecast using ARIMA
+                forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                    historical_data=historical_data,
+                    periods=periods,
+                    requested_model='ARIMA'
+                )
+                
+                if forecast_result and 'forecast_values' in forecast_result:
+                    # Add forecast data points
+                    start_date = datetime.now().date() + timedelta(days=1)
+                    for i, forecast_value in enumerate(forecast_result['forecast_values']):
+                        forecast_date = start_date + timedelta(days=i)
+                        forecast_data.append({
+                            'date': forecast_date.strftime('%Y-%m-%d'),
+                            'predicted': float(forecast_value),
+                            'product_id': product.id,
+                            'product_name': product.name
+                        })
+            
+            except Exception as e:
+                print(f"Error generating forecast for product {product.id}: {e}")
+                continue
+        
+        # Aggregate forecasts by date (sum across all products)
+        aggregated_forecast = {}
+        for item in forecast_data:
+            date_key = item['date']
+            if date_key not in aggregated_forecast:
+                aggregated_forecast[date_key] = 0
+            aggregated_forecast[date_key] += item['predicted']
+        
+        # Convert to list format
+        forecast_list = [{
+            'date': date,
+            'predicted': predicted,
+            'predicted_demand': predicted
+        } for date, predicted in sorted(aggregated_forecast.items())]
+        
+        return jsonify({
+            "ok": True,
+            "forecast_data": forecast_list
+        })
+        
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        print(f"ERROR in mgr_dashboard_predictive_demand: {error_msg}")
+        traceback.print_exc()
+        sys.stderr.write(f"ERROR in mgr_dashboard_predictive_demand: {error_msg}\n")
+        
+        return jsonify({
+            "ok": False,
+            "error": f"Failed to load predictive demand data: {error_msg}",
+            "forecast_data": []
+        }), 500
+
 @manager_bp.get("/api/analytics")
 @manager_required
 def mgr_analytics_overview():
