@@ -1038,7 +1038,7 @@ def mgr_dashboard_charts():
 def mgr_dashboard_rice_stock():
     """Get current rice stock data for manager dashboard (branch-specific)"""
     try:
-        from sqlalchemy import func
+        from sqlalchemy import func, and_
         from models import InventoryItem, Product, Branch
         
         # Get manager's branch ID
@@ -1109,8 +1109,8 @@ def mgr_dashboard_predictive_demand():
     """Get predictive demand forecast data for manager dashboard (branch-specific)"""
     try:
         from datetime import datetime, date, timedelta
-        from sqlalchemy import func
-        from models import Branch, Product, SalesTransaction
+        from sqlalchemy import func, and_
+        from models import Branch, Product, SalesTransaction, InventoryItem
         import traceback
         import sys
         
