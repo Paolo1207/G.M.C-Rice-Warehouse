@@ -197,9 +197,6 @@
           <button class="tab-btn active" data-tab="demand">
             <i class="fas fa-chart-bar"></i> Demand Forecast
           </button>
-          <button class="tab-btn" data-tab="price">
-            <i class="fas fa-tag"></i> Price Forecast
-          </button>
           <button class="tab-btn" data-tab="risk">
             <i class="fas fa-exclamation-triangle"></i> Stock Risk
           </button>
@@ -274,65 +271,6 @@
               📖 Forecast Interpretation & Stock Preparation Guide
             </h3>
             <div id="forecast-information-content"></div>
-          </div>
-        </div>
-
-        <!-- Price Forecast Tab -->
-        <div class="tab-content" id="price-forecast">
-          <div class="forecast-filters">
-            <div class="filter-group">
-              <select id="priceProductFilter">
-                <option value="">Select a product</option>
-                <!-- Products will be populated from inventory -->
-              </select>
-              <select id="priceBatchFilter" style="display: none;">
-                <option value="">Select batch (optional)</option>
-                <!-- Batch codes will be populated when product is selected -->
-              </select>
-              <select id="priceTimeRange">
-                <option value="30">Last 30 Days</option>
-                <option value="90">Last 3 Months</option>
-                <option value="180">Last 6 Months</option>
-              </select>
-            </div>
-            <div class="forecast-actions">
-              <button class="btn primary" onclick="generatePriceForecast()">
-                <i class="fas fa-chart-line"></i> Generate Price Forecast
-              </button>
-            </div>
-          </div>
-
-          <div class="forecast-grid">
-            <div class="forecast-chart">
-              <h3><i class="fas fa-chart-line"></i> Price Movement</h3>
-              <canvas id="priceChart"></canvas>
-            </div>
-            <div class="price-insights">
-              <h3><i class="fas fa-lightbulb"></i> Price Insights</h3>
-              <div class="insight-cards">
-                <div class="insight-card">
-                  <h4>Current Price</h4>
-                  <p class="price">₱99.99/kg</p>
-                  <p class="trend positive">
-                    <i class="fas fa-arrow-up"></i>
-                    +4% from last month
-                  </p>
-                </div>
-                <div class="insight-card">
-                  <h4>Predicted Change</h4>
-                  <p class="prediction">+4%</p>
-                  <p class="reason">Due to upcoming holiday</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Price Forecast Information & Interpretation Guide -->
-          <div class="glass-card" id="price-forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
-            <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
-              📖 Price Forecast Interpretation & Pricing Strategy Guide
-            </h3>
-            <div id="price-forecast-information-content"></div>
           </div>
         </div>
 
@@ -425,7 +363,7 @@
     // Manager branch scoping
     let MANAGER_BRANCH_ID = null;
     let MANAGER_BRANCH_NAME = null;
-    let demandChart, priceChart;
+    let demandChart;
     
     // Forecast control
     let filtersDirty = false;
@@ -469,11 +407,8 @@
         setupTabs();
         updateHeaderTitle('demand'); // Set initial title for demand tab
         await loadManagerData();
-      setupRiskFilters();
+        setupRiskFilters();
         updateBranchDisplay();
-        
-        // Clear price insights on initial load
-        clearPriceInsights();
       } catch (error) {
         console.error('Error initializing manager forecast:', error);
         showToast('Error loading forecast data', 'error');
@@ -527,10 +462,6 @@
 
           if (tabId === 'risk') {
             loadRiskData();
-          } else if (tabId === 'price') {
-            // Clear price insights when switching to price tab
-            clearPriceInsights();
-          }
         });
       });
     }
@@ -592,40 +523,6 @@
         });
       }
 
-      // Price Chart
-      const pCtx = document.getElementById('priceChart');
-      if (pCtx) {
-        priceChart = new Chart(pCtx.getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: [],
-          datasets: [{
-            label: 'Price per Unit',
-              data: [],
-            borderColor: '#1a365d',
-            backgroundColor: 'rgba(26, 54, 93, 0.1)',
-            tension: 0.4,
-            fill: true
-          }]
-        },
-        options: {
-          responsive: true,
-            plugins: { 
-              title: { display: true, text: 'Price Movement' },
-              legend: { position: 'top' }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                title: { display: true, text: 'Price (₱)' }
-              },
-              x: {
-                title: { display: true, text: 'Date' }
-              }
-            }
-          }
-        });
-      }
     }
 
     // Apply forecast data to chart and UI components
@@ -838,10 +735,6 @@
             await loadBatchCodes(productFilter.value);
           }
           
-          const priceProductFilter = document.getElementById('priceProductFilter');
-          if (priceProductFilter && priceProductFilter.value) {
-            await loadPriceBatchCodes(priceProductFilter.value);
-          }
           
           const riskProductFilter = document.getElementById('riskProductFilter');
           if (riskProductFilter && riskProductFilter.value) {
@@ -865,12 +758,12 @@
       
       const deduplicatedProducts = Array.from(uniqueProducts.values());
       
-      const filters = ['productFilter', 'priceProductFilter', 'riskProductFilter'];
+      const filters = ['productFilter', 'riskProductFilter'];
       filters.forEach(filterId => {
         const select = document.getElementById(filterId);
         if (select) {
-          // Use "Select a product" for demand and price forecast, "All Products" for risk
-          const placeholder = (filterId === 'productFilter' || filterId === 'priceProductFilter') 
+          // Use "Select a product" for demand forecast, "All Products" for risk
+          const placeholder = (filterId === 'productFilter') 
             ? 'Select a product' 
             : 'All Products';
           select.innerHTML = `<option value="">${placeholder}</option>`;
@@ -928,48 +821,6 @@
       }
     }
 
-    // Load batch codes for selected product (for price forecast)
-    async function loadPriceBatchCodes(productId) {
-      const priceBatchFilter = document.getElementById('priceBatchFilter');
-      if (!priceBatchFilter) return;
-
-      if (!productId) {
-        priceBatchFilter.style.display = 'none';
-        priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
-        return;
-      }
-
-      try {
-        const branchId = {{ branch_id if branch_id else 'null' }} || 
-                        new URLSearchParams(window.location.search).get('branch') || 
-                        new URLSearchParams(window.location.search).get('branch_id');
-        
-        const response = await fetch(`/manager/api/products/${productId}/batch-codes${branchId ? `?branch_id=${branchId}` : ''}`);
-        const data = await response.json();
-
-        if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
-          // Show batch filter and populate options
-          priceBatchFilter.style.display = 'block';
-          priceBatchFilter.innerHTML = '<option value="">All batches</option>';
-          data.batch_codes.forEach(batchCode => {
-            const option = document.createElement('option');
-            option.value = batchCode;
-            option.textContent = batchCode;
-            priceBatchFilter.appendChild(option);
-          });
-          console.log('Price batch filter shown with', data.batch_codes.length, 'batches');
-        } else {
-          // Hide batch filter if no batches exist
-          priceBatchFilter.style.display = 'none';
-          priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
-          console.log('No batches found for product', productId);
-        }
-      } catch (error) {
-        console.error('Error loading batch codes for price forecast:', error);
-        priceBatchFilter.style.display = 'none';
-        priceBatchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
-      }
-    }
 
     // Load batch codes for selected product (for risk analysis)
     async function loadRiskBatchCodes(productId) {
@@ -1187,97 +1038,6 @@
       }, 500); // 500ms debounce
     }
 
-    // Generate price forecast (Holt-Winters model)
-    let generatePriceForecastTimeout = null;
-    async function generatePriceForecast() {
-      if (generatePriceForecastTimeout) {
-        clearTimeout(generatePriceForecastTimeout);
-      }
-      
-      generatePriceForecastTimeout = setTimeout(async () => {
-        const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
-        const originalText = generateBtn?.textContent || '';
-        
-        try {
-          console.log('Starting price forecast generation...');
-          showToast('Generating Holt-Winters price forecast...', 'info');
-          
-          // Set loading state
-          if (generateBtn) {
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-          }
-          
-          const productId = document.getElementById('priceProductFilter')?.value || '';
-          const batchCode = document.getElementById('priceBatchFilter')?.value || '';
-          const timeRange = document.getElementById('priceTimeRange')?.value || '30';
-          
-          console.log('DEBUG PRICE FORECAST FRONTEND: Product ID:', productId);
-          console.log('DEBUG PRICE FORECAST FRONTEND: Batch Code:', batchCode);
-          console.log('DEBUG PRICE FORECAST FRONTEND: Time Range:', timeRange);
-          console.log('Price forecast parameters:', { productId, batchCode, timeRange });
-          
-          // Get branch_id for the API call
-          const branchId = {{ branch_id if branch_id else 'null' }} || 
-                          new URLSearchParams(window.location.search).get('branch') || 
-                          new URLSearchParams(window.location.search).get('branch_id');
-          
-          const requestBody = {
-            product_id: productId,
-            days: parseInt(timeRange),
-            model_type: 'holt_winters',  // Always use Holt-Winters for price forecast
-            branch_id: branchId
-          };
-          
-          // Include batch_code if selected
-          if (batchCode) {
-            requestBody.batch_code = batchCode;
-          }
-          
-          const response = await fetch('/manager/api/forecast/price', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody)
-          });
-          
-          console.log('Price forecast API Response status:', response.status);
-          const data = await response.json();
-          console.log('DEBUG PRICE FORECAST FRONTEND: API Response:', data);
-          console.log('DEBUG PRICE FORECAST FRONTEND: Price forecast data:', data.price_forecast);
-          console.log('DEBUG PRICE FORECAST FRONTEND: Number of products:', data.price_forecast ? data.price_forecast.length : 0);
-          
-          if (data.ok) {
-            showToast('Holt-Winters price forecast generated successfully', 'success');
-            console.log('Price forecast data received:', data);
-            
-            // Update chart and insights with the returned data
-            if (data.price_forecast) {
-              updatePriceChart(data.price_forecast);
-            }
-            if (data.price_insights || data.summary) {
-              updatePriceInsights(data.price_insights || data.summary);
-            }
-            
-            // Display detailed price forecast information
-            await displayPriceForecastInformation(data, branchId, productId);
-          } else {
-            console.error('Price forecast API Error:', data.error);
-            showToast('Error generating price forecast: ' + (data.error || 'Unknown error'), 'error');
-          }
-        } catch (error) {
-          console.error('Error generating price forecast:', error);
-          showToast('Error generating price forecast', 'error');
-        } finally {
-          // Restore button state
-          if (generateBtn) {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = originalText;
-          }
-        }
-      }, 500); // 500ms debounce
-    }
 
     // Generate risk analysis with proper loading states
     async function generateRiskAnalysis() {
@@ -1347,107 +1107,6 @@
       }
     }
 
-    // Update price chart with forecast data
-    function updatePriceChart(priceData) {
-      console.log('Updating price chart with data:', priceData);
-      if (priceChart && priceData && Array.isArray(priceData)) {
-        const labels = priceData.map(item => {
-          // Handle different date formats
-          if (item.date) {
-            return new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          }
-          return item.label || 'Unknown';
-        });
-        const prices = priceData.map(item => {
-          // Handle different price field names
-          return item.predicted_price || item.price || item.value || 0;
-        });
-        
-        console.log('Price chart labels:', labels);
-        console.log('Price chart data:', prices);
-        
-        // Replace arrays wholesale - never mutate partially
-        priceChart.data.labels = labels;
-        priceChart.data.datasets[0].data = prices;
-        priceChart.update();
-        console.log('Price chart updated successfully');
-      } else {
-        console.log('Price chart or data missing:', { priceChart: !!priceChart, priceData: !!priceData });
-      }
-    }
-
-    // Clear price insights when filters change
-    function clearPriceInsights() {
-      console.log('Clearing price insights...');
-      
-      // Reset current price
-      const currentPriceEl = document.querySelector('.insight-card:nth-child(1) .price');
-      if (currentPriceEl) {
-        currentPriceEl.textContent = '₱0.00/kg';
-      }
-      
-      // Reset price trend
-      const trendEl = document.querySelector('.insight-card:nth-child(1) .trend');
-      if (trendEl) {
-        trendEl.className = 'trend';
-        trendEl.innerHTML = '<i class="fas fa-minus"></i> No data';
-      }
-      
-      // Reset predicted change
-      const predictionEl = document.querySelector('.insight-card:nth-child(2) .prediction');
-      if (predictionEl) {
-        predictionEl.textContent = '0%';
-      }
-      
-      // Reset reason
-      const reasonEl = document.querySelector('.insight-card:nth-child(2) .reason');
-      if (reasonEl) {
-        reasonEl.textContent = 'Generate forecast to see insights';
-      }
-      
-      console.log('Price insights cleared');
-    }
-
-    // Update price insights with forecast data
-    function updatePriceInsights(insights) {
-      if (!insights) return;
-      
-      // Update current price (first insight card)
-      const currentPriceEl = document.querySelector('.insight-card:nth-child(1) .price');
-      if (currentPriceEl) {
-        const currentPrice = insights.current_price || insights.currentPrice || 0;
-        currentPriceEl.textContent = `₱${currentPrice.toFixed(2)}/kg`;
-      }
-      
-      // Update price trend (first insight card)
-      const trendEl = document.querySelector('.insight-card:nth-child(1) .trend');
-      if (trendEl) {
-        const changePercent = insights.price_change_percent || insights.priceChangePercent || insights.trend_percent || 0;
-        const isPositive = changePercent >= 0;
-        const icon = isPositive ? 'fa-arrow-up' : 'fa-arrow-down';
-        const className = isPositive ? 'positive' : 'negative';
-        
-        trendEl.className = `trend ${className}`;
-        trendEl.innerHTML = `
-          <i class="fas ${icon}"></i>
-          ${isPositive ? '+' : ''}${changePercent.toFixed(1)}% from last period
-        `;
-      }
-      
-      // Update predicted change (second insight card)
-      const predictionEl = document.querySelector('.insight-card:nth-child(2) .prediction');
-      if (predictionEl) {
-        const predictedChange = insights.predicted_change_percent || insights.predictedChangePercent || insights.predicted_change || 0;
-        predictionEl.textContent = `${predictedChange >= 0 ? '+' : ''}${predictedChange.toFixed(1)}%`;
-      }
-      
-      // Update reason (second insight card)
-      const reasonEl = document.querySelector('.insight-card:nth-child(2) .reason');
-      if (reasonEl) {
-        const reason = insights.reason || insights.explanation || insights.factor || 'Based on market trends';
-        reasonEl.textContent = reason;
-      }
-    }
 
     // Update risk analysis with new data
     function updateRiskAnalysis(riskData, summary) {
@@ -1625,47 +1284,6 @@
         });
       }
 
-      // Price filters - mark as dirty but don't auto-generate
-      const priceProductFilter = document.getElementById('priceProductFilter');
-      if (priceProductFilter) {
-        priceProductFilter.addEventListener('change', async () => {
-          const productId = priceProductFilter.value;
-          await loadPriceBatchCodes(productId);
-          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
-          // Clear current price insights when filters change
-          clearPriceInsights();
-          // Enable the generate button
-          const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
-          if (generateBtn) {
-            generateBtn.disabled = false;
-            generateBtn.style.opacity = '1';
-          }
-        });
-      }
-
-      const priceTimeRangeFilter = document.getElementById('priceTimeRange');
-      if (priceTimeRangeFilter) {
-        priceTimeRangeFilter.addEventListener('change', () => {
-          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
-          // Clear current price insights when filters change
-          clearPriceInsights();
-          // Enable the generate button
-          const generateBtn = document.querySelector('button[onclick="generatePriceForecast()"]');
-          if (generateBtn) {
-            generateBtn.disabled = false;
-            generateBtn.style.opacity = '1';
-          }
-        });
-      }
-
-      // Price batch filter change handler
-      const priceBatchFilter = document.getElementById('priceBatchFilter');
-      if (priceBatchFilter) {
-        priceBatchFilter.addEventListener('change', () => {
-          showToast('Filters changed — click Generate Price Forecast to refresh', 'info');
-          clearPriceInsights();
-        });
-      }
     }
 
     // Helpers
@@ -2178,239 +1796,6 @@
       });
     }
 
-    // Display detailed price forecast information and pricing strategy guide
-    async function displayPriceForecastInformation(priceData, branchId, productId) {
-      // Declare infoSection outside try-catch so it's accessible in both blocks
-      const infoSection = document.getElementById('price-forecast-information');
-      if (!infoSection) {
-        console.error('Price forecast information section not found');
-        return;
-      }
-      
-      try {
-        const priceForecast = priceData.price_forecast || [];
-        const priceInsights = priceData.price_insights || {};
-        const modelInfo = priceData.model_info || {};
-        
-        if (!priceForecast || priceForecast.length === 0) {
-          // Show message for no data
-          const infoContent = document.getElementById('price-forecast-information-content');
-          if (infoContent) {
-            infoContent.innerHTML = `
-              <div style="background: #fef3c7; padding: 20px; border-radius: 12px; border-left: 4px solid #f59e0b;">
-                <h4 style="margin: 0 0 12px 0; color: #f59e0b; font-size: 1.1rem; font-weight: 700;">
-                  ⚠️ No Price Forecast Data Available
-                </h4>
-                <p style="margin: 0; color: #374151;">
-                  No price forecast data was generated. This may happen if:
-                </p>
-                <ul style="margin: 8px 0 0 20px; color: #374151;">
-                  <li>The selected product(s) don't have inventory items in your branch</li>
-                  <li>The inventory items don't have unit prices set</li>
-                  <li>There was an error generating the forecast</li>
-                </ul>
-                <p style="margin: 12px 0 0 0; color: #374151;">
-                  <strong>Solution:</strong> Ensure your inventory items have unit prices set, then try generating the forecast again.
-                </p>
-              </div>
-            `;
-            infoSection.style.display = 'block';
-          }
-          console.log('No price forecast data to display');
-          return;
-        }
-        
-        // Get product information
-        let productName = 'Selected Products';
-        if (productId) {
-          const productFilter = document.getElementById('priceProductFilter');
-          if (productFilter) {
-            const selectedOption = productFilter.options[productFilter.selectedIndex];
-            productName = selectedOption ? selectedOption.text : 'Selected Product';
-          }
-        } else {
-          // Get unique product names from forecast data
-          const productNames = [...new Set(priceForecast.map(f => f.product_name))];
-          productName = productNames.length === 1 ? productNames[0] : `${productNames.length} Products`;
-        }
-        
-        const branchName = MANAGER_BRANCH_NAME || 'Your Branch';
-        const currentPrice = priceInsights.current_price || 0;
-        const avgPredictedPrice = priceForecast.length > 0
-          ? priceForecast.reduce((sum, f) => sum + (f.predicted_price || 0), 0) / priceForecast.length
-          : currentPrice;
-        const priceChangePercent = priceInsights.price_change_percent || 0;
-        const confidence = modelInfo.confidence_avg || 0.75;
-        const forecastDays = modelInfo.days_forecasted || priceForecast.length;
-        
-        // Calculate price statistics
-        const prices = priceForecast.map(f => f.predicted_price || 0).filter(p => p > 0);
-        const maxPrice = Math.max(...prices);
-        const minPrice = Math.min(...prices);
-        const priceVolatility = ((maxPrice - minPrice) / avgPredictedPrice) * 100;
-        
-        // Determine price trend
-        const isPriceIncreasing = priceChangePercent > 0;
-        const trendSeverity = Math.abs(priceChangePercent);
-        let trendRecommendation = '';
-        let trendColor = '#1a365d';
-        
-        if (trendSeverity > 10) {
-          trendRecommendation = isPriceIncreasing 
-            ? 'Significant price increase expected - consider adjusting pricing strategy or purchasing now'
-            : 'Significant price decrease expected - consider delaying purchases if possible';
-          trendColor = isPriceIncreasing ? '#e53e3e' : '#059669';
-        } else if (trendSeverity > 5) {
-          trendRecommendation = isPriceIncreasing
-            ? 'Moderate price increase expected - monitor market conditions closely'
-            : 'Moderate price decrease expected - good opportunity for cost savings';
-          trendColor = isPriceIncreasing ? '#f59e0b' : '#10b981';
-        } else {
-          trendRecommendation = 'Price expected to remain relatively stable - maintain current pricing strategy';
-          trendColor = '#1a365d';
-        }
-        
-        const infoContent = document.getElementById('price-forecast-information-content');
-        infoContent.innerHTML = `
-          <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
-            <!-- What the Price Forecast Means -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #1a365d;">
-              <h4 style="margin: 0 0 12px 0; color: #1a365d; font-size: 1.1rem; font-weight: 700;">
-                📊 What This Price Forecast Means
-              </h4>
-              <div style="color: #374151; line-height: 1.8;">
-                <p style="margin: 0 0 12px 0;">
-                  <strong>The price forecast represents:</strong> The predicted unit price (in Philippine Pesos per kilogram) for <strong>${productName}</strong> at <strong>${branchName}</strong> over the next <strong>${forecastDays} days</strong>, based on current inventory prices analyzed using the <strong>Holt-Winters Exponential Smoothing</strong> model.
-                </p>
-                <p style="margin: 0 0 12px 0;">
-                  <strong>How it works:</strong> The system uses your current inventory unit prices as the baseline, then applies:
-                </p>
-                <ul style="margin: 8px 0 12px 20px; padding: 0; color: #374151;">
-                  <li style="margin-bottom: 8px;"><strong>Holt-Winters Model:</strong> Analyzes price trends, level, and weekly seasonal patterns to predict future prices</li>
-                  <li style="margin-bottom: 8px;"><strong>Market Factors:</strong> Adjusts for seasonal demand (winter months typically see 10% higher prices), product category effects, and supply chain factors</li>
-                  <li style="margin-bottom: 8px;"><strong>Price Volatility:</strong> Accounts for natural price fluctuations (2% daily volatility) that occur in rice markets</li>
-                </ul>
-                <p style="margin: 0 0 12px 0;">
-                  <strong>Data source:</strong> Current unit prices from your branch's inventory items. Since historical price data may be limited, the model generates a 30-day price history based on current prices with realistic variations (±5%), then applies forecasting algorithms.
-                </p>
-                <p style="margin: 0;">
-                  <strong>Model accuracy:</strong> This forecast has an average confidence of <strong>${(confidence * 100).toFixed(1)}%</strong>, meaning the predictions are reliable for pricing and purchasing decisions.
-                </p>
-              </div>
-            </div>
-            
-            <!-- Pricing Strategy Recommendations -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${trendColor};">
-              <h4 style="margin: 0 0 12px 0; color: ${trendColor}; font-size: 1.1rem; font-weight: 700;">
-                💰 Pricing Strategy Recommendations
-              </h4>
-              <div style="color: #374151; line-height: 1.8;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
-                  <div style="background: white; padding: 12px; border-radius: 8px;">
-                    <strong style="color: #64748b; font-size: 0.9rem;">Current Price</strong>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">₱${currentPrice.toFixed(2)}/kg</div>
-                  </div>
-                  <div style="background: white; padding: 12px; border-radius: 8px;">
-                    <strong style="color: #64748b; font-size: 0.9rem;">Average Predicted Price</strong>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: #374151;">₱${avgPredictedPrice.toFixed(2)}/kg</div>
-                  </div>
-                  <div style="background: white; padding: 12px; border-radius: 8px;">
-                    <strong style="color: #64748b; font-size: 0.9rem;">Expected Change</strong>
-                    <div style="font-size: 1.1rem; font-weight: 700; color: ${trendColor};">
-                      ${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%
-                    </div>
-                  </div>
-                  <div style="background: white; padding: 12px; border-radius: 8px;">
-                    <strong style="color: #64748b; font-size: 0.9rem;">Price Volatility</strong>
-                    <div style="font-size: 1.1rem; font-weight: 600;">${priceVolatility.toFixed(1)}%</div>
-                  </div>
-                </div>
-                
-                <div style="background: ${isPriceIncreasing ? 'rgba(229, 62, 62, 0.1)' : 'rgba(5, 150, 105, 0.1)'}; padding: 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid ${trendColor};">
-                  <strong style="color: ${trendColor}; display: block; margin-bottom: 8px;">
-                    ${isPriceIncreasing ? '📈 Price Increase Expected' : '📉 Price Decrease Expected'}
-                  </strong>
-                  <p style="margin: 0; color: #374151;">
-                    ${trendRecommendation}
-                  </p>
-                </div>
-                
-                <div style="background: #e8f5e9; padding: 16px; border-radius: 8px;">
-                  <strong style="color: #1a365d; display: block; margin-bottom: 8px;">💡 Pricing & Purchasing Strategy for ${branchName}</strong>
-                  <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #374151;">
-                    <li style="margin-bottom: 8px;">
-                      <strong>If prices are increasing:</strong> Consider purchasing inventory now before prices rise further. Lock in current prices through advance orders if possible.
-                    </li>
-                    <li style="margin-bottom: 8px;">
-                      <strong>If prices are decreasing:</strong> You may want to delay large purchases to take advantage of lower future prices, but ensure you maintain adequate stock levels.
-                    </li>
-                    <li style="margin-bottom: 8px;">
-                      <strong>Price range:</strong> Expect prices to fluctuate between <strong>₱${minPrice.toFixed(2)}/kg</strong> and <strong>₱${maxPrice.toFixed(2)}/kg</strong> over the forecast period.
-                    </li>
-                    <li style="margin-bottom: 0;">
-                      <strong>Monitor closely:</strong> Rice prices can be volatile. Review this forecast weekly and adjust your purchasing strategy based on actual market conditions and supplier quotes.
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Forecast Details -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6;">
-              <h4 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
-                📈 Price Forecast Details
-              </h4>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; color: #374151;">
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Current Price</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">₱${currentPrice.toFixed(2)}/kg</div>
-                </div>
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Peak Predicted Price</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">₱${maxPrice.toFixed(2)}/kg</div>
-                </div>
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Lowest Predicted Price</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">₱${minPrice.toFixed(2)}/kg</div>
-                </div>
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Model Confidence</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">${(confidence * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-        
-        // Show the information section (infoSection already declared at top of function)
-        if (infoSection) {
-          infoSection.style.display = 'block';
-          // Scroll to the information section smoothly
-          setTimeout(() => {
-            infoSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 100);
-        } else {
-          console.error('Price forecast information section element not found');
-        }
-      } catch (error) {
-        console.error('Error displaying price forecast information:', error);
-        // Show error message in the section
-        const infoContent = document.getElementById('price-forecast-information-content');
-        if (infoSection && infoContent) {
-          infoContent.innerHTML = `
-            <div style="background: #fee2e2; padding: 20px; border-radius: 12px; border-left: 4px solid #e53e3e;">
-              <h4 style="margin: 0 0 12px 0; color: #e53e3e; font-size: 1.1rem; font-weight: 700;">
-                ❌ Error Displaying Price Forecast Information
-              </h4>
-              <p style="margin: 0; color: #374151;">
-                An error occurred while displaying the price forecast information. Please try generating the forecast again.
-              </p>
-            </div>
-          `;
-          infoSection.style.display = 'block';
-        }
-      }
-    }
 
     function printForecastPage() {
       const printWindow = window.open('', '_blank', 'width=1200,height=800');
