@@ -219,7 +219,7 @@
               <select id="timeRange">
                 <option value="7">Last 7 Days</option>
                 <option value="30">Last 30 Days</option>
-                <option value="90">Next Month</option>
+                <option value="90">90 Days</option>
               </select>
             </div>
             <div class="forecast-actions">
@@ -238,7 +238,7 @@
           <div class="forecast-grid">
             <div class="forecast-chart" style="width: 100%;">
               <h3><i class="fas fa-chart-line"></i> Demand Forecast</h3>
-              <canvas id="demandChart"></canvas>
+              <canvas id="demandChart" style="height: 400px;"></canvas>
             </div>
           </div>
 
@@ -471,34 +471,117 @@
             borderColor: '#1a365d',
             backgroundColor: 'rgba(26, 54, 93, 0.1)',
             tension: 0.4,
-            fill: true
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6
             }, {
-              label: 'Forecast',
+              label: 'Predicted Demand',
               data: [],
-              borderColor: '#e53e3e',
-              backgroundColor: 'rgba(229, 62, 62, 0.1)',
+              borderColor: '#2e7d32',
+              backgroundColor: 'transparent',
+              borderWidth: 3,
+              tension: 0.4,
+              fill: false,
+              pointRadius: 4,
+              pointHoverRadius: 6,
+              pointStyle: 'circle',
+              order: 2
+            }, {
+              label: 'Confidence Upper',
+              data: [],
+              borderColor: '#f59e0b',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
               borderDash: [5, 5],
               tension: 0.4,
-              fill: false
-          }]
+              fill: false,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              order: 1
+            }, {
+              label: 'Confidence Lower',
+              data: [],
+              borderColor: '#f59e0b',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              tension: 0.4,
+              fill: false,
+              pointRadius: 3,
+              pointHoverRadius: 5,
+              order: 1
+            }]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
             plugins: { 
-              title: { display: true, text: 'Demand Forecast' },
+              title: { 
+                display: true, 
+                text: 'ARIMA Forecast with Confidence Intervals',
+                font: { size: 14, weight: 'bold' }
+              },
               legend: { 
                 position: 'top',
+                labels: {
+                  boxWidth: 12,
+                  padding: 8,
+                  font: { size: 11 },
+                  usePointStyle: true
+                },
                 onClick: (e, item, legend) => Chart.defaults.plugins.legend.onClick(e, item, legend)
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#ffffff',
+                bodyColor: '#ffffff',
+                borderColor: '#2e7d32',
+                borderWidth: 1,
+                cornerRadius: 8,
+                callbacks: {
+                  label: function(context) {
+                    return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' kg';
+                  }
+                }
               }
             },
             scales: {
               y: {
                 beginAtZero: true,
-                title: { display: true, text: 'Quantity (kg)' }
+                grid: {
+                  color: 'rgba(0,0,0,0.1)',
+                  drawBorder: false
+                },
+                title: { 
+                  display: true, 
+                  text: 'Quantity (kg)',
+                  font: { size: 12, weight: 'bold' }
+                },
+                ticks: {
+                  callback: function(value) {
+                    return value.toLocaleString() + ' kg';
+                  },
+                  font: { size: 11 }
+                }
               },
               x: {
-                title: { display: true, text: 'Date' }
+                grid: {
+                  color: 'rgba(0,0,0,0.1)',
+                  drawBorder: false
+                },
+                title: { 
+                  display: true, 
+                  text: 'Date',
+                  font: { size: 12, weight: 'bold' }
+                },
+                ticks: {
+                  font: { size: 11 }
+                }
               }
+            },
+            interaction: {
+              intersect: false,
+              mode: 'index'
             }
           }
         });
@@ -519,8 +602,25 @@
         if (hasLabels && (hasForecast || hasActual)) {
           // Replace arrays wholesale - never mutate partially
           demandChart.data.labels = forecast.labels || [];
-          demandChart.data.datasets[0].data = forecast.actual || [];
-          demandChart.data.datasets[1].data = forecast.forecast || [];
+          demandChart.data.datasets[0].data = forecast.actual || []; // Actual Demand
+          demandChart.data.datasets[1].data = forecast.forecast || []; // Predicted Demand
+          
+          // Add confidence intervals if available (for ARIMA)
+          if (forecast.confidence_upper && forecast.confidence_lower) {
+            demandChart.data.datasets[2].data = forecast.confidence_upper || [];
+            demandChart.data.datasets[3].data = forecast.confidence_lower || [];
+          } else {
+            // Clear confidence intervals if not available
+            demandChart.data.datasets[2].data = [];
+            demandChart.data.datasets[3].data = [];
+          }
+          
+          // Update chart title if ARIMA with confidence intervals
+          if (forecast.confidence_upper && forecast.confidence_lower) {
+            demandChart.options.plugins.title.text = 'ARIMA Forecast with Confidence Intervals';
+          } else {
+            demandChart.options.plugins.title.text = 'Demand Forecast';
+          }
           
           demandChart.update();
           console.log('Chart updated successfully');

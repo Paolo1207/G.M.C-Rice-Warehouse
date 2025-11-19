@@ -138,9 +138,7 @@
 }
 
 .forecast-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 2rem;
+    display: block;
     margin-bottom: 2rem;
 }
 

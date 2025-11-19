@@ -1743,11 +1743,30 @@ def mgr_forecast_generate():
             labels = []
             forecast_values = []
             actual_values = []
+            confidence_upper = []
+            confidence_lower = []
             
-            for date in sorted(date_groups.keys()):
+            # Get confidence intervals from stored forecast result (for single product forecasts)
+            if product_id and stored_forecast_result:
+                stored_confidence_upper = stored_forecast_result.get('confidence_upper', [])
+                stored_confidence_lower = stored_forecast_result.get('confidence_lower', [])
+            else:
+                stored_confidence_upper = []
+                stored_confidence_lower = []
+            
+            for i, date in enumerate(sorted(date_groups.keys())):
                 labels.append(date)
                 forecast_values.append(float(round(date_groups[date]['forecast'], 2)))
                 actual_values.append(float(round(actual_map.get(date, 0), 2)))
+                
+                # Add confidence intervals if available
+                if i < len(stored_confidence_upper) and i < len(stored_confidence_lower):
+                    confidence_upper.append(float(round(stored_confidence_upper[i], 2)))
+                    confidence_lower.append(float(round(stored_confidence_lower[i], 2)))
+                else:
+                    # Default confidence intervals (20% above/below forecast)
+                    confidence_upper.append(float(round(forecast_values[-1] * 1.2, 2)))
+                    confidence_lower.append(float(round(forecast_values[-1] * 0.8, 2)))
             
             # Calculate summary (ensure all values are standard Python types)
             total_forecast = float(sum(forecast_values))
@@ -1756,7 +1775,9 @@ def mgr_forecast_generate():
             chart_data = {
                 "labels": labels,
                 "forecast": [float(x) for x in forecast_values],
-                "actual": [float(x) for x in actual_values]
+                "actual": [float(x) for x in actual_values],
+                "confidence_upper": [float(x) for x in confidence_upper],
+                "confidence_lower": [float(x) for x in confidence_lower]
             }
             
             summary_data = {
@@ -1767,7 +1788,7 @@ def mgr_forecast_generate():
                 "confidence": float(round(avg_confidence, 2))
             }
         else:
-            chart_data = {"labels": [], "forecast": [], "actual": []}
+            chart_data = {"labels": [], "forecast": [], "actual": [], "confidence_upper": [], "confidence_lower": []}
             summary_data = {"avg_demand": 0, "peak_date": None, "peak_quantity": 0, "suggested_reorder": 0, "confidence": 0.8}
         
         print(f"DEBUG FORECAST: Returning {len(forecast_data)} forecast items")
@@ -1791,13 +1812,14 @@ def mgr_forecast_generate():
         
         # If we have a single product forecast, include the full forecast result with ETL info
         if product_id and stored_forecast_result:
+            # Use confidence intervals from stored_forecast_result if available, otherwise use chart_data
             forecast_response["forecast"] = {
                 "labels": chart_data.get("labels", []),
                 "forecast": chart_data.get("forecast", []),
                 "actual": chart_data.get("actual", []),
                 "forecast_values": stored_forecast_result.get('forecast_values', []),
-                "confidence_lower": stored_forecast_result.get('confidence_lower', []),
-                "confidence_upper": stored_forecast_result.get('confidence_upper', []),
+                "confidence_lower": chart_data.get("confidence_lower", stored_forecast_result.get('confidence_lower', [])),
+                "confidence_upper": chart_data.get("confidence_upper", stored_forecast_result.get('confidence_upper', [])),
                 "model_type": stored_forecast_result.get('model_type', model_type.upper()),
                 "accuracy_score": stored_forecast_result.get('accuracy_score', 0.75),
                 "forecast_start_date": datetime.now().date().isoformat(),
