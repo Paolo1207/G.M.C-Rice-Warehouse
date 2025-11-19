@@ -4351,11 +4351,14 @@ def api_dashboard_rice_stock():
             query = query.filter(InventoryItem.branch_id == branch_id)
         
         # Group by product and branch (to aggregate multiple batches)
+        # Always include branch_id and branch_name in GROUP BY since they're in SELECT
         if branch_id:
-            # Single branch - group by product only
+            # Single branch - still need branch_id and branch_name in GROUP BY
             query = query.group_by(
                 InventoryItem.product_id,
-                Product.name
+                Product.name,
+                InventoryItem.branch_id,
+                Branch.name
             )
         else:
             # All branches - group by product and branch
@@ -4432,20 +4435,32 @@ def api_dashboard_predictive_demand():
             }), 500
         
         # Get all branches if no branch filter, otherwise just the selected branch
-        if branch_id:
-            branches = Branch.query.filter_by(id=branch_id).all()
-        else:
-            branches = Branch.query.all()
+        try:
+            if branch_id:
+                branches = Branch.query.filter_by(id=branch_id).all()
+            else:
+                branches = Branch.query.all()
+        except Exception as db_error:
+            print(f"Error querying branches: {db_error}")
+            return jsonify({
+                "ok": False,
+                "error": f"Database error: {str(db_error)}",
+                "forecast_data": []
+            }), 500
         
-        # Get all products
-        products = Product.query.all()
+        # Get all products (not strictly needed for aggregated forecast, but keep for compatibility)
+        try:
+            products = Product.query.all()
+        except Exception as db_error:
+            print(f"Error querying products: {db_error}")
+            # Continue anyway - we can still generate forecasts without products list
         
-        # If no branches or products, return empty data
-        if not branches or not products:
+        # If no branches, return empty data
+        if not branches:
             return jsonify({
                 "ok": True,
                 "forecast_data": [],
-                "message": "No branches or products available"
+                "message": "No branches available"
             })
         
         forecast_data = []
@@ -4462,14 +4477,18 @@ def api_dashboard_predictive_demand():
                 date_threshold = today_utc - timedelta(days=912)  # 2.5 years
                 
                 # Get all sales transactions for this branch
-                sales_data = (
-                    SalesTransaction.query
-                    .filter_by(branch_id=branch.id)
-                    .filter(SalesTransaction.transaction_date >= date_threshold)
-                    .filter(SalesTransaction.transaction_date <= today_utc)
-                    .order_by(SalesTransaction.transaction_date.desc())
-                    .all()
-                )
+                try:
+                    sales_data = (
+                        SalesTransaction.query
+                        .filter_by(branch_id=branch.id)
+                        .filter(SalesTransaction.transaction_date >= date_threshold)
+                        .filter(SalesTransaction.transaction_date <= today_utc)
+                        .order_by(SalesTransaction.transaction_date.desc())
+                        .all()
+                    )
+                except Exception as db_error:
+                    print(f"Error querying sales for branch {branch.id}: {db_error}")
+                    continue
                 
                 if not sales_data:
                     continue
@@ -4548,14 +4567,18 @@ def api_dashboard_predictive_demand():
             today_utc = datetime.utcnow()
             date_threshold = today_utc - timedelta(days=912)
             
-            sales_data = (
-                SalesTransaction.query
-                .filter_by(branch_id=branch.id)
-                .filter(SalesTransaction.transaction_date >= date_threshold)
-                .filter(SalesTransaction.transaction_date <= today_utc)
-                .order_by(SalesTransaction.transaction_date.desc())
-                .all()
-            )
+            try:
+                sales_data = (
+                    SalesTransaction.query
+                    .filter_by(branch_id=branch.id)
+                    .filter(SalesTransaction.transaction_date >= date_threshold)
+                    .filter(SalesTransaction.transaction_date <= today_utc)
+                    .order_by(SalesTransaction.transaction_date.desc())
+                    .all()
+                )
+            except Exception as db_error:
+                print(f"Error querying sales for branch {branch.id}: {db_error}")
+                sales_data = []
             
             if sales_data:
                 # Aggregate sales by date
