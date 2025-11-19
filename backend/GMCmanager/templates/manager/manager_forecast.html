@@ -236,32 +236,9 @@
           </div>
 
           <div class="forecast-grid">
-            <div class="forecast-chart">
+            <div class="forecast-chart" style="width: 100%;">
               <h3><i class="fas fa-chart-line"></i> Demand Forecast</h3>
               <canvas id="demandChart"></canvas>
-            </div>
-
-            <div class="forecast-summary">
-              <h3><i class="fas fa-info-circle"></i> Forecast Summary</h3>
-              <div class="summary-cards">
-                <div class="summary-card">
-                  <h4>Average Demand</h4>
-                  <p class="number">--</p>
-                  <p class="trend">
-                    No forecast generated yet
-                  </p>
-                </div>
-                <div class="summary-card">
-                  <h4>Peak Day</h4>
-                  <p class="date">--</p>
-                  <p class="quantity">--</p>
-                </div>
-                <div class="summary-card">
-                  <h4>Suggested Reorder</h4>
-                  <p class="number">--</p>
-                  <p class="trend">Generate forecast first</p>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -548,12 +525,7 @@
           demandChart.update();
           console.log('Chart updated successfully');
           
-          // Only update summary if we have valid data
-          if (summary && summary.avg_demand > 0) {
-            updateForecastSummary(summary);
-          } else {
-            console.log('Invalid summary data - keeping existing values');
-          }
+          // Summary section removed - data is shown in forecast-information section below
           
           // Note: Forecast Details table removed - using description section instead
           // Details are now shown in the forecast-information section below
@@ -605,14 +577,7 @@
       const peakQty = Math.max(...forecastData);
       
       
-      updateForecastSummary({
-        avg_demand: avgDemand,
-        peak_date: peakDate,
-        peak_quantity: peakQty,
-        suggested_reorder: Math.round(avgDemand * 0.1),
-        confidence: 85.0
-      });
-      
+      // Summary section removed
       console.log('Sample forecast data generated');
     }
 
@@ -673,37 +638,6 @@
       };
     }
 
-    function updateForecastSummary(summary) {
-      if (summary) {
-        const avgDemandEl = document.querySelector('.summary-card:nth-child(1) .number');
-        const avgDemandTrendEl = document.querySelector('.summary-card:nth-child(1) .trend');
-        const peakDayEl = document.querySelector('.summary-card:nth-child(2) .date');
-        const peakQtyEl = document.querySelector('.summary-card:nth-child(2) .quantity');
-        const reorderEl = document.querySelector('.summary-card:nth-child(3) .number');
-        const reorderTrendEl = document.querySelector('.summary-card:nth-child(3) .trend');
-        
-        if (avgDemandEl) avgDemandEl.textContent = (summary.avg_demand || 0).toLocaleString();
-        if (avgDemandTrendEl) {
-          // Update trend text with confidence or model info
-          let confidence = summary.confidence || summary.accuracy_score || 0;
-          // If confidence is already a percentage (>= 1), use it directly; otherwise multiply by 100
-          if (confidence >= 1) {
-            // Already a percentage (e.g., 85.0 means 85%)
-            avgDemandTrendEl.textContent = `Confidence: ${confidence.toFixed(1)}%`;
-          } else {
-            // Decimal format (e.g., 0.85 means 85%)
-            avgDemandTrendEl.textContent = `Confidence: ${(confidence * 100).toFixed(1)}%`;
-          }
-        }
-        if (peakDayEl) peakDayEl.textContent = summary.peak_date || 'N/A';
-        if (peakQtyEl) peakQtyEl.textContent = (summary.peak_quantity || 0).toLocaleString() + ' kg';
-        if (reorderEl) reorderEl.textContent = (summary.suggested_reorder || 0).toLocaleString();
-        if (reorderTrendEl) {
-          // Update trend text with recommendation
-          reorderTrendEl.textContent = 'Based on forecast analysis';
-        }
-      }
-    }
 
     // Load manager-specific data
     async function loadManagerData() {
@@ -1858,21 +1792,7 @@
         chartImg = demandChart.toBase64Image();
       }
 
-      // Get forecast summary
-      const summaryCards = document.querySelectorAll('.summary-card');
-      let summaryHTML = '';
-      summaryCards.forEach((card, index) => {
-        const title = card.querySelector('h4')?.textContent || '';
-        const number = card.querySelector('.number')?.textContent || card.querySelector('.date')?.textContent || '--';
-        const trend = card.querySelector('.trend')?.textContent || card.querySelector('.quantity')?.textContent || '';
-        summaryHTML += `
-          <div style="background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
-            <strong style="color: #64748b; font-size: 0.9rem;">${title}</strong>
-            <div style="font-size: 1.2rem; font-weight: 700; color: #1a365d;">${number}</div>
-            ${trend ? `<div style="font-size: 0.85rem; color: #666; margin-top: 4px;">${trend}</div>` : ''}
-          </div>
-        `;
-      });
+      // Summary section removed - forecast details are in forecast-information section
 
       // Get forecast information
       const forecastInfoContent = document.getElementById('forecast-information-content');
@@ -1962,13 +1882,6 @@
         <h1>Demand Forecast Report - ${branchName}</h1>
         <p>Generated: ${generatedAt}</p>
         <p>Product: ${productName}${batchCode ? ` | Batch: ${batchCode}` : ''} | Period: ${timeRange} days</p>
-    </div>
-
-    <div class="section">
-        <h3>📋 Forecast Summary</h3>
-        <div class="summary-content">
-            ${summaryHTML || '<p>No forecast summary available. Please generate a forecast first.</p>'}
-        </div>
     </div>
 
     <div class="section">
