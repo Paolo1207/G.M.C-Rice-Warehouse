@@ -286,7 +286,7 @@ class ForecastingService:
                                     best_aic = fitted_model.aic
                                     best_model = fitted_model
                                     best_order = (p, d, q)
-        except Exception as e:
+                            except Exception as e:
                                 # Silently continue to next parameter combination
                                 continue
                 
