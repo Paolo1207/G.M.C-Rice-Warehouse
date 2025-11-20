@@ -1320,8 +1320,9 @@ def api_forecast_dashboard():
         
         for product in products:
             try:
-                # Get historical sales data
-                date_threshold = datetime.now() - timedelta(days=912)  # ~2.5 years
+                # Get historical sales data - use UTC to match database timezone
+                today_utc = datetime.utcnow()
+                date_threshold = today_utc - timedelta(days=912)  # ~2.5 years
                 
                 try:
                     sales_data = db.session.query(
@@ -1332,7 +1333,7 @@ def api_forecast_dashboard():
                             SalesTransaction.branch_id == branch_id,
                             SalesTransaction.product_id == product.id,
                             SalesTransaction.transaction_date >= date_threshold,
-                            SalesTransaction.transaction_date <= datetime.now()
+                            SalesTransaction.transaction_date <= today_utc
                         )
                     ).all()
                 except Exception as query_error:
