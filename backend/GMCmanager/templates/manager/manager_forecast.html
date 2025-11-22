@@ -217,9 +217,9 @@
             </div>
             <div class="date-range">
               <select id="timeRange">
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-                <option value="90">90 Days</option>
+                <option value="7">Next 7 Days</option>
+                <option value="30">Next 30 Days</option>
+                <option value="90">Next 90 Days</option>
               </select>
             </div>
             <div class="forecast-actions">
@@ -242,10 +242,10 @@
             </div>
           </div>
 
-          <!-- Forecast Information & Stock Preparation Guide -->
+          <!-- Stock Preparation Guide -->
           <div class="glass-card" id="forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
             <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
-              📖 Forecast Interpretation & Stock Preparation Guide
+              📦 Stock Preparation Recommendations
             </h3>
             <div id="forecast-information-content"></div>
           </div>
@@ -1451,163 +1451,6 @@
         const infoContent = document.getElementById('forecast-information-content');
         infoContent.innerHTML = `
           <div style="display: grid; grid-template-columns: 1fr; gap: 24px;">
-            <!-- What the Forecast Means -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #1a365d;">
-              <h4 style="margin: 0 0 12px 0; color: #1a365d; font-size: 1.1rem; font-weight: 700;">
-                📊 What This Forecast Means
-              </h4>
-              <div style="color: #374151; line-height: 1.8;">
-                <p style="margin: 0 0 12px 0;">
-                  <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> for <strong>${productName}</strong> at <strong>${branchName}</strong>, based on historical sales data analyzed using the <strong>${modelType}</strong> model.
-                </p>
-                <p style="margin: 0 0 12px 0;">
-                  <strong>How it works:</strong> The system analyzes your branch's past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
-                </p>
-                <p style="margin: 0;">
-                  <strong>Model accuracy:</strong> This forecast has an accuracy of <strong>${(accuracyScore * 100).toFixed(1)}%</strong>, meaning the predictions are reliable for planning your inventory needs.
-                </p>
-              </div>
-            </div>
-            
-            <!-- Data Source Information -->
-            ${dataSource ? `
-            <div style="background: #f0f9ff; 
-                        border: 2px solid #3b82f6; 
-                        border-radius: 12px; 
-                        padding: 16px; 
-                        margin: 20px 0;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <h5 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
-                📊 Data Source Information
-              </h5>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; color: #374151;">
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Data Type</strong>
-                  <div style="font-size: 1rem; font-weight: 600; color: ${dataSource.type === 'actual_sales' ? '#10b981' : '#f59e0b'};">
-                    ${dataSource.type === 'actual_sales' ? '✅ Sufficient Data' : '⚠️ Estimated Data'}
-                  </div>
-                  <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
-                    ${dataSource.type === 'actual_sales' ? 'Based on actual sales transactions' : 'Based on inventory estimates'}
-                  </div>
-                </div>
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Total Transactions</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${(dataSource.total_transactions || 0).toLocaleString()}</div>
-                </div>
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Unique Days with Sales</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${(dataSource.unique_days || 0).toLocaleString()} days</div>
-                </div>
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Historical Period</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${(dataSource.date_range_days || 0)} days</div>
-                  <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
-                    ${dataSource.date_range_days === 912 ? '(2.5 years)' : ''}
-                  </div>
-                </div>
-                ${dataSource.earliest_date ? `
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Earliest Data</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${dataSource.earliest_date}</div>
-                </div>
-                ` : ''}
-                ${dataSource.latest_date ? `
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Latest Data</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${dataSource.latest_date}</div>
-                </div>
-                ` : ''}
-                ${dataSource.train_size > 0 ? `
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Training Data</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${dataSource.train_size} days (80%)</div>
-                </div>
-                ` : ''}
-                ${dataSource.test_size > 0 ? `
-                <div style="background: white; padding: 12px; border-radius: 8px;">
-                  <strong style="color: #64748b; font-size: 0.9rem;">Test Data</strong>
-                  <div style="font-size: 1rem; font-weight: 600;">${dataSource.test_size} days (20%)</div>
-                </div>
-                ` : ''}
-              </div>
-            </div>
-            ` : ''}
-            
-            <!-- ETL Process Information Box -->
-            ${etlProcess ? `
-            <div style="background: #f0f9ff; 
-                        border: 2px solid #3b82f6; 
-                        border-radius: 12px; 
-                        padding: 16px; 
-                        margin: 20px 0;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <h5 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
-                🔄 ETL Pipeline Process
-              </h5>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-                <!-- EXTRACT Step -->
-                <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                  <strong style="color: #3b82f6; font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                    1️⃣ EXTRACT
-                  </strong>
-                  <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
-                    <div><strong>Raw Transactions:</strong> ${(etlProcess.extract?.raw_transactions || 0).toLocaleString()}</div>
-                    <div><strong>Total Quantity:</strong> ${(etlProcess.extract?.raw_total_quantity || 0).toFixed(2)} kg</div>
-                    ${etlProcess.extract?.date_range ? `
-                    <div><strong>Date Range:</strong> ${etlProcess.extract.date_range.earliest} to ${etlProcess.extract.date_range.latest}</div>
-                    ` : ''}
-                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
-                      Loaded raw historical sales data from database
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- TRANSFORM Step -->
-                <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #10b981;">
-                  <strong style="color: #10b981; font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                    2️⃣ TRANSFORM
-                  </strong>
-                  <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
-                    <div><strong>Daily Aggregated Days:</strong> ${(etlProcess.transform?.daily_aggregated_days || 0).toLocaleString()}</div>
-                    <div><strong>Mean Daily Quantity:</strong> ${(etlProcess.transform?.mean_daily_quantity || 0).toFixed(2)} kg</div>
-                    <div><strong>Std Dev:</strong> ${(etlProcess.transform?.std_daily_quantity || 0).toFixed(2)} kg</div>
-                    ${(etlProcess.transform?.outliers_removed || 0) > 0 ? `
-                    <div style="color: #f59e0b;"><strong>Outliers Removed:</strong> ${etlProcess.transform.outliers_removed}</div>
-                    ` : ''}
-                    ${(etlProcess.transform?.negative_values_clipped || 0) > 0 ? `
-                    <div style="color: #ef4444;"><strong>Negative Values Clipped:</strong> ${etlProcess.transform.negative_values_clipped}</div>
-                    ` : ''}
-                    ${(etlProcess.transform?.missing_values_filled || 0) > 0 ? `
-                    <div style="color: #6366f1;"><strong>Missing Values Filled:</strong> ${etlProcess.transform.missing_values_filled}</div>
-                    ` : ''}
-                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
-                      Cleaned, aggregated by day, removed outliers, filled missing values
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- LOAD Step -->
-                <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-                  <strong style="color: #8b5cf6; font-size: 0.95rem; display: block; margin-bottom: 8px;">
-                    3️⃣ LOAD
-                  </strong>
-                  <div style="font-size: 0.85rem; color: #374151; line-height: 1.6;">
-                    <div><strong>Final Data Points:</strong> ${(etlProcess.load?.final_data_points || 0).toLocaleString()}</div>
-                    ${etlProcess.load?.padded ? `
-                    <div style="color: #f59e0b;"><strong>⚠️ Padded:</strong> ${etlProcess.load.padding_count} days (data was too short)</div>
-                    <div style="font-size: 0.8rem; color: #64748b;">Original: ${etlProcess.load.original_length} days</div>
-                    ` : `
-                    <div style="color: #10b981;">✅ No padding needed</div>
-                    `}
-                    <div style="margin-top: 4px; font-size: 0.8rem; color: #64748b; font-style: italic;">
-                      Validated and prepared data for modeling
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            ` : ''}
-            
             <!-- Stock Preparation Recommendations -->
             <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid ${stockStatusColor};">
               <h4 style="margin: 0 0 12px 0; color: ${stockStatusColor}; font-size: 1.1rem; font-weight: 700;">
@@ -1658,31 +1501,6 @@
                     <li style="margin-bottom: 8px;">Maintain minimum daily stock of <strong>${Math.ceil(maxDailyDemand * 3)} kg</strong> (3 days of peak demand as safety buffer)</li>
                     <li style="margin-bottom: 0;">Schedule restock orders when stock falls below <strong>${Math.ceil(avgDailyDemand * 7)} kg</strong> (1 week of average demand)</li>
                   </ul>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Forecast Details -->
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #3b82f6;">
-              <h4 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
-                📈 Forecast Details for ${productName}
-              </h4>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; color: #374151;">
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Average Daily Demand</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">${avgDailyDemand.toFixed(2)} kg/day</div>
-                </div>
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Peak Daily Demand</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">${maxDailyDemand.toFixed(2)} kg</div>
-                </div>
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Minimum Daily Demand</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">${minDailyDemand.toFixed(2)} kg</div>
-                </div>
-                <div>
-                  <strong style="color: #64748b; font-size: 0.9rem;">Model Accuracy</strong>
-                  <div style="font-size: 1.1rem; font-weight: 600;">${(accuracyScore * 100).toFixed(1)}%</div>
                 </div>
               </div>
             </div>
@@ -1891,7 +1709,7 @@
 
     ${forecastInfoHTML ? `
     <div class="section">
-        <h3>📖 Forecast Interpretation & Stock Preparation Guide</h3>
+        <h3>📦 Stock Preparation Recommendations</h3>
         <div class="forecast-info">
             ${forecastInfoHTML}
         </div>
