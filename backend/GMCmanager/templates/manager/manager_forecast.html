@@ -1319,7 +1319,6 @@
         let summary = {};
         let modelType = 'ARIMA';
         let etlProcess = null;
-        let dataSource = null;
         
         // Try different possible structures
         if (forecastData.forecast) {
@@ -1470,8 +1469,10 @@
         const finalMae = mae > 0 ? mae : calculatedMetrics.mae;
         const finalMape = mape > 0 ? mape : calculatedMetrics.mape;
         
-        // Get data source information
-        const dataSource = forecastData.forecast?.data_source || {};
+        // Get data source information (use existing dataSource if already set, otherwise get from forecast)
+        if (!dataSource) {
+          dataSource = forecastData.forecast?.data_source || {};
+        }
         const dataSourceType = dataSource.type || 'actual_sales';
         const totalTransactions = dataSource.total_transactions || 0;
         const uniqueDays = dataSource.unique_days || 0;
