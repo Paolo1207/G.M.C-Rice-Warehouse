@@ -1110,7 +1110,7 @@ def mgr_dashboard_predictive_demand():
     try:
         from datetime import datetime, date, timedelta
         from sqlalchemy import func, and_
-        from models import Branch, Product, SalesTransaction, InventoryItem
+        from models import Branch, Product, SalesTransaction, InventoryItem, ForecastData
         import traceback
         import sys
         
@@ -1129,16 +1129,6 @@ def mgr_dashboard_predictive_demand():
         if periods not in [7, 30, 90]:
             periods = 30
         
-        # Import forecasting service
-        from forecasting_service import forecasting_service
-        
-        if not forecasting_service:
-            return jsonify({
-                "ok": False,
-                "error": "Forecasting service not available",
-                "forecast_data": []
-            }), 500
-        
         # Get branch
         branch = Branch.query.get(branch_id)
         if not branch:
@@ -1148,92 +1138,58 @@ def mgr_dashboard_predictive_demand():
                 "forecast_data": []
             }), 404
         
-        # Get all products for this branch
-        products = db.session.query(Product).join(
-            InventoryItem, Product.id == InventoryItem.product_id
-        ).filter(
-            InventoryItem.branch_id == branch_id
-        ).distinct().all()
+        # Try to get existing forecasts from database first (faster and more reliable)
+        today = datetime.utcnow().date()
+        end_date = today + timedelta(days=periods)
         
-        if not products:
-            return jsonify({
-                "ok": True,
-                "forecast_data": [],
-                "message": "No products available for this branch"
-            })
-        
-        forecast_data = []
-        
-        # Generate forecast for each product and aggregate
-        for product in products:
-            try:
-                # Get historical sales data for this branch and product (last 2-3 years)
-                date_threshold = datetime.now() - timedelta(days=912)  # ~2.5 years
-                
-                sales_data = db.session.query(
-                    SalesTransaction.transaction_date,
-                    SalesTransaction.quantity_sold
-                ).filter(
-                    and_(
-                        SalesTransaction.branch_id == branch_id,
-                        SalesTransaction.product_id == product.id,
-                        SalesTransaction.transaction_date >= date_threshold,
-                        SalesTransaction.transaction_date <= datetime.now()
-                    )
-                ).all()
-                
-                if not sales_data or len(sales_data) < 7:
-                    continue
-                
-                # Format historical data for forecasting service
-                historical_data = [{
-                    'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S'),
-                    'quantity_sold': float(sale.quantity_sold),
-                    'branch_id': branch_id,
-                    'product_id': product.id
-                } for sale in sales_data]
-                
-                # Generate forecast using ARIMA
-                forecast_result = forecasting_service.generate_forecast_with_model_selection(
-                    historical_data=historical_data,
-                    periods=periods,
-                    requested_model='ARIMA'
+        try:
+            existing_forecasts = db.session.query(
+                ForecastData.forecast_date,
+                func.sum(ForecastData.predicted_demand).label('total_demand')
+            ).filter(
+                and_(
+                    ForecastData.branch_id == branch_id,
+                    ForecastData.forecast_date >= today,
+                    ForecastData.forecast_date <= end_date
                 )
-                
-                if forecast_result and 'forecast_values' in forecast_result:
-                    # Add forecast data points
-                    start_date = datetime.now().date() + timedelta(days=1)
-                    for i, forecast_value in enumerate(forecast_result['forecast_values']):
-                        forecast_date = start_date + timedelta(days=i)
-                        forecast_data.append({
-                            'date': forecast_date.strftime('%Y-%m-%d'),
-                            'predicted': float(forecast_value),
-                            'product_id': product.id,
-                            'product_name': product.name
-                        })
+            ).group_by(ForecastData.forecast_date).order_by(ForecastData.forecast_date).all()
             
-            except Exception as e:
-                print(f"Error generating forecast for product {product.id}: {e}")
-                continue
+            if existing_forecasts and len(existing_forecasts) >= periods * 0.5:  # At least 50% of requested days
+                # Use existing forecasts from database
+                forecast_list = [{
+                    'date': row.forecast_date.strftime('%Y-%m-%d'),
+                    'predicted': float(row.total_demand or 0),
+                    'predicted_demand': float(row.total_demand or 0)
+                } for row in existing_forecasts]
+                
+                # Fill in missing dates if needed
+                if len(forecast_list) < periods:
+                    last_date = existing_forecasts[-1].forecast_date if existing_forecasts else today
+                    avg_demand = sum(float(row.total_demand or 0) for row in existing_forecasts) / len(existing_forecasts) if existing_forecasts else 0
+                    
+                    for i in range(len(forecast_list), periods):
+                        fill_date = today + timedelta(days=i + 1)
+                        if fill_date > last_date:
+                            forecast_list.append({
+                                'date': fill_date.strftime('%Y-%m-%d'),
+                                'predicted': avg_demand,
+                                'predicted_demand': avg_demand
+                            })
+                
+                return jsonify({
+                    "ok": True,
+                    "forecast_data": forecast_list[:periods]  # Limit to requested periods
+                })
+        except Exception as db_error:
+            print(f"Error fetching existing forecasts: {db_error}")
+            # Continue to generate new forecasts
         
-        # Aggregate forecasts by date (sum across all products)
-        aggregated_forecast = {}
-        for item in forecast_data:
-            date_key = item['date']
-            if date_key not in aggregated_forecast:
-                aggregated_forecast[date_key] = 0
-            aggregated_forecast[date_key] += item['predicted']
-        
-        # Convert to list format
-        forecast_list = [{
-            'date': date,
-            'predicted': predicted,
-            'predicted_demand': predicted
-        } for date, predicted in sorted(aggregated_forecast.items())]
-        
+        # If no existing forecasts, return empty data (don't generate on-the-fly for dashboard)
+        # Dashboard should show existing forecasts or prompt user to generate them
         return jsonify({
             "ok": True,
-            "forecast_data": forecast_list
+            "forecast_data": [],
+            "message": "No forecast data available. Please generate forecasts from the Forecast page."
         })
         
     except Exception as e:
