@@ -250,6 +250,11 @@ body.sidebar-collapsed .main-content {
   max-width: 100%;
 }
 
+/* Adjust Total Sales text size for better fit */
+#month-sales {
+  font-size: 1.75rem;
+}
+
 .dashboard-card-change {
   font-size: 0.875rem;
   font-weight: 600;
