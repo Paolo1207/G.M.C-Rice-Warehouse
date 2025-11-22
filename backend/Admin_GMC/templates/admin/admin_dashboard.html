@@ -282,6 +282,9 @@
                             <option value="5">Boac</option>
                             <option value="6">Sta. Cruz</option>
                         </select>
+                        <select class="branch-filter" id="predictiveDemandProduct" required style="display: none;">
+                            <option value="">Select Product</option>
+                        </select>
                         <select class="chart-period" id="predictiveDemandPeriod">
                             <option value="7">Next 7 days</option>
                             <option value="30" selected>Next 30 days</option>
@@ -647,14 +650,67 @@
             }
         }
 
+        // Load products for predictive demand when branch is selected
+        async function loadPredictiveDemandProducts() {
+            const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
+            const productSelect = document.getElementById('predictiveDemandProduct');
+            
+            if (!productSelect) return;
+            
+            if (!branchId) {
+                productSelect.style.display = 'none';
+                productSelect.innerHTML = '<option value="">Select Product</option>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/api/inventory?branch_id=${branchId}`);
+                const data = await response.json();
+                
+                if (data.ok && data.items && data.items.length > 0) {
+                    // Get unique products
+                    const uniqueProducts = new Map();
+                    data.items.forEach(item => {
+                        const productId = item.product_id || item.id;
+                        if (!uniqueProducts.has(productId)) {
+                            uniqueProducts.set(productId, item);
+                        }
+                    });
+                    
+                    productSelect.innerHTML = '<option value="">Select Product</option>';
+                    uniqueProducts.forEach((item, productId) => {
+                        const option = document.createElement('option');
+                        option.value = productId;
+                        option.textContent = item.product_name || item.name || 'Unknown Product';
+                        productSelect.appendChild(option);
+                    });
+                    
+                    productSelect.style.display = 'block';
+                } else {
+                    productSelect.style.display = 'none';
+                    productSelect.innerHTML = '<option value="">No products available</option>';
+                }
+            } catch (error) {
+                console.error('Error loading products:', error);
+                productSelect.style.display = 'none';
+                productSelect.innerHTML = '<option value="">Error loading products</option>';
+            }
+        }
+
         // Load Predictive Demand Graph data
         async function loadPredictiveDemandData() {
             try {
                 const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
+                const productId = document.getElementById('predictiveDemandProduct')?.value || '';
                 const periods = parseInt(document.getElementById('predictiveDemandPeriod')?.value || '30');
 
                 if (!branchId) {
                     updatePredictiveDemandChart([], 'Select a branch to generate forecast');
+                    return;
+                }
+
+                if (!productId) {
+                    updatePredictiveDemandChart([], 'Select a product to generate forecast');
                     return;
                 }
 
@@ -665,8 +721,8 @@
                     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
                 }
 
-                // Use the forecast dashboard API which aggregates all products
-                const response = await fetch(`/admin/api/forecast/dashboard?branch_id=${branchId}&periods=${periods}`);
+                // Use the forecast dashboard API with specific product
+                const response = await fetch(`/admin/api/forecast/dashboard?branch_id=${branchId}&product_id=${productId}&periods=${periods}`);
                 
                 if (!response.ok) {
                     let errorText = `Server error (${response.status})`;
@@ -705,7 +761,7 @@
                 if (data.ok && data.forecast) {
                     updatePredictiveDemandChart(data.forecast, null);
                 } else {
-                    updatePredictiveDemandChart([], data.error || 'No forecast data available for this branch');
+                    updatePredictiveDemandChart([], data.error || 'No forecast data available');
                 }
 
                 if (btn) {
@@ -1324,12 +1380,18 @@
 
             // Predictive Demand Graph filters and generate button
             const predictiveDemandBranch = document.getElementById('predictiveDemandBranch');
+            const predictiveDemandProduct = document.getElementById('predictiveDemandProduct');
             const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod');
             const generatePredictiveDemandBtn = document.getElementById('generatePredictiveDemandBtn');
             
             if (predictiveDemandBranch) {
-                predictiveDemandBranch.addEventListener('change', () => {
+                predictiveDemandBranch.addEventListener('change', async () => {
                     console.log('Predictive Demand Branch changed to:', predictiveDemandBranch.value);
+                    await loadPredictiveDemandProducts();
+                    // Reset product selection when branch changes
+                    if (predictiveDemandProduct) {
+                        predictiveDemandProduct.value = '';
+                    }
                 });
             }
 
@@ -1343,6 +1405,11 @@
                 generatePredictiveDemandBtn.addEventListener('click', () => {
                     loadPredictiveDemandData();
                 });
+            }
+            
+            // Load products for initially selected branch
+            if (predictiveDemandBranch && predictiveDemandBranch.value) {
+                loadPredictiveDemandProducts();
             }
         }
 

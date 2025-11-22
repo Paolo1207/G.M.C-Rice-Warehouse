@@ -1262,7 +1262,7 @@ def api_get_forecast(branch_id: int, product_id: int):
 
 @admin_bp.get("/api/forecast/dashboard")
 def api_forecast_dashboard():
-    """Get forecast dashboard data for a specific branch (aggregates all products)"""
+    """Get forecast dashboard data for a specific branch and product"""
     try:
         from models import Branch, Product, SalesTransaction, InventoryItem
         from datetime import datetime, timedelta
@@ -1271,6 +1271,7 @@ def api_forecast_dashboard():
         import sys
         
         branch_id = request.args.get('branch_id', type=int)
+        product_id = request.args.get('product_id', type=int)
         periods = request.args.get('periods', type=int, default=30)
         
         # Validate periods
@@ -1281,6 +1282,12 @@ def api_forecast_dashboard():
             return jsonify({
                 "ok": False,
                 "error": "branch_id is required"
+            }), 400
+        
+        if not product_id:
+            return jsonify({
+                "ok": False,
+                "error": "product_id is required"
             }), 400
         
         # Check if forecasting_service is available
@@ -1297,116 +1304,88 @@ def api_forecast_dashboard():
                 "error": f"Branch {branch_id} not found"
             }), 404
         
-        # Get all products for this branch
-        try:
-            products = db.session.query(Product).join(
-                InventoryItem, Product.id == InventoryItem.product_id
-            ).filter(
-                InventoryItem.branch_id == branch_id
-            ).distinct().all()
-        except Exception as db_error:
-            print(f"Error querying products: {db_error}")
+        product = Product.query.get(product_id)
+        if not product:
             return jsonify({
                 "ok": False,
-                "error": f"Database error: {str(db_error)}"
+                "error": f"Product {product_id} not found"
+            }), 404
+        
+        # Get historical sales data - use UTC to match database timezone
+        today_utc = datetime.utcnow()
+        date_threshold = today_utc - timedelta(days=912)  # ~2.5 years
+        
+        try:
+            sales_data = db.session.query(
+                SalesTransaction.transaction_date,
+                SalesTransaction.quantity_sold
+            ).filter(
+                and_(
+                    SalesTransaction.branch_id == branch_id,
+                    SalesTransaction.product_id == product_id,
+                    SalesTransaction.transaction_date >= date_threshold,
+                    SalesTransaction.transaction_date <= today_utc
+                )
+            ).all()
+        except Exception as query_error:
+            print(f"Error querying sales for product {product_id}: {query_error}")
+            traceback.print_exc()
+            return jsonify({
+                "ok": False,
+                "error": f"Database error: {str(query_error)}"
             }), 500
         
-        if not products:
+        if not sales_data or len(sales_data) < 7:
             return jsonify({
                 "ok": False,
-                "error": "No products available for this branch"
-            }), 404
+                "error": f"Insufficient historical data for product {product.name}. Need at least 7 data points."
+            }), 400
         
-        # Generate forecast for each product and aggregate
-        all_forecast_values = []
-        total_accuracy = 0
-        product_count = 0
-        successful_forecasts = 0
+        # Format historical data
+        historical_data = [{
+            'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if hasattr(sale.transaction_date, 'strftime') else str(sale.transaction_date),
+            'quantity_sold': float(sale.quantity_sold or 0),
+            'branch_id': branch_id,
+            'product_id': product_id
+        } for sale in sales_data]
         
-        for product in products:
-            try:
-                # Get historical sales data - use UTC to match database timezone
-                today_utc = datetime.utcnow()
-                date_threshold = today_utc - timedelta(days=912)  # ~2.5 years
-                
-                try:
-                    sales_data = db.session.query(
-                        SalesTransaction.transaction_date,
-                        SalesTransaction.quantity_sold
-                    ).filter(
-                        and_(
-                            SalesTransaction.branch_id == branch_id,
-                            SalesTransaction.product_id == product.id,
-                            SalesTransaction.transaction_date >= date_threshold,
-                            SalesTransaction.transaction_date <= today_utc
-                        )
-                    ).all()
-                except Exception as query_error:
-                    print(f"Error querying sales for product {product.id}: {query_error}")
-                    continue
-                
-                if not sales_data or len(sales_data) < 7:
-                    continue
-                
-                # Format historical data
-                historical_data = [{
-                    'transaction_date': sale.transaction_date.strftime('%Y-%m-%d %H:%M:%S') if hasattr(sale.transaction_date, 'strftime') else str(sale.transaction_date),
-                    'quantity_sold': float(sale.quantity_sold or 0),
-                    'branch_id': branch_id,
-                    'product_id': product.id
-                } for sale in sales_data]
-                
-                # Generate forecast using ARIMA with ETL
-                try:
-                    forecast_result = forecasting_service.generate_forecast_with_model_selection(
-                        historical_data=historical_data,
-                        periods=periods,
-                        requested_model='ARIMA'
-                    )
-                except Exception as forecast_error:
-                    print(f"Error generating forecast for product {product.id}: {forecast_error}")
-                    traceback.print_exc()
-                    continue
-                
-                if forecast_result and 'forecast_values' in forecast_result and forecast_result['forecast_values']:
-                    # Aggregate forecast values by date (sum across products)
-                    forecast_values = forecast_result['forecast_values'][:periods]
-                    for i, value in enumerate(forecast_values):
-                        if i >= len(all_forecast_values):
-                            all_forecast_values.append(0.0)
-                        all_forecast_values[i] += float(value or 0)
-                    
-                    # Track accuracy
-                    if forecast_result.get('accuracy_score'):
-                        total_accuracy += float(forecast_result['accuracy_score'])
-                        product_count += 1
-                    
-                    successful_forecasts += 1
-            
-            except Exception as e:
-                error_msg = str(e)
-                print(f"Error processing product {product.id}: {error_msg}")
-                traceback.print_exc()
-                continue
-        
-        if not all_forecast_values or successful_forecasts == 0:
+        # Generate forecast using ARIMA with ETL
+        try:
+            forecast_result = forecasting_service.generate_forecast_with_model_selection(
+                historical_data=historical_data,
+                periods=periods,
+                requested_model='ARIMA'
+            )
+        except Exception as forecast_error:
+            error_msg = str(forecast_error)
+            print(f"Error generating forecast for product {product_id}: {error_msg}")
+            traceback.print_exc()
             return jsonify({
                 "ok": False,
-                "error": "No forecast data available (insufficient historical data for any products)"
-            }), 404
+                "error": f"Forecast generation failed: {error_msg}"
+            }), 500
         
-        avg_accuracy = total_accuracy / product_count if product_count > 0 else 0.75
+        if not forecast_result or 'forecast_values' not in forecast_result or not forecast_result['forecast_values']:
+            return jsonify({
+                "ok": False,
+                "error": "No forecast data generated"
+            }), 500
+        
+        forecast_values = forecast_result['forecast_values'][:periods]
+        accuracy_score = forecast_result.get('accuracy_score', 0.75)
         
         return jsonify({
             "ok": True,
             "forecast": {
-                "forecast_values": all_forecast_values,
+                "forecast_values": forecast_values,
                 "model_type": "ARIMA",
-                "accuracy_score": avg_accuracy,
-                "periods": len(all_forecast_values)
+                "accuracy_score": accuracy_score,
+                "periods": len(forecast_values)
             },
             "branch_id": branch_id,
-            "branch_name": branch.name
+            "branch_name": branch.name,
+            "product_id": product_id,
+            "product_name": product.name
         })
         
     except Exception as e:
