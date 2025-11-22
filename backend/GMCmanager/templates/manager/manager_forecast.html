@@ -1463,56 +1463,119 @@
         const finalMae = mae > 0 ? mae : calculatedMetrics.mae;
         const finalMape = mape > 0 ? mape : calculatedMetrics.mape;
         
-        // Display Forecast Summary
+        // Get data source information
+        const dataSource = forecastData.forecast?.data_source || {};
+        const dataSourceType = dataSource.type || 'actual_sales';
+        const totalTransactions = dataSource.total_transactions || 0;
+        const uniqueDays = dataSource.unique_days || 0;
+        const dateRangeDays = dataSource.date_range_days || 0;
+        const earliestDate = dataSource.earliest_date || 'N/A';
+        const latestDate = dataSource.latest_date || 'N/A';
+        const trainSize = forecastData.forecast?.train_size || dataSource.train_size || 0;
+        const testSize = forecastData.forecast?.test_size || dataSource.test_size || 0;
+        
+        // Determine data source status
+        const dataSourceStatusColor = dataSourceType === 'actual_sales' || dataSourceType === 'real_sales_data' ? '#2e7d32' : '#f59e0b';
+        const dataSourceStatusText = dataSourceType === 'actual_sales' || dataSourceType === 'real_sales_data' ? '✔ Sufficient Data' : '⚠️ Estimated Data';
+        
+        // Display Forecast Summary with Data Source Information
         const forecastSummaryContent = document.getElementById('forecast-summary-content');
         const forecastSummarySection = document.getElementById('forecast-summary');
         if (forecastSummaryContent && forecastSummarySection && forecastValues.length > 0) {
           forecastSummaryContent.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
-              <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);">
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Average Daily Demand</div>
-                <div style="font-size: 2rem; font-weight: 700;">${avgDailyDemand.toFixed(2)} kg</div>
-                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Per day forecast</div>
+            <!-- Data Source Information -->
+            <div style="background: ${dataSourceStatusColor === '#2e7d32' ? '#e8f5e9' : dataSourceStatusColor === '#f59e0b' ? '#fff3cd' : '#e3f2fd'}; 
+                        border: 2px solid ${dataSourceStatusColor}; 
+                        border-radius: 12px; 
+                        padding: 16px; 
+                        margin: 20px 0;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <h5 style="margin: 0 0 12px 0; color: ${dataSourceStatusColor}; font-size: 1.1rem; font-weight: 700;">
+                📊 Data Source Information
+              </h5>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; color: #374151;">
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Data Type:</strong>
+                  <div style="font-size: 1rem; font-weight: 600; color: ${dataSourceStatusColor};">
+                    ${dataSourceStatusText}
+                  </div>
+                  <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                    ${dataSourceType === 'actual_sales' || dataSourceType === 'real_sales_data' ? 'Based on actual sales transactions' : 'Estimated from inventory (no sales history available)'}
+                  </div>
+                </div>
+                ${trainSize > 0 ? `
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Training Data:</strong>
+                  <div style="font-size: 0.95rem; font-weight: 500;">${trainSize} days (${((trainSize/(trainSize+testSize))*100).toFixed(0)}%)</div>
+                </div>
+                ` : ''}
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Total Transactions:</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${totalTransactions.toLocaleString()}</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Unique Days with Sales:</strong>
+                  <div style="font-size: 1.1rem; font-weight: 600;">${uniqueDays.toLocaleString()} days</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Historical Period:</strong>
+                  <div style="font-size: 1rem; font-weight: 600;">${dateRangeDays} days (${(dateRangeDays/365.25).toFixed(1)} years)</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Earliest Data:</strong>
+                  <div style="font-size: 0.95rem; font-weight: 500;">${earliestDate}</div>
+                </div>
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Latest Data:</strong>
+                  <div style="font-size: 0.95rem; font-weight: 500;">${latestDate}</div>
+                </div>
+                ${testSize > 0 ? `
+                <div>
+                  <strong style="color: #64748b; font-size: 0.9rem;">Test Data:</strong>
+                  <div style="font-size: 0.95rem; font-weight: 500;">${testSize} days (${((testSize/(trainSize+testSize))*100).toFixed(0)}%)</div>
+                </div>
+                ` : ''}
               </div>
-              <div style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);">
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Forecasted Demand</div>
-                <div style="font-size: 2rem; font-weight: 700;">${totalForecast.toFixed(2)} kg</div>
-                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Next ${forecastDays} days</div>
+              ${dataSourceType === 'estimated_from_inventory' ? `
+              <div style="margin-top: 12px; padding: 12px; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border-left: 3px solid #f59e0b;">
+                <strong style="color: #f59e0b;">⚠️ Note:</strong>
+                <span style="color: #374151;">This forecast is based on estimated data because no actual sales transactions were found. 
+                For more accurate forecasts, ensure you have sales data in the system.</span>
               </div>
-              <div style="background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 124, 0, 0.2);">
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Peak Daily Demand</div>
-                <div style="font-size: 2rem; font-weight: 700;">${maxDailyDemand.toFixed(2)} kg</div>
-                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Highest predicted day</div>
+              ` : uniqueDays < 100 ? `
+              <div style="margin-top: 12px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3b82f6;">
+                <strong style="color: #3b82f6;">ℹ️ Data Quality:</strong>
+                <span style="color: #374151;">You have ${uniqueDays} days of sales data. 
+                ${uniqueDays < 50 ? 'Consider collecting more historical data for better forecast accuracy.' : 'More data (100+ days) would improve forecast reliability.'}</span>
               </div>
-              <div style="background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(123, 31, 162, 0.2);">
-                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Model Accuracy</div>
-                <div style="font-size: 2rem; font-weight: 700;">${(accuracyScore * 100).toFixed(1)}%</div>
-                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">${modelType} Model</div>
-              </div>
+              ` : ''}
             </div>
-            <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">Model Type</div>
-                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${modelType}</div>
+            
+            <!-- Forecast Metrics -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>Model Type:</strong><br>${modelType}
               </div>
-              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
-                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">MAE (Mean Absolute Error)</div>
-                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${finalMae.toFixed(2)} kg</div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>Accuracy Score:</strong><br>${(accuracyScore * 100).toFixed(1)}%
               </div>
-              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #f59e0b;">
-                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">MAPE (Mean Absolute % Error)</div>
-                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${finalMape.toFixed(2)}%</div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>MAE (Mean Absolute Error):</strong><br>${finalMae.toFixed(2)} kg
               </div>
-              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">Total Forecast Period</div>
-                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${forecastDays} days</div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>MAPE (Mean Absolute % Error):</strong><br>${finalMape.toFixed(2)}%
               </div>
-            </div>
-            <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2e7d32;">
-              <div style="font-size: 0.9rem; color: #374151; line-height: 1.6;">
-                <strong style="color: #2e7d32;">📊 Forecast Details:</strong> This forecast uses the <strong>${modelType}</strong> model with ETL processing, 
-                analyzing historical sales data to predict demand for the next <strong>${forecastDays} days</strong>. 
-                The model has an accuracy of <strong>${(accuracyScore * 100).toFixed(1)}%</strong> based on test data evaluation.
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>Avg Daily Demand:</strong><br>${avgDailyDemand.toFixed(2)} kg
+              </div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>Total Forecast Period:</strong><br>${forecastDays} days
+              </div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>Peak Daily Demand:</strong><br>${maxDailyDemand.toFixed(2)} kg
+              </div>
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                <strong>Total Forecasted Demand:</strong><br>${totalForecast.toFixed(2)} kg
               </div>
             </div>
           `;
