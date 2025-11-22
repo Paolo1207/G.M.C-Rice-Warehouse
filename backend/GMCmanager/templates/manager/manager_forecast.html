@@ -1333,12 +1333,14 @@
         let modelType = 'ARIMA';
         let etlProcess = null;
         
-        // Try different possible structures
+        // Try different possible structures - prioritize forecast_values (full array) over forecast (chart data)
         if (forecastData.forecast) {
-          if (Array.isArray(forecastData.forecast.forecast)) {
-            forecastValues = forecastData.forecast.forecast;
-          } else if (Array.isArray(forecastData.forecast.forecast_values)) {
+          // First check for forecast_values (full array with all requested days)
+          if (Array.isArray(forecastData.forecast.forecast_values) && forecastData.forecast.forecast_values.length > 0) {
             forecastValues = forecastData.forecast.forecast_values;
+          } else if (Array.isArray(forecastData.forecast.forecast)) {
+            // Fallback to chart data if forecast_values not available
+            forecastValues = forecastData.forecast.forecast;
           } else if (Array.isArray(forecastData.forecast)) {
             forecastValues = forecastData.forecast;
           }
