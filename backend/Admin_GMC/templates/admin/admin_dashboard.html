@@ -267,13 +267,13 @@
             </div>
         </div>
 
-        <!-- Forecast Summary -->
+        <!-- Predictive Demand Graph -->
         <div class="dashboard-widgets-row">
             <div class="dashboard-widget-wide chart-widget">
                 <div class="widget-header">
-                    <h3>📊 Forecast Summary</h3>
+                    <h3>📈 Predictive Demand Graph</h3>
                     <div class="chart-controls">
-                        <select class="branch-filter" id="forecastSummaryBranch" required>
+                        <select class="branch-filter" id="predictiveDemandBranch" required>
                             <option value="">Select Branch</option>
                             <option value="1" selected>Marawoy</option>
                             <option value="2">Lipa</option>
@@ -282,13 +282,18 @@
                             <option value="5">Boac</option>
                             <option value="6">Sta. Cruz</option>
                         </select>
+                        <select class="chart-period" id="predictiveDemandPeriod">
+                            <option value="7">Next 7 days</option>
+                            <option value="30" selected>Next 30 days</option>
+                            <option value="90">Next 90 days</option>
+                        </select>
+                        <button class="btn primary" id="generatePredictiveDemandBtn" style="padding: 8px 16px; margin-left: 8px;">
+                            <i class="fas fa-sync-alt"></i> Generate
+                        </button>
                     </div>
                 </div>
-                <div class="forecast-summary-container" id="forecastSummaryContainer" style="padding: 2rem; min-height: 200px;">
-                    <div style="text-align: center; color: #666; padding: 3rem;">
-                        <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                        <p>Select a branch to view forecast summary</p>
-                    </div>
+                <div class="chart-container">
+                    <canvas id="predictiveDemandChart" width="400" height="200"></canvas>
                 </div>
             </div>
         </div>
@@ -589,8 +594,7 @@
         async function loadChartData() {
             await Promise.all([
                 loadSalesTrendData(),
-                loadRiceStockData(),
-                loadForecastSummary()
+                loadRiceStockData()
             ]);
         }
 
@@ -643,159 +647,223 @@
             }
         }
 
-        // Load Forecast Summary data
-        async function loadForecastSummary() {
+        // Load Predictive Demand Graph data
+        async function loadPredictiveDemandData() {
             try {
-                const branchId = document.getElementById('forecastSummaryBranch')?.value || '';
+                const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
+                const periods = parseInt(document.getElementById('predictiveDemandPeriod')?.value || '30');
 
-                // Require branch selection
                 if (!branchId) {
-                    const container = document.getElementById('forecastSummaryContainer');
-                    if (container) {
-                        container.innerHTML = `
-                            <div style="text-align: center; color: #666; padding: 3rem;">
-                                <i class="fas fa-chart-line" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                                <p>Select a branch to view forecast summary</p>
-                            </div>
-                        `;
-                    }
+                    updatePredictiveDemandChart([], 'Select a branch to generate forecast');
                     return;
                 }
 
-                const container = document.getElementById('forecastSummaryContainer');
-                if (container) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 2rem;">
-                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #2e7d32; margin-bottom: 1rem;"></i>
-                            <p>Loading forecast summary...</p>
-                        </div>
-                    `;
+                // Show loading state
+                const btn = document.getElementById('generatePredictiveDemandBtn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
                 }
 
                 // Use the forecast dashboard API which aggregates all products
-                const response = await fetch(`/admin/api/forecast/dashboard?branch_id=${branchId}`);
+                const response = await fetch(`/admin/api/forecast/dashboard?branch_id=${branchId}&periods=${periods}`);
                 
-                // Check if response is OK
                 if (!response.ok) {
-                    // Try to get error message from response
                     let errorText = `Server error (${response.status})`;
                     try {
                         const errorData = await response.json();
                         errorText = errorData.error || errorText;
                     } catch (e) {
-                        // If not JSON, try to get text
                         try {
                             const text = await response.text();
                             if (text && text.length < 200) {
                                 errorText = text;
                             }
-                        } catch (e2) {
-                            // Ignore
-                        }
+                        } catch (e2) {}
                     }
-                    
-                    const container = document.getElementById('forecastSummaryContainer');
-                    if (container) {
-                        container.innerHTML = `
-                            <div style="text-align: center; color: #dc2626; padding: 3rem;">
-                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                                <p>${errorText}</p>
-                            </div>
-                        `;
+                    updatePredictiveDemandChart([], errorText);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
                     }
                     return;
                 }
                 
-                // Parse JSON response
                 let data;
                 try {
                     data = await response.json();
                 } catch (jsonError) {
                     console.error('Error parsing JSON response:', jsonError);
-                    const container = document.getElementById('forecastSummaryContainer');
-                    if (container) {
-                        container.innerHTML = `
-                            <div style="text-align: center; color: #dc2626; padding: 3rem;">
-                                <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                                <p>Error parsing server response</p>
-                            </div>
-                        `;
+                    updatePredictiveDemandChart([], 'Error parsing server response');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
                     }
                     return;
                 }
                 
                 if (data.ok && data.forecast) {
-                    updateForecastSummary(data.forecast, branchId);
+                    updatePredictiveDemandChart(data.forecast, null);
                 } else {
-                    const container = document.getElementById('forecastSummaryContainer');
-                    if (container) {
-                        container.innerHTML = `
-                            <div style="text-align: center; color: #666; padding: 3rem;">
-                                <i class="fas fa-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                                <p>${data.error || 'No forecast data available for this branch'}</p>
-                            </div>
-                        `;
-                    }
+                    updatePredictiveDemandChart([], data.error || 'No forecast data available for this branch');
+                }
+
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
                 }
             } catch (error) {
-                console.error('Error loading forecast summary:', error);
-                const container = document.getElementById('forecastSummaryContainer');
-                if (container) {
-                    container.innerHTML = `
-                        <div style="text-align: center; color: #dc2626; padding: 3rem;">
-                            <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                            <p>Error loading forecast summary: ${error.message || 'Unknown error'}</p>
-                        </div>
-                    `;
+                console.error('Error loading predictive demand:', error);
+                updatePredictiveDemandChart([], `Error: ${error.message || 'Unknown error'}`);
+                const btn = document.getElementById('generatePredictiveDemandBtn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
                 }
             }
         }
 
-        // Update Forecast Summary display
-        function updateForecastSummary(forecast, branchId) {
-            const container = document.getElementById('forecastSummaryContainer');
-            if (!container) return;
+        // Update Predictive Demand Chart
+        function updatePredictiveDemandChart(forecast, errorMessage) {
+            const ctx = document.getElementById('predictiveDemandChart');
+            if (!ctx) return;
+
+            if (window.predictiveDemandChart && typeof window.predictiveDemandChart.destroy === 'function') {
+                window.predictiveDemandChart.destroy();
+            }
+
+            if (errorMessage || !forecast || !forecast.forecast_values || forecast.forecast_values.length === 0) {
+                // Show error or empty state
+                window.predictiveDemandChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['No Data'],
+                        datasets: [{
+                            label: errorMessage || 'No forecast data',
+                            data: [0],
+                            borderColor: '#cccccc',
+                            backgroundColor: 'rgba(204, 204, 204, 0.1)',
+                            borderWidth: 2,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { 
+                                display: true, 
+                                text: errorMessage || 'No forecast data available',
+                                font: { size: 14 }
+                            }
+                        }
+                    }
+                });
+                return;
+            }
 
             const forecastValues = forecast.forecast_values || [];
-            const avgDemand = forecastValues.length > 0 
-                ? (forecastValues.reduce((a, b) => a + b, 0) / forecastValues.length).toFixed(2)
-                : '0';
-            const totalDemand = forecastValues.reduce((a, b) => a + b, 0).toFixed(2);
-            const maxDemand = forecastValues.length > 0 ? Math.max(...forecastValues).toFixed(2) : '0';
-            const accuracy = forecast.accuracy_score ? (forecast.accuracy_score * 100).toFixed(1) : 'N/A';
-            const modelType = forecast.model_type || 'ARIMA';
+            const periods = forecastValues.length;
+            
+            // Generate date labels for the forecast period
+            const labels = [];
+            const today = new Date();
+            for (let i = 1; i <= periods; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+            }
 
-            container.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
-                    <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);">
-                        <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Average Daily Demand</div>
-                        <div style="font-size: 2rem; font-weight: 700;">${avgDemand} kg</div>
-                        <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Per day forecast</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);">
-                        <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Forecasted Demand</div>
-                        <div style="font-size: 2rem; font-weight: 700;">${totalDemand} kg</div>
-                        <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Next ${forecastValues.length} days</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 124, 0, 0.2);">
-                        <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Peak Daily Demand</div>
-                        <div style="font-size: 2rem; font-weight: 700;">${maxDemand} kg</div>
-                        <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Highest predicted day</div>
-                    </div>
-                    <div style="background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(123, 31, 162, 0.2);">
-                        <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Model Accuracy</div>
-                        <div style="font-size: 2rem; font-weight: 700;">${accuracy}%</div>
-                        <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">${modelType} Model</div>
-                    </div>
-                </div>
-                <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2e7d32;">
-                    <div style="font-size: 0.9rem; color: #374151; line-height: 1.6;">
-                        <strong style="color: #2e7d32;">📊 Forecast Details:</strong> This forecast uses the <strong>${modelType}</strong> model with ETL processing, 
-                        analyzing historical sales data to predict demand for the next <strong>${forecastValues.length} days</strong>. 
-                        The model has an accuracy of <strong>${accuracy}%</strong> based on test data evaluation.
-                    </div>
-                </div>
-            `;
+            window.predictiveDemandChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Predicted Demand (kg)',
+                        data: forecastValues,
+                        borderColor: '#2e7d32',
+                        backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#2e7d32',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8,
+                                font: { size: 11 },
+                                usePointStyle: true
+                            }
+                        },
+                        title: { 
+                            display: true, 
+                            text: `Predictive Demand Forecast (Next ${periods} Days)`,
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: '#2e7d32',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Demand: ' + context.parsed.y.toFixed(2) + ' kg';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            title: { 
+                                display: true, 
+                                text: 'Demand (kg)',
+                                font: { size: 12, weight: 'bold' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' kg';
+                                },
+                                font: { size: 11 }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: { size: 11 },
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
         }
 
         // Show loading state for charts
@@ -1254,13 +1322,26 @@
                 });
             }
 
-            // Forecast Summary filter
-            const forecastSummaryBranch = document.getElementById('forecastSummaryBranch');
+            // Predictive Demand Graph filters and generate button
+            const predictiveDemandBranch = document.getElementById('predictiveDemandBranch');
+            const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod');
+            const generatePredictiveDemandBtn = document.getElementById('generatePredictiveDemandBtn');
             
-            if (forecastSummaryBranch) {
-                forecastSummaryBranch.addEventListener('change', () => {
-                    console.log('Forecast Summary Branch changed to:', forecastSummaryBranch.value);
-                    loadForecastSummary();
+            if (predictiveDemandBranch) {
+                predictiveDemandBranch.addEventListener('change', () => {
+                    console.log('Predictive Demand Branch changed to:', predictiveDemandBranch.value);
+                });
+            }
+
+            if (predictiveDemandPeriod) {
+                predictiveDemandPeriod.addEventListener('change', () => {
+                    console.log('Predictive Demand Period changed to:', predictiveDemandPeriod.value);
+                });
+            }
+
+            if (generatePredictiveDemandBtn) {
+                generatePredictiveDemandBtn.addEventListener('click', () => {
+                    loadPredictiveDemandData();
                 });
             }
         }
@@ -1382,4 +1463,5 @@
         });
     </script>
 </body>
+</html>
 </html>

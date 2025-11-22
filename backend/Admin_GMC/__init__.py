@@ -1271,6 +1271,11 @@ def api_forecast_dashboard():
         import sys
         
         branch_id = request.args.get('branch_id', type=int)
+        periods = request.args.get('periods', type=int, default=30)
+        
+        # Validate periods
+        if periods not in [7, 30, 90]:
+            periods = 30
         
         if not branch_id:
             return jsonify({
@@ -1355,7 +1360,7 @@ def api_forecast_dashboard():
                 try:
                     forecast_result = forecasting_service.generate_forecast_with_model_selection(
                         historical_data=historical_data,
-                        periods=30,
+                        periods=periods,
                         requested_model='ARIMA'
                     )
                 except Exception as forecast_error:
@@ -1365,7 +1370,7 @@ def api_forecast_dashboard():
                 
                 if forecast_result and 'forecast_values' in forecast_result and forecast_result['forecast_values']:
                     # Aggregate forecast values by date (sum across products)
-                    forecast_values = forecast_result['forecast_values'][:30]
+                    forecast_values = forecast_result['forecast_values'][:periods]
                     for i, value in enumerate(forecast_values):
                         if i >= len(all_forecast_values):
                             all_forecast_values.append(0.0)
