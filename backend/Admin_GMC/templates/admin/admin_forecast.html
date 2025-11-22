@@ -176,14 +176,6 @@
                 </select>
             </div>
             <div class="forecast-filter-group">
-                <label for="model-type-select">Model Type:</label>
-                <select id="model-type-select">
-                    <option value="ARIMA">ARIMA</option>
-                    <option value="RF">Random Forest (RF)</option>
-                    <option value="Seasonal">Seasonal</option>
-                </select>
-            </div>
-            <div class="forecast-filter-group">
                 <label for="periods-select">Forecast Period:</label>
                 <select id="periods-select">
                     <option value="7">Next 7 days</option>
@@ -344,7 +336,7 @@
         async function generateForecast() {
             const branchId = document.getElementById('branch-select').value;
             const productId = document.getElementById('product-select').value;
-            const modelType = document.getElementById('model-type-select').value;
+            const modelType = 'ARIMA'; // Always use ARIMA
             const periods = parseInt(document.getElementById('periods-select').value);
 
             if (!branchId || !productId) {
@@ -374,11 +366,7 @@
                 console.log('=== FORECAST API RESPONSE ===');
                 console.log('Response OK:', data.ok);
                 console.log('Forecast keys:', data.forecast ? Object.keys(data.forecast) : 'No forecast');
-                console.log('Has ETL process:', data.forecast && 'etl_process' in data.forecast);
                 console.log('Has data_source:', data.forecast && 'data_source' in data.forecast);
-                if (data.forecast && data.forecast.etl_process) {
-                    console.log('ETL process:', data.forecast.etl_process);
-                }
                 if (data.forecast && data.forecast.data_source) {
                     console.log('Data source:', data.forecast.data_source);
                 }
@@ -565,221 +553,6 @@
                         </div>
                         ` : ''}
                     </div>
-                    
-                    <!-- ETL Process Information Box -->
-                    ${forecast.etl_process ? `
-                    <div style="background: #f0f9ff; 
-                                border: 2px solid #3b82f6; 
-                                border-radius: 12px; 
-                                padding: 16px; 
-                                margin: 20px 0;
-                                box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                        <h5 style="margin: 0 0 12px 0; color: #3b82f6; font-size: 1.1rem; font-weight: 700;">
-                            🔄 ETL Pipeline Process
-                        </h5>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-                            <!-- EXTRACT Step -->
-                            <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                                <strong style="color: #3b82f6; font-size: 1rem; display: block; margin-bottom: 12px; font-weight: 700;">
-                                    1️⃣ EXTRACT - Database Query
-                                </strong>
-                                <div style="font-size: 0.9rem; color: #374151; line-height: 1.8;">
-                                    <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #e5e7eb;">
-                                        <strong style="color: #1f2937; display: block; margin-bottom: 8px; font-size: 0.95rem;">📊 Source: SalesTransaction Table</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; margin-top: 8px;">
-                                            <div style="margin-bottom: 4px;"><strong>SELECT:</strong> transaction_date, quantity_sold, branch_id, product_id</div>
-                                            <div style="margin-bottom: 4px;"><strong>FROM:</strong> SalesTransaction</div>
-                                            <div style="margin-bottom: 4px;"><strong>WHERE:</strong> branch_id = ${branchId} AND product_id = ${productId}</div>
-                                            <div><strong>FILTER:</strong> transaction_date >= (today - 912 days)</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                                        <div style="background: #eff6ff; padding: 10px; border-radius: 6px; border: 1px solid #bfdbfe;">
-                                            <strong style="color: #1e40af; font-size: 0.85rem;">Raw Transactions:</strong>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: #1e40af; margin-top: 4px;">${(forecast.etl_process.extract?.raw_transactions || 0).toLocaleString()}</div>
-                                        </div>
-                                        <div style="background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
-                                            <strong style="color: #166534; font-size: 0.85rem;">Total Quantity:</strong>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: #166534; margin-top: 4px;">${(forecast.etl_process.extract?.raw_total_quantity || 0).toFixed(2)} kg</div>
-                                        </div>
-                                    </div>
-                                    
-                                    ${forecast.etl_process.extract?.date_range ? `
-                                    <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a; margin-bottom: 12px;">
-                                        <strong style="color: #92400e; font-size: 0.85rem;">Date Range:</strong>
-                                        <div style="font-size: 0.95rem; font-weight: 600; color: #92400e; margin-top: 4px;">
-                                            ${forecast.etl_process.extract.date_range.earliest} to ${forecast.etl_process.extract.date_range.latest}
-                                        </div>
-                                    </div>
-                                    ` : ''}
-                                    
-                                    <div style="background: #e0e7ff; padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1; margin-top: 12px;">
-                                        <strong style="color: #4338ca; display: block; margin-bottom: 6px; font-size: 0.9rem;">📋 Extracted Fields:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.8;">
-                                            <div>• <strong>transaction_date:</strong> Date and time of each sale</div>
-                                            <div>• <strong>quantity_sold:</strong> Amount sold in kilograms</div>
-                                            <div>• <strong>branch_id:</strong> Branch identifier (${branchName})</div>
-                                            <div>• <strong>product_id:</strong> Product identifier (${productName})</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.8rem; color: #6b7280; font-style: italic; border-left: 3px solid #9ca3af;">
-                                        ✅ Successfully loaded raw historical sales data from SalesTransaction table
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- TRANSFORM Step -->
-                            <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981;">
-                                <strong style="color: #10b981; font-size: 1rem; display: block; margin-bottom: 12px; font-weight: 700;">
-                                    2️⃣ TRANSFORM - Data Cleaning & Aggregation
-                                </strong>
-                                <div style="font-size: 0.9rem; color: #374151; line-height: 1.8;">
-                                    <div style="background: #f0fdf4; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #bbf7d0;">
-                                        <strong style="color: #166534; display: block; margin-bottom: 8px; font-size: 0.95rem;">🔄 Transformation Steps:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 2;">
-                                            <div style="margin-bottom: 6px;">1. <strong>Date Conversion:</strong> Convert transaction_date to datetime format</div>
-                                            <div style="margin-bottom: 6px;">2. <strong>Daily Aggregation:</strong> GROUP BY date, SUM(quantity_sold) per day</div>
-                                            <div style="margin-bottom: 6px;">3. <strong>Outlier Detection:</strong> Remove values beyond 3 standard deviations</div>
-                                            <div style="margin-bottom: 6px;">4. <strong>Data Cleaning:</strong> Clip negative values, fill missing dates</div>
-                                            <div>5. <strong>Normalization:</strong> Ensure data consistency for modeling</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                                        <div style="background: #ecfdf5; padding: 10px; border-radius: 6px; border: 1px solid #a7f3d0;">
-                                            <strong style="color: #065f46; font-size: 0.85rem;">Daily Aggregated Days:</strong>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: #065f46; margin-top: 4px;">${(forecast.etl_process.transform?.daily_aggregated_days || 0).toLocaleString()}</div>
-                                        </div>
-                                        <div style="background: #f0fdf4; padding: 10px; border-radius: 6px; border: 1px solid #bbf7d0;">
-                                            <strong style="color: #166534; font-size: 0.85rem;">Mean Daily Quantity:</strong>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: #166534; margin-top: 4px;">${(forecast.etl_process.transform?.mean_daily_quantity || 0).toFixed(2)} kg</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                                        <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a;">
-                                            <strong style="color: #92400e; font-size: 0.85rem;">Standard Deviation:</strong>
-                                            <div style="font-size: 1rem; font-weight: 600; color: #92400e; margin-top: 4px;">${(forecast.etl_process.transform?.std_daily_quantity || 0).toFixed(2)} kg</div>
-                                        </div>
-                                        ${(forecast.etl_process.transform?.outliers_removed || 0) > 0 ? `
-                                        <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a;">
-                                            <strong style="color: #92400e; font-size: 0.85rem;">Outliers Removed:</strong>
-                                            <div style="font-size: 1rem; font-weight: 600; color: #92400e; margin-top: 4px;">${forecast.etl_process.transform.outliers_removed} days</div>
-                                        </div>
-                                        ` : `
-                                        <div style="background: #ecfdf5; padding: 10px; border-radius: 6px; border: 1px solid #a7f3d0;">
-                                            <strong style="color: #065f46; font-size: 0.85rem;">Outliers Removed:</strong>
-                                            <div style="font-size: 1rem; font-weight: 600; color: #065f46; margin-top: 4px;">0 days</div>
-                                        </div>
-                                        `}
-                                    </div>
-                                    
-                                    ${(forecast.etl_process.transform?.negative_values_clipped || 0) > 0 ? `
-                                    <div style="background: #fee2e2; padding: 10px; border-radius: 6px; border: 1px solid #fecaca; margin-bottom: 12px;">
-                                        <strong style="color: #991b1b; font-size: 0.85rem;">⚠️ Negative Values Clipped:</strong>
-                                        <div style="font-size: 0.95rem; font-weight: 600; color: #991b1b; margin-top: 4px;">${forecast.etl_process.transform.negative_values_clipped} values set to 0</div>
-                                    </div>
-                                    ` : ''}
-                                    
-                                    ${(forecast.etl_process.transform?.missing_values_filled || 0) > 0 ? `
-                                    <div style="background: #e0e7ff; padding: 10px; border-radius: 6px; border: 1px solid #c7d2fe; margin-bottom: 12px;">
-                                        <strong style="color: #4338ca; font-size: 0.85rem;">ℹ️ Missing Values Filled:</strong>
-                                        <div style="font-size: 0.95rem; font-weight: 600; color: #4338ca; margin-top: 4px;">${forecast.etl_process.transform.missing_values_filled} days filled with forward fill</div>
-                                    </div>
-                                    ` : ''}
-                                    
-                                    <div style="background: #d1fae5; padding: 12px; border-radius: 6px; border-left: 3px solid #10b981; margin-top: 12px;">
-                                        <strong style="color: #065f46; display: block; margin-bottom: 6px; font-size: 0.9rem;">📊 Aggregation Formula:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; line-height: 1.6;">
-                                            <div>daily_quantity = SUM(quantity_sold)</div>
-                                            <div style="margin-top: 4px;">GROUP BY DATE(transaction_date)</div>
-                                            <div style="margin-top: 4px;">WHERE branch_id = ${branchId}</div>
-                                            <div style="margin-top: 4px;">AND product_id = ${productId}</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.8rem; color: #6b7280; font-style: italic; border-left: 3px solid #9ca3af;">
-                                        ✅ Data cleaned, aggregated by day, outliers removed, missing values handled
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- LOAD Step -->
-                            <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
-                                <strong style="color: #8b5cf6; font-size: 1rem; display: block; margin-bottom: 12px; font-weight: 700;">
-                                    3️⃣ LOAD - Data Validation & Preparation
-                                </strong>
-                                <div style="font-size: 0.9rem; color: #374151; line-height: 1.8;">
-                                    <div style="background: #faf5ff; padding: 12px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #e9d5ff;">
-                                        <strong style="color: #6b21a8; display: block; margin-bottom: 8px; font-size: 0.95rem;">✅ Validation Steps:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 2;">
-                                            <div style="margin-bottom: 6px;">1. <strong>Data Completeness:</strong> Verify all required fields present</div>
-                                            <div style="margin-bottom: 6px;">2. <strong>Data Quality:</strong> Check for sufficient data points (min 7 days)</div>
-                                            <div style="margin-bottom: 6px;">3. <strong>Data Consistency:</strong> Ensure no null or invalid values</div>
-                                            <div style="margin-bottom: 6px;">4. <strong>Padding Check:</strong> Add padding if data too short for model</div>
-                                            <div>5. <strong>Final Format:</strong> Convert to time series format for modeling</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">
-                                        <div style="background: #faf5ff; padding: 10px; border-radius: 6px; border: 1px solid #e9d5ff;">
-                                            <strong style="color: #6b21a8; font-size: 0.85rem;">Final Data Points:</strong>
-                                            <div style="font-size: 1.1rem; font-weight: 700; color: #6b21a8; margin-top: 4px;">${(forecast.etl_process.load?.final_data_points || 0).toLocaleString()}</div>
-                                        </div>
-                                        ${forecast.etl_process.load?.padded ? `
-                                        <div style="background: #fef3c7; padding: 10px; border-radius: 6px; border: 1px solid #fde68a;">
-                                            <strong style="color: #92400e; font-size: 0.85rem;">⚠️ Padding Applied:</strong>
-                                            <div style="font-size: 1rem; font-weight: 600; color: #92400e; margin-top: 4px;">${forecast.etl_process.load.padding_count} days</div>
-                                        </div>
-                                        ` : `
-                                        <div style="background: #ecfdf5; padding: 10px; border-radius: 6px; border: 1px solid #a7f3d0;">
-                                            <strong style="color: #065f46; font-size: 0.85rem;">✅ Data Quality:</strong>
-                                            <div style="font-size: 1rem; font-weight: 600; color: #065f46; margin-top: 4px;">Sufficient</div>
-                                        </div>
-                                        `}
-                                    </div>
-                                    
-                                    ${forecast.etl_process.load?.padded ? `
-                                    <div style="background: #fef3c7; padding: 12px; border-radius: 6px; border-left: 3px solid #f59e0b; margin-bottom: 12px;">
-                                        <strong style="color: #92400e; display: block; margin-bottom: 6px; font-size: 0.9rem;">⚠️ Data Padding Details:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.8;">
-                                            <div>• <strong>Original Length:</strong> ${forecast.etl_process.load.original_length} days</div>
-                                            <div>• <strong>Padding Added:</strong> ${forecast.etl_process.load.padding_count} days</div>
-                                            <div>• <strong>Final Length:</strong> ${forecast.etl_process.load.final_data_points} days</div>
-                                            <div style="margin-top: 6px; color: #92400e; font-weight: 600;">Reason: Data was too short for model requirements</div>
-                                        </div>
-                                    </div>
-                                    ` : `
-                                    <div style="background: #ecfdf5; padding: 12px; border-radius: 6px; border-left: 3px solid #10b981; margin-bottom: 12px;">
-                                        <strong style="color: #065f46; display: block; margin-bottom: 6px; font-size: 0.9rem;">✅ Data Validation Passed:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; line-height: 1.8;">
-                                            <div>• <strong>Data Points:</strong> ${(forecast.etl_process.load?.final_data_points || 0).toLocaleString()} days</div>
-                                            <div>• <strong>Quality:</strong> Sufficient for ${forecast.model_type} model</div>
-                                            <div>• <strong>Format:</strong> Time series ready</div>
-                                        </div>
-                                    </div>
-                                    `}
-                                    
-                                    <div style="background: #e0e7ff; padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1; margin-top: 12px;">
-                                        <strong style="color: #4338ca; display: block; margin-bottom: 6px; font-size: 0.9rem;">📦 Output Format:</strong>
-                                        <div style="font-size: 0.85rem; color: #4b5563; font-family: 'Courier New', monospace; background: white; padding: 8px; border-radius: 4px; line-height: 1.6;">
-                                            <div>pandas.Series with:</div>
-                                            <div style="margin-top: 4px;">• Index: datetime (daily)</div>
-                                            <div>• Values: quantity_sold (kg)</div>
-                                            <div style="margin-top: 4px;">→ Ready for ${forecast.model_type} model training</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div style="margin-top: 12px; padding: 10px; background: #f3f4f6; border-radius: 6px; font-size: 0.8rem; color: #6b7280; font-style: italic; border-left: 3px solid #9ca3af;">
-                                        ✅ Data validated, formatted, and prepared for ${forecast.model_type} forecasting model
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    ` : ''}
                     
                     <!-- Train/Test Split Information -->
                     ${forecast.train_size > 0 && forecast.test_size > 0 ? `
@@ -1022,91 +795,23 @@
                     stockStatusColor = stockShortage > totalForecast * 0.5 ? '#e53935' : '#f59e0b';
                 }
                 
-                // Model-specific descriptions
-                let modelDescription = '';
-                let modelColor = '#2e7d32';
-                let confidenceNote = '';
-                
-                if (forecast.model_type === 'ARIMA') {
-                    modelDescription = `
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>ARIMA (AutoRegressive Integrated Moving Average)</strong> model.
-                        </p>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>How ARIMA works:</strong> This model analyzes your past sales transactions from the SalesTransaction table, identifying patterns, trends, and seasonal variations. It uses moving averages and trend analysis to predict future demand. ARIMA is best for capturing long-term trends and cyclical patterns in rice sales.
-                        </p>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data for this product and branch.
-                        </p>
-                        <p style="margin: 0;">
-                            <strong>Confidence intervals:</strong> The shaded areas show the range where actual demand is likely to fall (95% confidence), helping you prepare for both best-case and worst-case scenarios.
-                        </p>
-                    `;
-                    modelColor = '#2e7d32';
-                    confidenceNote = 'Confidence intervals are available for ARIMA forecasts.';
-                } else if (forecast.model_type === 'RF') {
-                    modelDescription = `
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>Random Forest (RF)</strong> machine learning model.
-                        </p>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>How Random Forest works:</strong> This model uses an ensemble of decision trees trained on historical sales data. It creates features from past sales patterns including:
-                        </p>
-                        <ul style="margin: 8px 0 12px 20px; padding: 0;">
-                            <li><strong>Lag features:</strong> Sales from 1, 2, 3, 7, 14, and 28 days ago</li>
-                            <li><strong>Rolling averages:</strong> 7-day and 14-day moving averages to capture short-term trends</li>
-                            <li><strong>Pattern recognition:</strong> The model learns complex non-linear relationships between past sales and future demand</li>
-                        </ul>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data. The model requires at least 10 days of data to train effectively.
-                        </p>
-                        <p style="margin: 0;">
-                            <strong>Best for:</strong> Capturing complex patterns and non-linear relationships in sales data. Random Forest is particularly effective when sales patterns are irregular or influenced by multiple factors.
-                        </p>
-                    `;
-                    modelColor = '#3b82f6';
-                    confidenceNote = 'Random Forest does not provide confidence intervals, but offers high accuracy (typically 80%) for complex pattern recognition.';
-                } else if (forecast.model_type === 'Seasonal') {
-                    modelDescription = `
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>Seasonal Naive</strong> forecasting model.
-                        </p>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>How Seasonal Naive works:</strong> This model uses a simple but effective approach - it repeats the pattern from the last 7 days (one week) to predict future demand. It assumes that weekly patterns repeat consistently.
-                        </p>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>Methodology:</strong>
-                        </p>
-                        <ul style="margin: 8px 0 12px 20px; padding: 0;">
-                            <li>Takes the last 7 days of sales data as the "seasonal pattern"</li>
-                            <li>Repeats this pattern for the forecast period (e.g., if forecasting 30 days, it repeats the 7-day pattern ~4 times)</li>
-                            <li>Adds small random variations (±10%) to account for day-to-day fluctuations</li>
-                        </ul>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data. The model requires at least 7 days of data to identify the weekly pattern.
-                        </p>
-                        <p style="margin: 0;">
-                            <strong>Best for:</strong> Products with strong weekly patterns (e.g., higher sales on weekdays vs weekends). This model is simple, fast, and works well when sales follow predictable weekly cycles.
-                        </p>
-                    `;
-                    modelColor = '#f59e0b';
-                    confidenceNote = 'Seasonal Naive does not provide confidence intervals, but is highly effective for products with consistent weekly patterns.';
-                } else {
-                    // Generic fallback
-                    modelDescription = `
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales data analyzed using the <strong>${forecast.model_type}</strong> model.
-                        </p>
-                        <p style="margin: 0 0 12px 0;">
-                            <strong>How it works:</strong> The system analyzes your past sales transactions to identify patterns, trends, and seasonal variations. It then predicts how much rice customers will likely purchase each day for the selected period.
-                        </p>
-                        <p style="margin: 0;">
-                            <strong>Data source:</strong> Historical sales transactions (quantity_sold) from the SalesTransaction table, aggregated daily.
-                        </p>
-                    `;
-                    modelColor = '#2e7d32';
-                    confidenceNote = '';
-                }
+                // ARIMA model description (only model used)
+                const modelDescription = `
+                    <p style="margin: 0 0 12px 0;">
+                        <strong>The forecasted days represent:</strong> The predicted daily demand (in kilograms) for the next <strong>${forecastDays} days</strong> based on historical sales transactions analyzed using the <strong>ARIMA (AutoRegressive Integrated Moving Average)</strong> model.
+                    </p>
+                    <p style="margin: 0 0 12px 0;">
+                        <strong>How ARIMA works:</strong> This model analyzes your past sales transactions from the SalesTransaction table, identifying patterns, trends, and seasonal variations. It uses moving averages and trend analysis to predict future demand. ARIMA is best for capturing long-term trends and cyclical patterns in rice sales.
+                    </p>
+                    <p style="margin: 0 0 12px 0;">
+                        <strong>Data source:</strong> Historical sales transactions (quantity_sold) aggregated daily from the last 2-3 years of sales data for this product and branch.
+                    </p>
+                    <p style="margin: 0;">
+                        <strong>Confidence intervals:</strong> The shaded areas show the range where actual demand is likely to fall (95% confidence), helping you prepare for both best-case and worst-case scenarios.
+                    </p>
+                `;
+                const modelColor = '#2e7d32';
+                const confidenceNote = 'Confidence intervals are available for ARIMA forecasts.';
                 
                 const infoContent = document.getElementById('forecast-information-content');
                 infoContent.innerHTML = `
@@ -1285,15 +990,8 @@
                 order: 2
             });
             
-            // Set chart title based on model type
-            let chartTitle = 'Demand Forecast';
-            if (forecast.model_type === 'ARIMA') {
-                chartTitle = 'ARIMA Forecast with Confidence Intervals';
-            } else if (forecast.model_type === 'RF') {
-                chartTitle = 'Random Forest Forecast (ML Model)';
-            } else if (forecast.model_type === 'Seasonal') {
-                chartTitle = 'Seasonal Naive Forecast (Weekly Pattern)';
-            }
+            // Set chart title (ARIMA only)
+            const chartTitle = 'ARIMA Forecast with Confidence Intervals';
             
             demandChart = new Chart(ctx, {
                 type: 'line',
@@ -1396,7 +1094,7 @@
             const generatedAt = new Date().toLocaleString();
             const branchId = document.getElementById('branch-select').value;
             const productId = document.getElementById('product-select').value;
-            const modelType = document.getElementById('model-type-select').value;
+            const modelType = 'ARIMA'; // Always use ARIMA
             const periods = document.getElementById('periods-select').value;
 
             const branchName = branches.find(b => b.id == branchId)?.name || 'Not Selected';
