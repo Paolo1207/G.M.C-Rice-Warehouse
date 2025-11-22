@@ -210,8 +210,8 @@
                 <option value="">Select a product</option>
                 <!-- Products will be populated from inventory -->
               </select>
-              <select id="batchFilter" style="display: none;">
-                <option value="">Select batch (optional)</option>
+              <select id="batchFilter" style="display: none;" required>
+                <option value="">Please select a batch</option>
                 <!-- Batch codes will be populated when product is selected -->
               </select>
             </div>
@@ -738,7 +738,7 @@
 
       if (!productId) {
         batchFilter.style.display = 'none';
-        batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        batchFilter.innerHTML = '<option value="">Please select a batch</option>';
         return;
       }
 
@@ -753,7 +753,7 @@
         if (data.ok && Array.isArray(data.batch_codes) && data.batch_codes.length > 0) {
           // Show batch filter and populate options
           batchFilter.style.display = 'block';
-          batchFilter.innerHTML = '<option value="">All batches</option>';
+          batchFilter.innerHTML = '<option value="">Please select a batch</option>';
           data.batch_codes.forEach(batchCode => {
             const option = document.createElement('option');
             option.value = batchCode;
@@ -764,13 +764,13 @@
         } else {
           // Hide batch filter if no batches exist
           batchFilter.style.display = 'none';
-          batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+          batchFilter.innerHTML = '<option value="">Please select a batch</option>';
           console.log('No batches found for product', productId);
         }
       } catch (error) {
         console.error('Error loading batch codes:', error);
         batchFilter.style.display = 'none';
-        batchFilter.innerHTML = '<option value="">Select batch (optional)</option>';
+        batchFilter.innerHTML = '<option value="">Please select a batch</option>';
       }
     }
 
@@ -907,6 +907,19 @@
               generateBtn.innerHTML = originalText;
             }
             return;
+          }
+          
+          // Validate that a batch is selected (batch filter is required)
+          const batchFilter = document.getElementById('batchFilter');
+          if (batchFilter && batchFilter.style.display !== 'none') {
+            if (!batchCode || batchCode === '' || batchCode === 'Please select a batch') {
+              showToast('Please select a batch before generating forecast', 'error');
+              if (generateBtn) {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = originalText;
+              }
+              return;
+            }
           }
           
           console.log('Forecast parameters:', { productId, batchCode, timeRange });
