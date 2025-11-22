@@ -381,11 +381,16 @@
       try {
         // Get manager's branch from URL or session
         const urlParams = new URLSearchParams(window.location.search);
-        MANAGER_BRANCH_ID = urlParams.get('branch') || null;
+        MANAGER_BRANCH_ID = urlParams.get('branch') || urlParams.get('branch_id') || null;
         MANAGER_BRANCH_NAME = urlParams.get('branch_name') || null;
         
         // If no branch in URL, get from manager API
         if (!MANAGER_BRANCH_ID) {
+          await loadManagerBranch();
+        }
+        
+        // If branch name is still not set, try to get it from the branch ID
+        if (MANAGER_BRANCH_ID && !MANAGER_BRANCH_NAME) {
           await loadManagerBranch();
         }
         
@@ -408,8 +413,10 @@
         const response = await fetch('/manager/api/branches');
         const data = await response.json();
         if (data.ok && data.branches && data.branches.length > 0) {
-          MANAGER_BRANCH_ID = data.branches[0].id;
-          MANAGER_BRANCH_NAME = data.branches[0].name;
+          const branch = data.branches[0];
+          MANAGER_BRANCH_ID = branch.id || MANAGER_BRANCH_ID;
+          MANAGER_BRANCH_NAME = branch.name || MANAGER_BRANCH_NAME;
+          console.log('Manager branch loaded:', { id: MANAGER_BRANCH_ID, name: MANAGER_BRANCH_NAME });
         }
       } catch (error) {
         console.error('Error loading manager branch:', error);
@@ -1660,11 +1667,17 @@
     }
 
     // Update title and header based on branch selection
-    function updateBranchTitle() {
+    async function updateBranchTitle() {
       // Try multiple sources for branch name: MANAGER_BRANCH_NAME, template variable, URL parameter
       let branchName = MANAGER_BRANCH_NAME || 
                       ('{{ branch_name if branch_name else "" }}' || '') ||
                       new URLSearchParams(window.location.search).get('branch_name');
+      
+      // If still no branch name, try to load it
+      if (!branchName && MANAGER_BRANCH_ID) {
+        await loadManagerBranch();
+        branchName = MANAGER_BRANCH_NAME;
+      }
       
       // Decode if it's URL encoded
       if (branchName) {
@@ -1680,6 +1693,8 @@
                        {{ branch_id if branch_id else 'null' }} || 
                        new URLSearchParams(window.location.search).get('branch') ||
                        new URLSearchParams(window.location.search).get('branch_id');
+      
+      console.log('Updating branch title:', { branchName, branchId, MANAGER_BRANCH_NAME, MANAGER_BRANCH_ID });
       
       if (branchName) {
         const branchTitleEl = document.getElementById('branchTitle');
@@ -1706,6 +1721,7 @@
         if (branchTitleEl) {
           branchTitleEl.textContent = 'G.M.C. Rice Warehouse';
         }
+        console.warn('No branch name found, using default title');
       }
     }
 
@@ -1862,8 +1878,13 @@
       setTimeout(() => { printWindow.print(); }, 500);
     }
 
-    // Call the function when page loads
-    document.addEventListener('DOMContentLoaded', updateBranchTitle);
+    // Call the function when page loads (after initialization)
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Wait a bit for initialization to complete
+      setTimeout(async () => {
+        await updateBranchTitle();
+      }, 500);
+    });
   </script>
 </body>
 </html>
