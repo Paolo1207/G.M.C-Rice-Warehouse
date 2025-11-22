@@ -285,14 +285,14 @@
                         <select class="branch-filter" id="predictiveDemandProduct" required style="display: none;">
                             <option value="">Select Product</option>
                         </select>
+                        <select class="branch-filter" id="predictiveDemandBatch" style="display: none;">
+                            <option value="">Please select a batch</option>
+                        </select>
                         <select class="chart-period" id="predictiveDemandPeriod">
                             <option value="7">Next 7 days</option>
                             <option value="30" selected>Next 30 days</option>
                             <option value="90">Next 90 days</option>
                         </select>
-                        <button class="btn primary" id="generatePredictiveDemandBtn" style="padding: 8px 16px; margin-left: 8px;">
-                            <i class="fas fa-sync-alt"></i> Generate
-                        </button>
                     </div>
                 </div>
                 <div class="chart-container">
@@ -654,12 +654,17 @@
         async function loadPredictiveDemandProducts() {
             const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
             const productSelect = document.getElementById('predictiveDemandProduct');
+            const batchSelect = document.getElementById('predictiveDemandBatch');
             
             if (!productSelect) return;
             
             if (!branchId) {
                 productSelect.style.display = 'none';
                 productSelect.innerHTML = '<option value="">Select Product</option>';
+                if (batchSelect) {
+                    batchSelect.style.display = 'none';
+                    batchSelect.innerHTML = '<option value="">Please select a batch</option>';
+                }
                 return;
             }
             
@@ -690,10 +695,58 @@
                     productSelect.style.display = 'none';
                     productSelect.innerHTML = '<option value="">No products available</option>';
                 }
+                
+                // Reset batch and product selection
+                if (batchSelect) {
+                    batchSelect.style.display = 'none';
+                    batchSelect.innerHTML = '<option value="">Please select a batch</option>';
+                }
+                productSelect.value = '';
             } catch (error) {
                 console.error('Error loading products:', error);
                 productSelect.style.display = 'none';
                 productSelect.innerHTML = '<option value="">Error loading products</option>';
+            }
+        }
+
+        // Load batch codes for selected product
+        async function loadPredictiveDemandBatches() {
+            const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
+            const productId = document.getElementById('predictiveDemandProduct')?.value || '';
+            const batchSelect = document.getElementById('predictiveDemandBatch');
+            
+            if (!batchSelect) return;
+            
+            if (!productId) {
+                batchSelect.style.display = 'none';
+                batchSelect.innerHTML = '<option value="">Please select a batch</option>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/api/products/${productId}/batch-codes?branch_id=${branchId}`);
+                const data = await response.json();
+                
+                if (data.ok && data.batch_codes && data.batch_codes.length > 0) {
+                    batchSelect.innerHTML = '<option value="">Please select a batch</option>';
+                    data.batch_codes.forEach(batchCode => {
+                        const option = document.createElement('option');
+                        option.value = batchCode;
+                        option.textContent = batchCode;
+                        batchSelect.appendChild(option);
+                    });
+                    batchSelect.style.display = 'block';
+                } else {
+                    // No batches - hide the batch filter
+                    batchSelect.style.display = 'none';
+                    batchSelect.innerHTML = '<option value="">Please select a batch</option>';
+                    // Auto-trigger forecast if no batches needed
+                    loadPredictiveDemandData();
+                }
+            } catch (error) {
+                console.error('Error loading batch codes:', error);
+                batchSelect.style.display = 'none';
+                batchSelect.innerHTML = '<option value="">Please select a batch</option>';
             }
         }
 
@@ -702,6 +755,7 @@
             try {
                 const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
                 const productId = document.getElementById('predictiveDemandProduct')?.value || '';
+                const batchCode = document.getElementById('predictiveDemandBatch')?.value || '';
                 const periods = parseInt(document.getElementById('predictiveDemandPeriod')?.value || '30');
 
                 if (!branchId) {
@@ -714,15 +768,24 @@
                     return;
                 }
 
-                // Show loading state
-                const btn = document.getElementById('generatePredictiveDemandBtn');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                // Check if batch is required (batch filter is visible)
+                const batchSelect = document.getElementById('predictiveDemandBatch');
+                if (batchSelect && batchSelect.style.display !== 'none') {
+                    if (!batchCode || batchCode === '') {
+                        updatePredictiveDemandChart([], 'Select a batch to generate forecast');
+                        return;
+                    }
                 }
 
+                // Show loading state in chart
+                updatePredictiveDemandChart([], 'Generating forecast...');
+
                 // Use the forecast dashboard API with specific product
-                const response = await fetch(`/admin/api/forecast/dashboard?branch_id=${branchId}&product_id=${productId}&periods=${periods}`);
+                let apiUrl = `/admin/api/forecast/dashboard?branch_id=${branchId}&product_id=${productId}&periods=${periods}`;
+                // Note: batch_code filtering would need to be added to the backend if needed
+                // For now, we'll just use product_id
+                
+                const response = await fetch(apiUrl);
                 
                 if (!response.ok) {
                     let errorText = `Server error (${response.status})`;
@@ -738,10 +801,6 @@
                         } catch (e2) {}
                     }
                     updatePredictiveDemandChart([], errorText);
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
-                    }
                     return;
                 }
                 
@@ -751,10 +810,6 @@
                 } catch (jsonError) {
                     console.error('Error parsing JSON response:', jsonError);
                     updatePredictiveDemandChart([], 'Error parsing server response');
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
-                    }
                     return;
                 }
                 
@@ -763,19 +818,9 @@
                 } else {
                     updatePredictiveDemandChart([], data.error || 'No forecast data available');
                 }
-
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
-                }
             } catch (error) {
                 console.error('Error loading predictive demand:', error);
                 updatePredictiveDemandChart([], `Error: ${error.message || 'Unknown error'}`);
-                const btn = document.getElementById('generatePredictiveDemandBtn');
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Generate';
-                }
             }
         }
 
@@ -1378,11 +1423,11 @@
                 });
             }
 
-            // Predictive Demand Graph filters and generate button
+            // Predictive Demand Graph filters - auto-trigger on selection
             const predictiveDemandBranch = document.getElementById('predictiveDemandBranch');
             const predictiveDemandProduct = document.getElementById('predictiveDemandProduct');
+            const predictiveDemandBatch = document.getElementById('predictiveDemandBatch');
             const predictiveDemandPeriod = document.getElementById('predictiveDemandPeriod');
-            const generatePredictiveDemandBtn = document.getElementById('generatePredictiveDemandBtn');
             
             if (predictiveDemandBranch) {
                 predictiveDemandBranch.addEventListener('change', async () => {
@@ -1392,18 +1437,38 @@
                     if (predictiveDemandProduct) {
                         predictiveDemandProduct.value = '';
                     }
+                    if (predictiveDemandBatch) {
+                        predictiveDemandBatch.value = '';
+                        predictiveDemandBatch.style.display = 'none';
+                    }
+                });
+            }
+
+            if (predictiveDemandProduct) {
+                predictiveDemandProduct.addEventListener('change', async () => {
+                    console.log('Predictive Demand Product changed to:', predictiveDemandProduct.value);
+                    await loadPredictiveDemandBatches();
+                    // If no batches, forecast will auto-trigger from loadPredictiveDemandBatches
+                });
+            }
+
+            if (predictiveDemandBatch) {
+                predictiveDemandBatch.addEventListener('change', () => {
+                    console.log('Predictive Demand Batch changed to:', predictiveDemandBatch.value);
+                    // Auto-trigger forecast when batch is selected
+                    if (predictiveDemandBatch.value) {
+                        loadPredictiveDemandData();
+                    }
                 });
             }
 
             if (predictiveDemandPeriod) {
                 predictiveDemandPeriod.addEventListener('change', () => {
                     console.log('Predictive Demand Period changed to:', predictiveDemandPeriod.value);
-                });
-            }
-
-            if (generatePredictiveDemandBtn) {
-                generatePredictiveDemandBtn.addEventListener('click', () => {
-                    loadPredictiveDemandData();
+                    // Auto-trigger forecast when period changes (if product is already selected)
+                    if (predictiveDemandProduct && predictiveDemandProduct.value) {
+                        loadPredictiveDemandData();
+                    }
                 });
             }
             
