@@ -242,6 +242,14 @@
             </div>
           </div>
 
+          <!-- Forecast Summary -->
+          <div class="glass-card" id="forecast-summary" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+            <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
+              📊 Forecast Summary
+            </h3>
+            <div id="forecast-summary-content"></div>
+          </div>
+
           <!-- Stock Preparation Guide -->
           <div class="glass-card" id="forecast-information" style="display: none; margin-top: 2rem; padding: 2rem; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
             <h3 style="font-size: 1.18rem; font-weight: 700; color: #1a365d; margin: 0 0 20px 0;">
@@ -1445,8 +1453,71 @@
         // Get accuracy score if available
         const accuracyScore = summary.accuracy_score || forecastData.forecast?.accuracy_score || 0.75;
         
-        // Calculate MAE and MAPE metrics
-        const metrics = calculateForecastMetrics(forecastValues, accuracyScore);
+        // Get metrics from forecast result (MAE, MAPE from backend)
+        const backendMetrics = forecastData.forecast?.metrics || {};
+        const mae = backendMetrics.mae || backendMetrics.MAE || 0;
+        const mape = backendMetrics.mape || backendMetrics.MAPE || 0;
+        
+        // Calculate MAE and MAPE metrics (fallback if not from backend)
+        const calculatedMetrics = calculateForecastMetrics(forecastValues, accuracyScore);
+        const finalMae = mae > 0 ? mae : calculatedMetrics.mae;
+        const finalMape = mape > 0 ? mape : calculatedMetrics.mape;
+        
+        // Display Forecast Summary
+        const forecastSummaryContent = document.getElementById('forecast-summary-content');
+        const forecastSummarySection = document.getElementById('forecast-summary');
+        if (forecastSummaryContent && forecastSummarySection && forecastValues.length > 0) {
+          forecastSummaryContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+              <div style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);">
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Average Daily Demand</div>
+                <div style="font-size: 2rem; font-weight: 700;">${avgDailyDemand.toFixed(2)} kg</div>
+                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Per day forecast</div>
+              </div>
+              <div style="background: linear-gradient(135deg, #1976d2 0%, #0d47a1 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);">
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Total Forecasted Demand</div>
+                <div style="font-size: 2rem; font-weight: 700;">${totalForecast.toFixed(2)} kg</div>
+                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Next ${forecastDays} days</div>
+              </div>
+              <div style="background: linear-gradient(135deg, #f57c00 0%, #e65100 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(245, 124, 0, 0.2);">
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Peak Daily Demand</div>
+                <div style="font-size: 2rem; font-weight: 700;">${maxDailyDemand.toFixed(2)} kg</div>
+                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">Highest predicted day</div>
+              </div>
+              <div style="background: linear-gradient(135deg, #7b1fa2 0%, #4a148c 100%); color: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(123, 31, 162, 0.2);">
+                <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.5rem;">Model Accuracy</div>
+                <div style="font-size: 2rem; font-weight: 700;">${(accuracyScore * 100).toFixed(1)}%</div>
+                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.5rem;">${modelType} Model</div>
+              </div>
+            </div>
+            <div style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">Model Type</div>
+                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${modelType}</div>
+              </div>
+              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">MAE (Mean Absolute Error)</div>
+                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${finalMae.toFixed(2)} kg</div>
+              </div>
+              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">MAPE (Mean Absolute % Error)</div>
+                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${finalMape.toFixed(2)}%</div>
+              </div>
+              <div style="background: white; padding: 1rem; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">Total Forecast Period</div>
+                <div style="font-size: 1.2rem; font-weight: 600; color: #1a365d;">${forecastDays} days</div>
+              </div>
+            </div>
+            <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #2e7d32;">
+              <div style="font-size: 0.9rem; color: #374151; line-height: 1.6;">
+                <strong style="color: #2e7d32;">📊 Forecast Details:</strong> This forecast uses the <strong>${modelType}</strong> model with ETL processing, 
+                analyzing historical sales data to predict demand for the next <strong>${forecastDays} days</strong>. 
+                The model has an accuracy of <strong>${(accuracyScore * 100).toFixed(1)}%</strong> based on test data evaluation.
+              </div>
+            </div>
+          `;
+          forecastSummarySection.style.display = 'block';
+        }
         
         const infoContent = document.getElementById('forecast-information-content');
         infoContent.innerHTML = `

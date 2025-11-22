@@ -1549,7 +1549,8 @@ def mgr_forecast_generate():
         return jsonify({"ok": False, "error": "Manager branch not found"}), 400
     
     try:
-        today = datetime.now().date()
+        today_utc = datetime.utcnow()
+        today = today_utc.date()
         forecast_data = []
         
         # Get products from manager's inventory (avoid grn_number column)
@@ -1822,7 +1823,7 @@ def mgr_forecast_generate():
                 "confidence_upper": chart_data.get("confidence_upper", stored_forecast_result.get('confidence_upper', [])),
                 "model_type": stored_forecast_result.get('model_type', model_type.upper()),
                 "accuracy_score": stored_forecast_result.get('accuracy_score', 0.75),
-                "forecast_start_date": datetime.now().date().isoformat(),
+                "forecast_start_date": (today_utc + timedelta(days=1)).date().isoformat(),
                 "train_size": stored_forecast_result.get('train_size', 0),
                 "test_size": stored_forecast_result.get('test_size', 0),
                 "metrics": stored_forecast_result.get('metrics', {}),
