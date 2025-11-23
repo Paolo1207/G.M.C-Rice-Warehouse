@@ -551,6 +551,24 @@ body.sidebar-collapsed .main-content {
   box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
 }
 
+.branch-filter {
+  background: rgba(248, 250, 252, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.branch-filter:focus {
+  outline: none;
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
 .chart-container {
   flex: 1;
   position: relative;
