@@ -274,8 +274,8 @@
                     <h3>📈 Predictive Demand Graph</h3>
                     <div class="chart-controls">
                         <select class="branch-filter" id="predictiveDemandBranch" required>
-                            <option value="">Select Branch</option>
-                            <option value="1" selected>Marawoy</option>
+                            <option value="" selected>Please select a branch</option>
+                            <option value="1">Marawoy</option>
                             <option value="2">Lipa</option>
                             <option value="3">Malvar</option>
                             <option value="4">Bulacnin</option>
@@ -289,8 +289,9 @@
                             <option value="">Please select a batch</option>
                         </select>
                         <select class="chart-period" id="predictiveDemandPeriod">
+                            <option value="" selected>Please select a period</option>
                             <option value="7">Next 7 days</option>
-                            <option value="30" selected>Next 30 days</option>
+                            <option value="30">Next 30 days</option>
                             <option value="90">Next 90 days</option>
                         </select>
                     </div>
@@ -756,10 +757,21 @@
                 const branchId = document.getElementById('predictiveDemandBranch')?.value || '';
                 const productId = document.getElementById('predictiveDemandProduct')?.value || '';
                 const batchCode = document.getElementById('predictiveDemandBatch')?.value || '';
-                const periods = parseInt(document.getElementById('predictiveDemandPeriod')?.value || '30');
+                const periodValue = document.getElementById('predictiveDemandPeriod')?.value || '';
 
                 if (!branchId) {
                     updatePredictiveDemandChart([], 'Select a branch to generate forecast');
+                    return;
+                }
+
+                if (!periodValue) {
+                    updatePredictiveDemandChart([], 'Select a period to generate forecast');
+                    return;
+                }
+
+                const periods = parseInt(periodValue);
+                if (isNaN(periods) || periods <= 0) {
+                    updatePredictiveDemandChart([], 'Please select a valid period');
                     return;
                 }
 
@@ -1380,6 +1392,9 @@
             await loadAlerts();
             await loadChartData();
             
+            // Initialize predictive demand chart with empty state
+            updatePredictiveDemandChart([], 'Please select a branch and period to generate forecast');
+            
             // Add filter event listeners
             setupFilterListeners();
             
@@ -1465,17 +1480,15 @@
             if (predictiveDemandPeriod) {
                 predictiveDemandPeriod.addEventListener('change', () => {
                     console.log('Predictive Demand Period changed to:', predictiveDemandPeriod.value);
-                    // Auto-trigger forecast when period changes (if product is already selected)
-                    if (predictiveDemandProduct && predictiveDemandProduct.value) {
+                    // Auto-trigger forecast when period changes (if product and period are already selected)
+                    if (predictiveDemandProduct && predictiveDemandProduct.value && predictiveDemandPeriod.value) {
                         loadPredictiveDemandData();
                     }
                 });
             }
             
-            // Load products for initially selected branch
-            if (predictiveDemandBranch && predictiveDemandBranch.value) {
-                loadPredictiveDemandProducts();
-            }
+            // Don't load products on page load - wait for user to select a branch
+            // This ensures the filters start empty and user must make selections
         }
 
 
