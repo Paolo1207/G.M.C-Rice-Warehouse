@@ -444,13 +444,8 @@
             const branchName = branches.find(b => b.id == branchId)?.name || 'Unknown';
             const productName = products.find(p => p.id == productId)?.name || 'Unknown';
             
-            const avgDailyDemand = forecast.forecast_values.slice(0, 7).reduce((a, b) => a + b, 0) / 7;
             const totalForecast = forecast.forecast_values.reduce((a, b) => a + b, 0);
             const maxDailyDemand = Math.max(...forecast.forecast_values);
-            const minDailyDemand = Math.min(...forecast.forecast_values);
-            
-            // Calculate MAE and MAPE
-            const metrics = calculateForecastMetrics(forecast);
             
             // Get data source information
             const dataSource = forecast.data_source || {};
@@ -622,21 +617,6 @@
                     
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <strong>Model Type:</strong><br>${forecast.model_type}
-                        </div>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <strong>Accuracy Score:</strong><br>${(forecast.accuracy_score * 100).toFixed(1)}%
-                        </div>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <strong>MAE (Mean Absolute Error):</strong><br>${metrics.mae.toFixed(2)} kg
-                        </div>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <strong>MAPE (Mean Absolute % Error):</strong><br>${metrics.mape.toFixed(2)}%
-                        </div>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                            <strong>Avg Daily Demand:</strong><br>${avgDailyDemand.toFixed(2)} kg
-                        </div>
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
                             <strong>Total Forecast Period:</strong><br>${forecast.forecast_values.length} days
                         </div>
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
@@ -675,9 +655,6 @@
                 const maxDailyDemand = Math.max(...forecast.forecast_values);
                 const minDailyDemand = Math.min(...forecast.forecast_values);
                 const forecastDays = forecast.forecast_values.length;
-                
-                // Calculate MAE and MAPE metrics
-                const metrics = calculateForecastMetrics(forecast);
                 
                 // Calculate stock recommendations
                 const recommendedStock = Math.ceil(totalForecast * 1.2); // 20% buffer
