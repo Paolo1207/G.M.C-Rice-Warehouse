@@ -1327,56 +1327,50 @@
     // Display detailed forecast information and stock preparation guide for manager
     async function displayForecastInformation(forecastData, branchId, productId, batchCode = '') {
       try {
-        // Get forecast values from the API response - ALWAYS prioritize forecast_values (full array)
+        // Get forecast values from the API response - handle different response formats
         let forecastValues = [];
         let summary = {};
         let modelType = 'ARIMA';
         let etlProcess = null;
-        let dataSource = null;
         
-        // PRIORITY 1: Check for forecast_values (full array with all requested days) - this is the correct source
-        if (forecastData.forecast && Array.isArray(forecastData.forecast.forecast_values) && forecastData.forecast.forecast_values.length > 0) {
-          forecastValues = forecastData.forecast.forecast_values;
-          console.log('Using forecast_values (full array):', forecastValues.length, 'days');
+        // Try different possible structures - prioritize forecast_values (full array) over forecast (chart data)
+        if (forecastData.forecast) {
+          // First check for forecast_values (full array with all requested days)
+          if (Array.isArray(forecastData.forecast.forecast_values) && forecastData.forecast.forecast_values.length > 0) {
+            forecastValues = forecastData.forecast.forecast_values;
+          } else if (Array.isArray(forecastData.forecast.forecast)) {
+            // Fallback to chart data if forecast_values not available
+            forecastValues = forecastData.forecast.forecast;
+          } else if (Array.isArray(forecastData.forecast)) {
+            forecastValues = forecastData.forecast;
+          }
           modelType = forecastData.forecast.model_type || 'ARIMA';
           etlProcess = forecastData.forecast.etl_process || null;
           dataSource = forecastData.forecast.data_source || null;
         }
-        // PRIORITY 2: Check if forecast_values is directly in forecastData
-        else if (Array.isArray(forecastData.forecast_values) && forecastData.forecast_values.length > 0) {
+        
+        // If forecast is directly in forecastData
+        if (forecastValues.length === 0 && Array.isArray(forecastData.forecast_values)) {
           forecastValues = forecastData.forecast_values;
-          console.log('Using forecast_values (direct):', forecastValues.length, 'days');
-        }
-        // PRIORITY 3: Check if forecast object has forecast_values nested differently
-        else if (forecastData.forecast && forecastData.forecast.forecast_values) {
-          if (Array.isArray(forecastData.forecast.forecast_values)) {
-            forecastValues = forecastData.forecast.forecast_values;
-            console.log('Using forecast_values (nested):', forecastValues.length, 'days');
-          }
-          modelType = forecastData.forecast.model_type || 'ARIMA';
-          dataSource = forecastData.forecast.data_source || null;
-        }
-        // LAST RESORT: Only use chart data if absolutely no forecast_values found (should not happen)
-        else {
-          console.warn('WARNING: No forecast_values found in API response, falling back to chart data (may be incomplete)');
-          if (demandChart && demandChart.data && demandChart.data.datasets) {
-            const forecastDataset = demandChart.data.datasets.find(ds => ds.label === 'Forecast' || ds.label === 'forecast');
-            if (forecastDataset && forecastDataset.data && forecastDataset.data.length > 0) {
-              forecastValues = forecastDataset.data.filter(v => v !== null && v !== undefined);
-              console.warn('Using chart data (fallback):', forecastValues.length, 'days - THIS MAY BE INCOMPLETE');
-            }
-          }
-          if (forecastData.forecast) {
-            modelType = forecastData.forecast.model_type || 'ARIMA';
-            dataSource = forecastData.forecast.data_source || null;
-          }
         }
         
         summary = forecastData.summary || {};
         
-        // If still no values, show error message
+        // If no forecast values from API, try to extract from chart data
         if (!forecastValues || forecastValues.length === 0) {
-          console.error('ERROR: No forecast values available from any source');
+          console.log('No forecast values from API, trying to extract from chart...');
+          if (demandChart && demandChart.data && demandChart.data.datasets) {
+            const forecastDataset = demandChart.data.datasets.find(ds => ds.label === 'Forecast' || ds.label === 'forecast');
+            if (forecastDataset && forecastDataset.data && forecastDataset.data.length > 0) {
+              forecastValues = forecastDataset.data.filter(v => v !== null && v !== undefined);
+              console.log('Extracted forecast values from chart:', forecastValues.length);
+            }
+          }
+        }
+        
+        // If still no values, show a message but still display the section
+        if (!forecastValues || forecastValues.length === 0) {
+          console.log('No forecast values available - showing empty state');
           const infoContent = document.getElementById('forecast-information-content');
           const infoSection = document.getElementById('forecast-information');
           if (infoContent && infoSection) {
@@ -1386,7 +1380,7 @@
                   ⚠️ Forecast Data Not Available
                 </h4>
                 <p style="margin: 0; color: #374151;">
-                  Unable to extract forecast values from API response. Please try generating the forecast again.
+                  Unable to extract forecast values. Please try generating the forecast again.
                 </p>
               </div>
             `;
@@ -1394,8 +1388,6 @@
           }
           return;
         }
-        
-        console.log('Final forecast values count:', forecastValues.length, 'days');
         
         // Fetch current inventory for this branch and product (filtered by batch if provided)
         let currentStock = 0;
