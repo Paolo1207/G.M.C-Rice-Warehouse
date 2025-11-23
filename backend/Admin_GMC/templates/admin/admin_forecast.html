@@ -496,19 +496,19 @@
                                 <strong style="color: #64748b; font-size: 0.9rem;">Data Type:</strong>
                                 <div style="font-size: 1rem; font-weight: 600; color: ${dataSourceStatusColor};">
                                     ${dataSourceStatusText}
-                                </div>
+                        </div>
                                 <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
                                     ${dataSourceType === 'real_sales_data' ? 'Based on actual sales transactions' : 'Estimated from inventory (no sales history available)'}
-                                </div>
-                            </div>
+                        </div>
+                        </div>
                             <div>
                                 <strong style="color: #64748b; font-size: 0.9rem;">Total Transactions:</strong>
                                 <div style="font-size: 1.1rem; font-weight: 600;">${totalTransactions.toLocaleString()}</div>
-                            </div>
+                        </div>
                             <div>
                                 <strong style="color: #64748b; font-size: 0.9rem;">Unique Days with Sales:</strong>
                                 <div style="font-size: 1.1rem; font-weight: 600;">${uniqueDays.toLocaleString()} days</div>
-                            </div>
+                        </div>
                             <div>
                                 <strong style="color: #64748b; font-size: 0.9rem;">Historical Period:</strong>
                                 <div style="font-size: 1rem; font-weight: 600;">${dateRangeDays} days (${(dateRangeDays/365.25).toFixed(1)} years)</div>

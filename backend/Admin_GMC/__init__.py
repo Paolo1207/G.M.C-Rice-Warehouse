@@ -1265,7 +1265,7 @@ def api_forecast_dashboard():
     """Get forecast dashboard data for a specific branch and product"""
     try:
         from models import Branch, Product, SalesTransaction, InventoryItem
-        from datetime import datetime, timedelta
+    from datetime import datetime, timedelta
         from sqlalchemy import func, and_
         import traceback
         import sys
@@ -1373,9 +1373,9 @@ def api_forecast_dashboard():
         
         forecast_values = forecast_result['forecast_values'][:periods]
         accuracy_score = forecast_result.get('accuracy_score', 0.75)
-        
-        return jsonify({
-            "ok": True,
+    
+    return jsonify({
+        "ok": True,
             "forecast": {
                 "forecast_values": forecast_values,
                 "model_type": "ARIMA",
