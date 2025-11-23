@@ -669,7 +669,7 @@
             }
             
             try {
-                const response = await fetch(`/admin/api/inventory?branch_id=${branchId}`);
+                const response = await fetch(`/admin/api/products/branch?branch_id=${branchId}`);
                 const data = await response.json();
                 
                 if (data.ok && data.items && data.items.length > 0) {
