@@ -636,7 +636,7 @@ body.sidebar-collapsed .main-content {
 }
 
 .metric-change.negative {
-  color: #dc2626;
+  display: none;
 }
 
 /* New full-width metrics grid */
@@ -711,7 +711,7 @@ body.sidebar-collapsed .main-content {
 }
 
 .metric-card .metric-content .metric-change.negative {
-  color: #dc2626;
+  display: none;
 }
 
 /* Recent Activity Widget */
@@ -751,8 +751,7 @@ body.sidebar-collapsed .main-content {
 }
 
 .metric-change.negative::before {
-  content: '↘';
-  font-size: 0.875rem;
+  display: none;
 }
 
 /* Recent Activity Widget */
