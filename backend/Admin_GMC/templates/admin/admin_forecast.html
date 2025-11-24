@@ -306,6 +306,11 @@
                             const stock = item.stock_kg || item.stock || 0;
                             option.value = item.product_id;
                             option.textContent = `${item.product_name} (${stock}kg in stock)`;
+                            // Preserve per-inventory item context so selection reflects the exact row chosen
+                            // This avoids ambiguity when multiple inventory rows exist for the same product_id
+                            option.setAttribute('data-inventory-id', item.id || '');
+                            option.setAttribute('data-stock-kg', stock);
+                            option.setAttribute('data-batch-code', item.batch_code || '');
                             productSelect.appendChild(option);
                         });
                     } else {
@@ -442,7 +447,13 @@
         // Display forecast results
         async function displayForecastResults(forecast, branchId, productId) {
             const branchName = branches.find(b => b.id == branchId)?.name || 'Unknown';
-            const productName = products.find(p => p.id == productId)?.name || 'Unknown';
+            // Prefer the exact option label the user selected (handles duplicates per product_id)
+            const productSelectEl = document.getElementById('product-select');
+            const selectedOption = productSelectEl && productSelectEl.selectedIndex >= 0 ? productSelectEl.options[productSelectEl.selectedIndex] : null;
+            const selectedLabel = selectedOption ? selectedOption.textContent : '';
+            // Strip trailing "(Xkg in stock)" from the label for clean display
+            const productNameFromOption = selectedLabel ? selectedLabel.replace(/\s*\((.*?)in stock\)\s*$/i, '').trim() : '';
+            const productName = productNameFromOption || (products.find(p => p.id == productId)?.name || 'Unknown');
             
             const totalForecast = forecast.forecast_values.reduce((a, b) => a + b, 0);
             const maxDailyDemand = Math.max(...forecast.forecast_values);
@@ -633,6 +644,16 @@
         // Display detailed forecast information and stock preparation guide
         async function displayForecastInformation(forecast, branchId, productId) {
             try {
+                // Try to use the exact stock from the selected dropdown option first (handles duplicate product rows)
+                const productSelectEl = document.getElementById('product-select');
+                const selectedOption = productSelectEl && productSelectEl.selectedIndex >= 0 ? productSelectEl.options[productSelectEl.selectedIndex] : null;
+                let currentStock = 0;
+                if (selectedOption) {
+                    const ds = selectedOption.getAttribute('data-stock-kg') || selectedOption.getAttribute('data-stock') || '';
+                    const parsed = parseFloat(ds);
+                    if (!isNaN(parsed)) currentStock = parsed;
+                }
+                
                 // Fetch current inventory for stock recommendations
                 const inventoryResponse = await fetch(`/admin/api/products/branch?branch_id=${branchId}`);
                 const inventoryData = await inventoryResponse.json().catch(() => ({ items: [] }));
@@ -642,12 +663,16 @@
                     ? inventoryData.items.find(item => item.product_id == productId)
                     : null;
                 
-                const currentStock = productItem 
-                    ? (productItem.stock_kg || productItem.stock || 0)
-                    : 0;
+                // Fallback to API result only if dropdown didn't provide a value
+                if ((!currentStock || isNaN(currentStock)) && productItem) {
+                    currentStock = (productItem.stock_kg || productItem.stock || 0);
+                }
                 
                 const branchName = branches.find(b => b.id == branchId)?.name || 'Unknown';
-                const productName = products.find(p => p.id == productId)?.name || 'Unknown';
+                // Prefer clean name from the selected option text
+                const selectedLabel = selectedOption ? selectedOption.textContent : '';
+                const productNameFromOption = selectedLabel ? selectedLabel.replace(/\s*\((.*?)in stock\)\s*$/i, '').trim() : '';
+                const productName = productNameFromOption || (products.find(p => p.id == productId)?.name || 'Unknown');
                 
                 // Calculate forecast statistics
                 const avgDailyDemand = forecast.forecast_values.slice(0, 7).reduce((a, b) => a + b, 0) / 7;
