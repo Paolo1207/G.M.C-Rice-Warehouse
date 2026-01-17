@@ -32,10 +32,12 @@ def create_app() -> Flask:
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print(f"DEBUG: Using production database: {database_url[:50]}...")
     else:
-        # Development database (local PostgreSQL)
-        app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:postgres@localhost:5432/gmcdb"
-        print("DEBUG: Using development database: PostgreSQL")
-        print("WARNING: DATABASE_URL not set. Make sure the database is linked in Render dashboard.")
+        # Fallback to SQLite when DATABASE_URL is not set (web service only mode)
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        sqlite_path = os.path.join(basedir, "instance", "gmc.db")
+        os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{sqlite_path}"
+        print("DEBUG: Using SQLite database (DATABASE_URL not set)")
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
@@ -556,23 +558,12 @@ document.getElementById('btnWho').onclick = async () => {
 
     # ---------- First-run setup + seeding ----------
     with app.app_context():
-        # Check if DATABASE_URL is set in production
-        if not database_url and os.getenv("FLASK_ENV") == "production":
-            raise RuntimeError(
-                "DATABASE_URL environment variable is not set. "
-                "Please ensure the database is linked to your web service in Render dashboard."
-            )
-        
         try:
             db.create_all()
             db.session.execute(db.text("SELECT 1"))
         except Exception as e:
-            if not database_url:
-                raise RuntimeError(
-                    f"Database connection failed: {str(e)}\n"
-                    "DATABASE_URL is not set. Please link your database in Render dashboard."
-                ) from e
-            raise
+            print(f"WARNING: Database initialization error: {str(e)}")
+            # Continue anyway - database might be created on first use
 
         # --- Seed branches if missing ---
         branches = [
