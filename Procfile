@@ -1,1 +1,1 @@
-web: gunicorn backend.app:app --bind 0.0.0.0:$PORT
+web: PYTHONPATH=/opt/render/project/src/backend:$PYTHONPATH gunicorn backend.app:app --bind 0.0.0.0:$PORT
