@@ -24,12 +24,18 @@ def create_app() -> Flask:
     
     if database_url:
         # Production database (Render PostgreSQL)
+        # Convert postgres:// to postgresql+psycopg2:// if needed
+        if database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif database_url.startswith("postgresql://") and "+psycopg2" not in database_url:
+            database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print(f"DEBUG: Using production database: {database_url[:50]}...")
     else:
         # Development database (local PostgreSQL)
         app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:postgres@localhost:5432/gmcdb"
         print("DEBUG: Using development database: PostgreSQL")
+        print("WARNING: DATABASE_URL not set. Make sure the database is linked in Render dashboard.")
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
@@ -550,8 +556,23 @@ document.getElementById('btnWho').onclick = async () => {
 
     # ---------- First-run setup + seeding ----------
     with app.app_context():
-        db.create_all()
-        db.session.execute(db.text("SELECT 1"))
+        # Check if DATABASE_URL is set in production
+        if not database_url and os.getenv("FLASK_ENV") == "production":
+            raise RuntimeError(
+                "DATABASE_URL environment variable is not set. "
+                "Please ensure the database is linked to your web service in Render dashboard."
+            )
+        
+        try:
+            db.create_all()
+            db.session.execute(db.text("SELECT 1"))
+        except Exception as e:
+            if not database_url:
+                raise RuntimeError(
+                    f"Database connection failed: {str(e)}\n"
+                    "DATABASE_URL is not set. Please link your database in Render dashboard."
+                ) from e
+            raise
 
         # --- Seed branches if missing ---
         branches = [
