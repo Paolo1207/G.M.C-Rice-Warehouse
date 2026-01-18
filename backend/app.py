@@ -769,12 +769,15 @@ document.getElementById('btnWho').onclick = async () => {
 
     @app.get("/seed-render-database")
     def seed_render_database():
-        """Seed the Render database with users and data"""
+        """Seed the Render database with complete data matching seed_production_data.py"""
         try:
             from werkzeug.security import generate_password_hash
+            from models import Branch, Product, User, InventoryItem, SalesTransaction, ForecastData
+            from datetime import datetime, timedelta
+            import random
             
-            # Check if users already exist using raw SQL
-            existing_users = db.session.execute(db.text("SELECT COUNT(*) FROM users")).scalar()
+            # Check if users already exist
+            existing_users = User.query.count()
             
             if existing_users > 0:
                 return f"""
@@ -783,83 +786,169 @@ document.getElementById('btnWho').onclick = async () => {
                 <p><a href="/debug-passwords">Check Users</a> | <a href="/login">Go to Login</a></p>
                 """
             
-            # Create branches if they don't exist using raw SQL
-            branches_data = [
-                {"name": "Marawoy", "location": "Marawoy, Lipa City"},
-                {"name": "Lipa", "location": "Lipa, Batangas"},
-                {"name": "Malvar", "location": "Malvar, Batangas"},
-                {"name": "Bulacnin", "location": "Bulacnin, Lipa City"},
-                {"name": "Boac", "location": "Boac, Marinduque"},
-                {"name": "Sta. Cruz", "location": "Sta. Cruz, Laguna"}
+            created_branches = []
+            created_products = []
+            created_managers = []
+            
+            # 1. Create branches
+            branches_list = ["Marawoy", "Lipa", "Malvar", "Bulacnin", "Boac", "Sta. Cruz"]
+            for name in branches_list:
+                if not Branch.query.filter_by(name=name).first():
+                    branch = Branch(name=name, status="operational")
+                    db.session.add(branch)
+                    created_branches.append(name)
+            db.session.commit()
+            
+            # 2. Create products
+            products_data = [
+                {"name": "Jasmine Rice", "category": "premium", "description": "Premium aromatic rice"},
+                {"name": "Basmati Rice", "category": "premium", "description": "Long-grain aromatic rice"},
+                {"name": "White Rice", "category": "regular", "description": "Standard white rice"},
+                {"name": "Brown Rice", "category": "healthy", "description": "Whole grain brown rice"},
+                {"name": "Red Rice", "category": "healthy", "description": "Nutritious red rice"},
+                {"name": "Wild Rice", "category": "premium", "description": "Exotic wild rice"},
+                {"name": "Sticky Rice", "category": "specialty", "description": "Glutinous rice for special dishes"},
+                {"name": "Black Rice", "category": "premium", "description": "Antioxidant-rich black rice"}
             ]
             
-            created_branches = []
-            for branch_data in branches_data:
-                # Check if branch exists using raw SQL
-                existing = db.session.execute(db.text("SELECT COUNT(*) FROM branches WHERE name = :name"), 
-                                            {"name": branch_data["name"]}).scalar()
-                if existing == 0:
-                    db.session.execute(db.text("""
-                        INSERT INTO branches (name, location, status) 
-                        VALUES (:name, :location, 'operational')
-                    """), {
-                        "name": branch_data["name"],
-                        "location": branch_data["location"]
-                    })
-                    created_branches.append(branch_data["name"])
-            
+            for product_data in products_data:
+                if not Product.query.filter_by(name=product_data["name"]).first():
+                    product = Product(
+                        name=product_data["name"],
+                        category=product_data["category"],
+                        description=product_data["description"]
+                    )
+                    db.session.add(product)
+                    created_products.append(product_data["name"])
             db.session.commit()
             
-            # Get all branches using raw SQL
-            branches = db.session.execute(db.text("SELECT id, name FROM branches")).fetchall()
+            # 3. Create users (with proper password hashing)
+            branches = Branch.query.all()
             
-            # Create admin user using raw SQL
-            admin_exists = db.session.execute(db.text("SELECT COUNT(*) FROM users WHERE email = 'admin@gmc.com'")).scalar()
-            if admin_exists == 0:
-                admin_hash = generate_password_hash("adminpass")
-                db.session.execute(db.text("""
-                    INSERT INTO users (email, password_hash, role, branch_id) 
-                    VALUES ('admin@gmc.com', :hash, 'admin', NULL)
-                """), {"hash": admin_hash})
+            # Admin user
+            if not User.query.filter_by(email="admin@gmc.com").first():
+                admin = User(
+                    email="admin@gmc.com",
+                    password_hash=generate_password_hash("admin123"),
+                    role="admin",
+                    branch_id=None
+                )
+                db.session.add(admin)
             
-            # Create manager users using raw SQL
-            created_managers = []
+            # Manager users for each branch
             for branch in branches:
-                email = f"manager_{branch[1].lower().replace(' ', '').replace('.', '')}@gmc.com"
-                manager_exists = db.session.execute(db.text("SELECT COUNT(*) FROM users WHERE email = :email"), 
-                                                  {"email": email}).scalar()
-                if manager_exists == 0:
-                    manager_hash = generate_password_hash("managerpass")
-                    db.session.execute(db.text("""
-                        INSERT INTO users (email, password_hash, role, branch_id) 
-                        VALUES (:email, :hash, 'manager', :branch_id)
-                    """), {
-                        "email": email,
-                        "hash": manager_hash,
-                        "branch_id": branch[0]
-                    })
-                    created_managers.append(f"{branch[1]}: {email}")
+                email = f"{branch.name.lower().replace(' ', '').replace('.', '')}.manager@gmc.com"
+                if not User.query.filter_by(email=email).first():
+                    manager = User(
+                        email=email,
+                        password_hash=generate_password_hash("manager123"),
+                        role="manager",
+                        branch_id=branch.id
+                    )
+                    db.session.add(manager)
+                    created_managers.append(f"{branch.name}: {email}")
             
             db.session.commit()
+            
+            # 4. Create inventory
+            products = Product.query.all()
+            inventory_count = 0
+            for branch in branches:
+                for product in products:
+                    if not InventoryItem.query.filter_by(branch_id=branch.id, product_id=product.id).first():
+                        base_stock = random.randint(100, 500)
+                        unit_price = random.uniform(45, 85)
+                        warn_level = base_stock * 0.2
+                        
+                        inventory = InventoryItem(
+                            branch_id=branch.id,
+                            product_id=product.id,
+                            stock_kg=base_stock,
+                            unit_price=unit_price,
+                            warn_level=warn_level
+                        )
+                        db.session.add(inventory)
+                        inventory_count += 1
+            db.session.commit()
+            
+            # 5. Create sample sales data (last 30 days)
+            sales_count = 0
+            for days_ago in range(30):
+                sale_date = datetime.now() - timedelta(days=days_ago)
+                num_sales = random.randint(1, 5)
+                
+                for _ in range(num_sales):
+                    branch = random.choice(branches)
+                    product = random.choice(products)
+                    inventory = InventoryItem.query.filter_by(
+                        branch_id=branch.id, 
+                        product_id=product.id
+                    ).first()
+                    
+                    if inventory:
+                        quantity = random.uniform(5, 50)
+                        unit_price = inventory.unit_price
+                        total_amount = quantity * unit_price
+                        
+                        sale = SalesTransaction(
+                            branch_id=branch.id,
+                            product_id=product.id,
+                            quantity_sold=quantity,
+                            unit_price=unit_price,
+                            total_amount=total_amount,
+                            sold_at=sale_date
+                        )
+                        db.session.add(sale)
+                        sales_count += 1
+            db.session.commit()
+            
+            # 6. Create forecast data (next 3 months)
+            forecast_count = 0
+            for month_offset in range(1, 4):
+                forecast_date = datetime.now() + timedelta(days=30 * month_offset)
+                
+                for branch in branches:
+                    for product in products:
+                        base_demand = random.uniform(20, 80)
+                        confidence_lower = base_demand * 0.8
+                        confidence_upper = base_demand * 1.2
+                        accuracy = random.uniform(70, 95)
+                        
+                        forecast = ForecastData(
+                            branch_id=branch.id,
+                            product_id=product.id,
+                            forecast_date=forecast_date,
+                            predicted_demand=base_demand,
+                            confidence_interval_lower=confidence_lower,
+                            confidence_interval_upper=confidence_upper,
+                            accuracy_score=accuracy
+                        )
+                        db.session.add(forecast)
+                        forecast_count += 1
+            db.session.commit()
+            
+            managers_html = ""
+            for manager in created_managers:
+                managers_html += f"<li>{manager} - Password: manager123</li>"
             
             return f"""
             <h1>Render Database Seeded Successfully! 🎉</h1>
-            <h2>Created Branches:</h2>
-            <p>{', '.join(created_branches) if created_branches else 'All branches already existed'}</p>
+            <h2>Created Data:</h2>
+            <ul>
+                <li><strong>Branches:</strong> {len(created_branches)} ({', '.join(created_branches) if created_branches else 'All existed'})</li>
+                <li><strong>Products:</strong> {len(created_products)} ({', '.join(created_products) if created_products else 'All existed'})</li>
+                <li><strong>Inventory Items:</strong> {inventory_count}</li>
+                <li><strong>Sales Transactions:</strong> {sales_count} (last 30 days)</li>
+                <li><strong>Forecast Records:</strong> {forecast_count} (next 3 months)</li>
+            </ul>
             
             <h2>Login Credentials:</h2>
             <h3>👨‍💼 ADMIN:</h3>
-            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> admin123</p>
             
             <h3>👨‍💼 MANAGERS:</h3>
-            <p>Use any of these:</p>
             <ul>
-                <li>manager_marawoy@gmc.com - Password: managerpass</li>
-                <li>manager_lipa@gmc.com - Password: managerpass</li>
-                <li>manager_malvar@gmc.com - Password: managerpass</li>
-                <li>manager_bulacnin@gmc.com - Password: managerpass</li>
-                <li>manager_boac@gmc.com - Password: managerpass</li>
-                <li>manager_stacruz@gmc.com - Password: managerpass</li>
+                {managers_html if managers_html else '<li>All managers already existed</li>'}
             </ul>
             
             <br>
@@ -868,7 +957,9 @@ document.getElementById('btnWho').onclick = async () => {
             """
             
         except Exception as e:
-            return f"<h1>Error seeding database:</h1><p>{str(e)}</p><a href='/debug-database'>Check Database</a>"
+            import traceback
+            error_details = traceback.format_exc()
+            return f"<h1>Error seeding database:</h1><p>{str(e)}</p><pre>{error_details}</pre><a href='/debug-database'>Check Database</a>"
 
     return app
 
