@@ -557,21 +557,31 @@ document.getElementById('btnWho').onclick = async () => {
     # ---------- First-run setup + seeding ----------
     with app.app_context():
         try:
+            # Create all database tables first
             db.create_all()
+            print("✅ Database tables created successfully")
+            
+            # Test connection
             db.session.execute(db.text("SELECT 1"))
+            print("✅ Database connection verified")
         except Exception as e:
             print(f"WARNING: Database initialization error: {str(e)}")
+            print("⚠️  Tables will be created on first seed request")
             # Continue anyway - database might be created on first use
 
         # --- Seed branches if missing ---
-        branches = [
-            "Marawoy", "Lipa", "Malvar", "Bulacnin", "Boac", "Sta. Cruz"
-        ]
-        for name in branches:
-            exists = Branch.query.filter_by(name=name).first()
-            if not exists:
-                db.session.add(Branch(name=name, status="operational"))
-        db.session.commit()
+        try:
+            branches = [
+                "Marawoy", "Lipa", "Malvar", "Bulacnin", "Boac", "Sta. Cruz"
+            ]
+            for name in branches:
+                exists = Branch.query.filter_by(name=name).first()
+                if not exists:
+                    db.session.add(Branch(name=name, status="operational"))
+            db.session.commit()
+        except Exception as e:
+            print(f"WARNING: Could not seed branches: {str(e)}")
+            print("⚠️  Please visit /seed-render-database to create tables and seed data")
 
     # --- Debug endpoints for password troubleshooting ---
     @app.get("/debug-passwords")
