@@ -32,12 +32,10 @@ def create_app() -> Flask:
         app.config["SQLALCHEMY_DATABASE_URI"] = database_url
         print(f"DEBUG: Using production database: {database_url[:50]}...")
     else:
-        # Fallback to SQLite when DATABASE_URL is not set (web service only mode)
-        basedir = os.path.abspath(os.path.dirname(__file__))
-        sqlite_path = os.path.join(basedir, "instance", "gmc.db")
-        os.makedirs(os.path.dirname(sqlite_path), exist_ok=True)
-        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{sqlite_path}"
-        print("DEBUG: Using SQLite database (DATABASE_URL not set)")
+        # Development database (local PostgreSQL)
+        app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql+psycopg2://postgres:postgres@localhost:5432/gmcdb"
+        print("DEBUG: Using development database: PostgreSQL")
+        print("WARNING: DATABASE_URL not set. Make sure the database is linked in Render dashboard.")
     
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
