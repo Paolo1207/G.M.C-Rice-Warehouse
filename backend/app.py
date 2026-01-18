@@ -913,7 +913,7 @@ document.getElementById('btnWho').onclick = async () => {
                             quantity_sold=quantity,
                             unit_price=unit_price,
                             total_amount=total_amount,
-                            sold_at=sale_date
+                            transaction_date=sale_date
                         )
                         db.session.add(sale)
                         sales_count += 1
