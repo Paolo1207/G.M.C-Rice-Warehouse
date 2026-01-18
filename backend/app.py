@@ -776,8 +776,15 @@ document.getElementById('btnWho').onclick = async () => {
             from datetime import datetime, timedelta
             import random
             
+            # Create all database tables first (if they don't exist)
+            db.create_all()
+            db.session.commit()
+            
             # Check if users already exist
-            existing_users = User.query.count()
+            try:
+                existing_users = User.query.count()
+            except:
+                existing_users = 0
             
             if existing_users > 0:
                 return f"""
@@ -829,7 +836,7 @@ document.getElementById('btnWho').onclick = async () => {
             if not User.query.filter_by(email="admin@gmc.com").first():
                 admin = User(
                     email="admin@gmc.com",
-                    password_hash=generate_password_hash("admin123"),
+                    password_hash=generate_password_hash("adminpass"),
                     role="admin",
                     branch_id=None
                 )
@@ -837,11 +844,11 @@ document.getElementById('btnWho').onclick = async () => {
             
             # Manager users for each branch
             for branch in branches:
-                email = f"{branch.name.lower().replace(' ', '').replace('.', '')}.manager@gmc.com"
+                email = f"manager_{branch.name.lower().replace(' ', '').replace('.', '')}@gmc.com"
                 if not User.query.filter_by(email=email).first():
                     manager = User(
                         email=email,
-                        password_hash=generate_password_hash("manager123"),
+                        password_hash=generate_password_hash("managerpass"),
                         role="manager",
                         branch_id=branch.id
                     )
@@ -929,7 +936,7 @@ document.getElementById('btnWho').onclick = async () => {
             
             managers_html = ""
             for manager in created_managers:
-                managers_html += f"<li>{manager} - Password: manager123</li>"
+                managers_html += f"<li>{manager} - Password: managerpass</li>"
             
             return f"""
             <h1>Render Database Seeded Successfully! 🎉</h1>
@@ -942,9 +949,10 @@ document.getElementById('btnWho').onclick = async () => {
                 <li><strong>Forecast Records:</strong> {forecast_count} (next 3 months)</li>
             </ul>
             
-            <h2>Login Credentials:</h2>
-            <h3>👨‍💼 ADMIN:</h3>
-            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> admin123</p>
+            <h2>Default Login Credentials:</h2>
+            <h3>👨‍💼 ADMIN ACCESS:</h3>
+            <p><strong>Email:</strong> admin@gmc.com<br><strong>Password:</strong> adminpass</p>
+            <p>Access: Full system administration</p>
             
             <h3>👨‍💼 MANAGERS:</h3>
             <ul>
